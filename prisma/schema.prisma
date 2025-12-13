@@ -19,4 +19,77 @@ model Tenant {
   slug      String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Relations
+  students  Student[]
+  parents   Parent[]
+  studentParents StudentParent[]
+}
+
+enum StudentStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum ParentRelationship {
+  MOTHER
+  FATHER
+  GUARDIAN
+  OTHER
+}
+
+model Student {
+  id            String         @id @default(cuid())
+  tenantId      String
+  firstName     String
+  lastName      String
+  preferredName String?
+  dateOfBirth   DateTime?
+  grade         String?
+  status        StudentStatus  @default(ACTIVE)
+  notes         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parents       StudentParent[]
+
+  @@index([tenantId, lastName])
+  @@index([tenantId, createdAt])
+}
+
+model Parent {
+  id        String   @id @default(cuid())
+  tenantId  String
+  firstName String
+  lastName  String
+  email     String?
+  phone     String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  students StudentParent[]
+
+  // A parent email should be unique per tenant when provided
+  @@unique([tenantId, email])
+  @@index([tenantId, lastName])
+}
+
+model StudentParent {
+  id           String             @id @default(cuid())
+  tenantId     String
+  studentId    String
+  parentId     String
+  relationship ParentRelationship?
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  parent  Parent  @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([parentId])
+  @@unique([tenantId, studentId, parentId])
 }
