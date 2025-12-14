@@ -1,7 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
-import { requireTenantId } from "@/lib/http/tenant";
+import { resolveTenant } from "@/lib/tenant/resolveTenant";
 import { updateParentSchema } from "@/lib/validation/parent";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -15,8 +15,9 @@ export async function GET(req: NextRequest, context: Params) {
   try {
     const { parentId } = await context.params;
 
-    const tenantId = requireTenantId(req);
-    if (tenantId instanceof NextResponse) return tenantId;
+    const tenant = await resolveTenant(req);
+    if (tenant instanceof NextResponse) return tenant;
+    const tenantId = tenant.tenantId;
 
     const parent = await prisma.parent.findFirst({
       where: { id: parentId, tenantId },
@@ -48,8 +49,9 @@ export async function PATCH(req: NextRequest, context: Params) {
   try {
     const { parentId } = await context.params;
 
-    const tenantId = requireTenantId(req);
-    if (tenantId instanceof NextResponse) return tenantId;
+    const tenant = await resolveTenant(req);
+    if (tenant instanceof NextResponse) return tenant;
+    const tenantId = tenant.tenantId;
 
     let body: unknown;
     try {

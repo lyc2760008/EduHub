@@ -2,7 +2,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
 import { parsePagination } from "@/lib/http/pagination";
-import { requireTenantId } from "@/lib/http/tenant";
+import { resolveTenant } from "@/lib/tenant/resolveTenant";
 import { createParentSchema } from "@/lib/validation/parent";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -10,8 +10,9 @@ export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   try {
-    const tenantId = requireTenantId(req);
-    if (tenantId instanceof NextResponse) return tenantId;
+    const tenant = await resolveTenant(req);
+    if (tenant instanceof NextResponse) return tenant;
+    const tenantId = tenant.tenantId;
 
     const { page, pageSize, skip, take } = parsePagination(req);
     const url = new URL(req.url);
@@ -59,8 +60,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const tenantId = requireTenantId(req);
-    if (tenantId instanceof NextResponse) return tenantId;
+    const tenant = await resolveTenant(req);
+    if (tenant instanceof NextResponse) return tenant;
+    const tenantId = tenant.tenantId;
 
     let body: unknown;
     try {

@@ -1,7 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
-import { requireTenantId } from "@/lib/http/tenant";
+import { resolveTenant } from "@/lib/tenant/resolveTenant";
 import { createAndLinkParentSchema } from "@/lib/validation/studentParentCreate";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -23,8 +23,9 @@ export async function POST(req: NextRequest, context: Params) {
   try {
     const { studentId } = await context.params;
 
-    const tenantId = requireTenantId(req);
-    if (tenantId instanceof NextResponse) return tenantId;
+    const tenant = await resolveTenant(req);
+    if (tenant instanceof NextResponse) return tenant;
+    const tenantId = tenant.tenantId;
 
     const student = await prisma.student.findFirst({
       where: { id: studentId, tenantId },
