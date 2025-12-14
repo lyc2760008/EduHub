@@ -1,66 +1,91 @@
+import { Prisma, StudentStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { jsonError } from "@/lib/http/response";
+import { parsePagination } from "@/lib/http/pagination";
+import { requireTenantId } from "@/lib/http/tenant";
 import { createStudentSchema } from "@/lib/validation/student";
 import { NextRequest, NextResponse } from "next/server";
 
+export const runtime = "nodejs";
+
 export async function GET(req: NextRequest) {
   try {
-    const tenantId = req.headers.get("x-tenant-id");
+    const tenantId = requireTenantId(req);
+    if (tenantId instanceof NextResponse) return tenantId;
 
-    if (!tenantId) {
-      return NextResponse.json(
-        { error: "x-tenant-id header is required" },
-        { status: 400 }
-      );
+    const { page, pageSize, skip, take } = parsePagination(req);
+    const url = new URL(req.url);
+    const q = url.searchParams.get("q")?.trim();
+    const statusParam = url.searchParams.get("status") as StudentStatus | null;
+    const gradeParam = url.searchParams.get("grade")?.trim() || undefined;
+
+    const filters: Prisma.StudentWhereInput[] = [];
+
+    if (q) {
+      filters.push({
+        OR: [
+          { firstName: { contains: q, mode: "insensitive" } },
+          { lastName: { contains: q, mode: "insensitive" } },
+          { preferredName: { contains: q, mode: "insensitive" } },
+          { grade: { contains: q, mode: "insensitive" } },
+        ],
+      });
     }
 
-    const students = await prisma.student.findMany({
-      where: { tenantId },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        preferredName: true,
-        grade: true,
-        status: true,
-        createdAt: true,
-      },
-    });
+    if (statusParam) {
+      filters.push({ status: statusParam });
+    }
 
-    return NextResponse.json({ students });
+    if (gradeParam) {
+      filters.push({ grade: gradeParam });
+    }
+
+    const where: Prisma.StudentWhereInput = {
+      tenantId,
+      ...(filters.length ? { AND: filters } : {}),
+    };
+
+    const [students, total] = await Promise.all([
+      prisma.student.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take,
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          preferredName: true,
+          grade: true,
+          status: true,
+          createdAt: true,
+        },
+      }),
+      prisma.student.count({ where }),
+    ]);
+
+    return NextResponse.json({ students, page, pageSize, total });
   } catch (error) {
     console.error("GET /api/students failed", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return jsonError(500, "Internal server error");
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const tenantId = req.headers.get("x-tenant-id");
-
-    if (!tenantId) {
-      return NextResponse.json(
-        { error: "x-tenant-id header is required" },
-        { status: 400 }
-      );
-    }
+    const tenantId = requireTenantId(req);
+    if (tenantId instanceof NextResponse) return tenantId;
 
     let body: unknown;
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+      return jsonError(400, "Invalid JSON body");
     }
 
     const parsed = createStudentSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Validation error", issues: parsed.error.issues },
-        { status: 422 }
-      );
+      return jsonError(422, "Validation error", { issues: parsed.error.issues });
     }
 
     const data = parsed.data;
@@ -92,9 +117,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ student: created }, { status: 201 });
   } catch (error) {
     console.error("POST /api/students failed", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return jsonError(500, "Internal server error");
   }
 }
