@@ -1,0 +1,14 @@
+{
+  "_comment": "English UI strings for EduHub (cookie-selected locale).",
+  "login": {
+    "title": "Sign in",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "submit": "Sign in",
+    "errorInvalid": "Invalid email or password"
+  },
+  "admin": {
+    "title": "Admin Dashboard",
+    "welcome": "You are logged in as {email}"
+  }
+}

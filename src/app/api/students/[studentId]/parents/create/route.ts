@@ -1,15 +1,18 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
-import { resolveTenant } from "@/lib/tenant/resolveTenant";
+import { requireRole } from "@/lib/rbac";
 import { createAndLinkParentSchema } from "@/lib/validation/studentParentCreate";
 import { NextRequest, NextResponse } from "next/server";
+import type { Role } from "@/generated/prisma/client";
 
 export const runtime = "nodejs";
 
 type Params = {
   params: Promise<{ studentId: string }>;
 };
+
+const ADMIN_ROLES: Role[] = ["Owner", "Admin"];
 
 const parentSelect = {
   id: true,
@@ -23,9 +26,9 @@ export async function POST(req: NextRequest, context: Params) {
   try {
     const { studentId } = await context.params;
 
-    const tenant = await resolveTenant(req);
-    if (tenant instanceof NextResponse) return tenant;
-    const tenantId = tenant.tenantId;
+    const ctx = await requireRole(req, ADMIN_ROLES);
+    if (ctx instanceof Response) return ctx;
+    const tenantId = ctx.tenant.tenantId;
 
     const student = await prisma.student.findFirst({
       where: { id: studentId, tenantId },
@@ -44,7 +47,9 @@ export async function POST(req: NextRequest, context: Params) {
 
     const parsed = createAndLinkParentSchema.safeParse(body);
     if (!parsed.success) {
-      return jsonError(422, "Validation error", { issues: parsed.error.issues });
+      return jsonError(422, "Validation error", {
+        issues: parsed.error.issues,
+      });
     }
 
     const { parent, relationship } = parsed.data;
@@ -83,10 +88,7 @@ export async function POST(req: NextRequest, context: Params) {
       },
     });
 
-    return NextResponse.json(
-      { parent: ensuredParent, link },
-      { status: 201 }
-    );
+    return NextResponse.json({ parent: ensuredParent, link }, { status: 201 });
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -95,7 +97,10 @@ export async function POST(req: NextRequest, context: Params) {
       return jsonError(409, "Parent already linked to this student");
     }
 
-    console.error("POST /api/students/[studentId]/parents/create failed", error);
+    console.error(
+      "POST /api/students/[studentId]/parents/create failed",
+      error,
+    );
     return jsonError(500, "Internal server error");
   }
 }

@@ -1,0 +1,14 @@
+{
+  "_comment": "EduHub 简体中文界面文案（使用 locale Cookie 选择）。",
+  "login": {
+    "title": "登录",
+    "emailLabel": "邮箱",
+    "passwordLabel": "密码",
+    "submit": "登录",
+    "errorInvalid": "邮箱或密码不正确"
+  },
+  "admin": {
+    "title": "管理员面板",
+    "welcome": "你已登录为 {email}"
+  }
+}

@@ -2,17 +2,20 @@ import { Prisma, StudentStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
 import { parsePagination } from "@/lib/http/pagination";
-import { resolveTenant } from "@/lib/tenant/resolveTenant";
+import { requireRole } from "@/lib/rbac";
 import { createStudentSchema } from "@/lib/validation/student";
 import { NextRequest, NextResponse } from "next/server";
+import type { Role } from "@/generated/prisma/client";
 
 export const runtime = "nodejs";
 
+const ADMIN_ROLES: Role[] = ["Owner", "Admin"];
+
 export async function GET(req: NextRequest) {
   try {
-    const tenant = await resolveTenant(req);
-    if (tenant instanceof NextResponse) return tenant;
-    const tenantId = tenant.tenantId;
+    const ctx = await requireRole(req, ADMIN_ROLES);
+    if (ctx instanceof Response) return ctx;
+    const tenantId = ctx.tenant.tenantId;
 
     const { page, pageSize, skip, take } = parsePagination(req);
     const url = new URL(req.url);
@@ -74,9 +77,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const tenant = await resolveTenant(req);
-    if (tenant instanceof NextResponse) return tenant;
-    const tenantId = tenant.tenantId;
+    const ctx = await requireRole(req, ADMIN_ROLES);
+    if (ctx instanceof Response) return ctx;
+    const tenantId = ctx.tenant.tenantId;
 
     let body: unknown;
     try {
@@ -87,7 +90,9 @@ export async function POST(req: NextRequest) {
 
     const parsed = createStudentSchema.safeParse(body);
     if (!parsed.success) {
-      return jsonError(422, "Validation error", { issues: parsed.error.issues });
+      return jsonError(422, "Validation error", {
+        issues: parsed.error.issues,
+      });
     }
 
     const data = parsed.data;

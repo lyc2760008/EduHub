@@ -1,9 +1,10 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
-import { resolveTenant } from "@/lib/tenant/resolveTenant";
+import { requireRole } from "@/lib/rbac";
 import { updateParentSchema } from "@/lib/validation/parent";
 import { NextRequest, NextResponse } from "next/server";
+import type { Role } from "@/generated/prisma/client";
 
 export const runtime = "nodejs";
 
@@ -11,13 +12,15 @@ type Params = {
   params: Promise<{ parentId: string }>;
 };
 
+const ADMIN_ROLES: Role[] = ["Owner", "Admin"];
+
 export async function GET(req: NextRequest, context: Params) {
   try {
     const { parentId } = await context.params;
 
-    const tenant = await resolveTenant(req);
-    if (tenant instanceof NextResponse) return tenant;
-    const tenantId = tenant.tenantId;
+    const ctx = await requireRole(req, ADMIN_ROLES);
+    if (ctx instanceof Response) return ctx;
+    const tenantId = ctx.tenant.tenantId;
 
     const parent = await prisma.parent.findFirst({
       where: { id: parentId, tenantId },
@@ -49,9 +52,9 @@ export async function PATCH(req: NextRequest, context: Params) {
   try {
     const { parentId } = await context.params;
 
-    const tenant = await resolveTenant(req);
-    if (tenant instanceof NextResponse) return tenant;
-    const tenantId = tenant.tenantId;
+    const ctx = await requireRole(req, ADMIN_ROLES);
+    if (ctx instanceof Response) return ctx;
+    const tenantId = ctx.tenant.tenantId;
 
     let body: unknown;
     try {
@@ -62,7 +65,9 @@ export async function PATCH(req: NextRequest, context: Params) {
 
     const parsed = updateParentSchema.safeParse(body);
     if (!parsed.success) {
-      return jsonError(422, "Validation error", { issues: parsed.error.issues });
+      return jsonError(422, "Validation error", {
+        issues: parsed.error.issues,
+      });
     }
 
     const data = parsed.data;

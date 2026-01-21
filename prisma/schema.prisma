@@ -13,6 +13,8 @@ datasource db {
   provider = "postgresql"
 }
 
+// Tenant is the top-level scope for all tenant-owned data.
+// Slug is used for subdomain/path resolution and must be unique.
 model Tenant {
   id        String   @id @default(cuid())
   name      String
@@ -20,10 +22,42 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
+  // Relations (tenant-scoped domain models + auth membership)
   students  Student[]
   parents   Parent[]
   studentParents StudentParent[]
+  memberships   TenantMembership[]
+}
+
+// User is a credentials-auth entity (email + passwordHash required).
+// It is not tenant-scoped directly; tenancy is defined via memberships.
+model User {
+  id           String   @id @default(cuid())
+  // Unique login identifier for credentials auth.
+  email        String   @unique
+  name         String?
+  // Hashed password for credentials auth (bcrypt in seed/auth).
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships TenantMembership[]
+}
+
+// Join table linking users to tenants with a single role per tenant.
+model TenantMembership {
+  id       String @id @default(cuid())
+  // Foreign keys to tenant + user; role defines access within that tenant.
+  tenantId String
+  userId   String
+  role     Role
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([tenantId])
+  @@index([userId])
 }
 
 enum StudentStatus {
@@ -37,6 +71,15 @@ enum ParentRelationship {
   FATHER
   GUARDIAN
   OTHER
+}
+
+// Role values for tenant membership and future RBAC.
+enum Role {
+  Owner
+  Admin
+  Tutor
+  Parent
+  Student
 }
 
 model Student {
