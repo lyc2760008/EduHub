@@ -1,9 +1,10 @@
-// Minimal admin stub guarded by server-side RBAC with access denied fallback.
+// Admin centers page that loads tenant-scoped data and delegates UI to a client component.
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import type { Role } from "@/generated/prisma/client";
+import CentersClient from "@/components/admin/centers/CentersClient";
+import { getCenters } from "@/lib/centers/getCenters";
 import { requirePageRole } from "@/lib/rbac/page";
 
 export const runtime = "nodejs";
@@ -16,7 +17,7 @@ type PageProps = {
   }>;
 };
 
-export default async function AdminPage({ params }: PageProps) {
+export default async function CentersPage({ params }: PageProps) {
   const t = await getTranslations();
   // Next.js 16 may supply dynamic params as a Promise in server components.
   const { tenant } = await params;
@@ -30,7 +31,7 @@ export default async function AdminPage({ params }: PageProps) {
 
     return (
       <div
-        className="mx-auto flex min-h-screen max-w-3xl flex-col gap-4 px-6 py-10"
+        className="mx-auto flex min-h-screen max-w-5xl flex-col gap-4 px-6 py-10"
         data-testid="access-denied"
       >
         <h1 className="text-2xl font-semibold">
@@ -43,24 +44,18 @@ export default async function AdminPage({ params }: PageProps) {
     );
   }
 
-  const email = access.ctx.user.email ?? "";
+  // Tenant-scoped fetch keeps centers isolated per tenant.
+  const centers = await getCenters(access.ctx.tenant.tenantId, {
+    includeInactive: true,
+  });
 
   return (
     <div
-      className="mx-auto flex min-h-screen max-w-3xl flex-col gap-4 px-6 py-10"
-      data-testid="app-shell"
+      className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 px-6 py-10"
+      data-testid="centers-page"
     >
-      <h1 className="text-2xl font-semibold">{t("admin.title")}</h1>
-      <Link
-        className="text-sm font-semibold text-slate-700 underline underline-offset-4"
-        data-testid="nav-admin-centers"
-        href={`/${tenant}/admin/centers`}
-      >
-        {t("admin.centers.title")}
-      </Link>
-      <div className="rounded border border-slate-200 bg-white p-4 text-sm text-slate-700">
-        {t("admin.welcome", { email })}
-      </div>
+      <h1 className="text-2xl font-semibold">{t("admin.centers.title")}</h1>
+      <CentersClient initialCenters={centers} />
     </div>
   );
 }

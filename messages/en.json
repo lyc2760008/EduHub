@@ -9,6 +9,47 @@
   },
   "admin": {
     "title": "Admin Dashboard",
-    "welcome": "You are logged in as {email}"
+    "welcome": "You are logged in as {email}",
+    "accessDenied": {
+      "title": "Access denied",
+      "message": "You do not have permission to view this page."
+    },
+    "centers": {
+      "title": "Centers",
+      "create": "Create Center",
+      "edit": "Edit Center",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "fields": {
+        "name": "Name",
+        "timezone": "Timezone",
+        "address1": "Address line 1",
+        "address2": "Address line 2",
+        "city": "City",
+        "province": "Province/State",
+        "postalCode": "Postal code",
+        "country": "Country",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "actions": {
+        "save": "Save",
+        "cancel": "Cancel"
+      },
+      "messages": {
+        "loadError": "Unable to load centers",
+        "createSuccess": "Center created",
+        "updateSuccess": "Center updated",
+        "validationError": "Please check the form for errors",
+        "requiredFields": "Name and timezone are required"
+      }
+    }
+  },
+  "common": {
+    "loading": "Loading..."
   }
 }

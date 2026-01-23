@@ -27,6 +27,8 @@ model Tenant {
   parents   Parent[]
   studentParents StudentParent[]
   memberships   TenantMembership[]
+  // Centers are tenant-scoped locations/settings for scheduling and reporting.
+  centers Center[]
 }
 
 // User is a credentials-auth entity (email + passwordHash required).
@@ -135,4 +137,28 @@ model StudentParent {
   @@index([studentId])
   @@index([parentId])
   @@unique([tenantId, studentId, parentId])
+}
+
+// Center represents a tenant-owned location with local timezone and address data.
+model Center {
+  id         String   @id @default(cuid())
+  tenantId   String
+  name       String
+  // IANA timezone name used for scheduling (ex: "America/Edmonton").
+  timezone   String
+  isActive   Boolean  @default(true)
+  address1   String?
+  address2   String?
+  city       String?
+  province   String?
+  postalCode String?
+  country    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@index([tenantId, isActive])
 }

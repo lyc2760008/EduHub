@@ -25,14 +25,25 @@ async function buildTenantRequest(tenantSlug: string): Promise<NextRequest> {
   return new NextRequest(url, { headers: requestHeaders });
 }
 
-// Require a role for server components; return null to allow redirects.
-export async function requirePageRole(tenantSlug: string, roles: Role[]) {
+type RequireRoleResult = Awaited<ReturnType<typeof requireRole>>;
+type RoleContext = Exclude<RequireRoleResult, Response>;
+
+type RequirePageRoleResult =
+  | { ok: true; ctx: RoleContext }
+  | { ok: false; status: number };
+
+// Require a role for server components and expose status for access denied UI.
+export async function requirePageRole(
+  tenantSlug: string,
+  roles: Role[]
+): Promise<RequirePageRoleResult> {
   const request = await buildTenantRequest(tenantSlug);
   const result = await requireRole(request, roles);
 
   if (result instanceof Response) {
-    return null;
+    // Surface the HTTP status so pages can differentiate 401 vs 403.
+    return { ok: false, status: result.status };
   }
 
-  return result;
+  return { ok: true, ctx: result };
 }

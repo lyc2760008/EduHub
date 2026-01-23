@@ -5,10 +5,51 @@
     "emailLabel": "邮箱",
     "passwordLabel": "密码",
     "submit": "登录",
-    "errorInvalid": "邮箱或密码不正确"
+    "errorInvalid": "邮箱或密码无效"
   },
   "admin": {
-    "title": "管理员面板",
-    "welcome": "你已登录为 {email}"
+    "title": "管理面板",
+    "welcome": "您已以 {email} 登录",
+    "centers": {
+      "title": "中心管理",
+      "create": "创建中心",
+      "edit": "编辑中心",
+      "activate": "启用",
+      "deactivate": "停用",
+      "status": {
+        "active": "启用",
+        "inactive": "停用"
+      },
+      "fields": {
+        "name": "名称",
+        "timezone": "时区",
+        "address1": "地址 1",
+        "address2": "地址 2",
+        "city": "城市",
+        "province": "省/州",
+        "postalCode": "邮编",
+        "country": "国家",
+        "status": "状态",
+        "actions": "操作"
+      },
+      "actions": {
+        "save": "保存",
+        "cancel": "取消"
+      },
+      "messages": {
+        "loadError": "无法加载中心",
+        "createSuccess": "中心已创建",
+        "updateSuccess": "中心已更新",
+        "validationError": "请检查输入内容",
+        "requiredFields": "名称和时区为必填项"
+      }
+    },
+    "accessDenied": {
+      "title": "访问受限",
+      "message": "您没有权限查看此页面。"
+    }
+  },
+  "common": {
+    "loading": "加载中..."
   }
 }

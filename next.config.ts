@@ -6,8 +6,11 @@ const nextConfig: NextConfig = {
   /* config options here */
   // Allow local tenant subdomains in dev so /_next assets load without warnings.
   allowedDevOrigins: [
-    "http://localhost:3000",
-    "http://demo.lvh.me:3000",
+    // Next.js expects hostnames (no protocol) and supports wildcard subdomains.
+    "localhost",
+    "127.0.0.1",
+    "demo.lvh.me",
+    "*.lvh.me",
   ],
   turbopack: {
     // Explicitly set the project root to avoid Turbopack picking a higher-level lockfile

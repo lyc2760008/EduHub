@@ -1,6 +1,5 @@
-"use client";
-
 // Tenant-aware login page using NextAuth credentials.
+"use client";
 import { use, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useTranslations } from "next-intl";
@@ -48,7 +47,10 @@ export default function LoginPage({ params }: PageProps) {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-4">
+    <div
+      className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-4"
+      data-testid="login-page"
+    >
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold">{t("login.title")}</h1>
       </div>
@@ -57,6 +59,7 @@ export default function LoginPage({ params }: PageProps) {
           <span className="text-slate-700">{t("login.emailLabel")}</span>
           <input
             className="rounded border border-slate-300 px-3 py-2"
+            data-testid="login-email"
             name="email"
             type="email"
             autoComplete="email"
@@ -67,6 +70,7 @@ export default function LoginPage({ params }: PageProps) {
           <span className="text-slate-700">{t("login.passwordLabel")}</span>
           <input
             className="rounded border border-slate-300 px-3 py-2"
+            data-testid="login-password"
             name="password"
             type="password"
             autoComplete="current-password"
@@ -76,6 +80,7 @@ export default function LoginPage({ params }: PageProps) {
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
         <button
           className="w-full rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          data-testid="login-submit"
           disabled={isSubmitting}
           type="submit"
         >
