@@ -16,6 +16,8 @@ Use this at the top of a prompt when you want a lightweight reminder:
 
 ```
 Codex: I have read docs/dev-standards.md and will follow it (tenant isolation, RBAC, validation, transactions, i18n, seed safety, reuse, lint/verify).
+I have also reviewed skills/SKILL.md. I will ONLY apply its “distinctive/polished UI” guidance when building the Parent Portal (Phase 2) or when the prompt explicitly asks for design polish.
+For MVP Admin Console work, I will keep the UI utilitarian and consistent with existing Tailwind/shadcn patterns (dense tables, minimal motion, no new font system), prioritizing clarity and speed.
 I will preserve existing API response shapes and UI props contracts, and use existing Role enum values only.
 ```
 
@@ -78,6 +80,10 @@ Codex MUST follow:
 
 ### 8) Contract stability
 - Preserve existing API response shapes and UI props contracts unless explicitly approved.
+
+### 9) Frontend style policy (Admin vs Portal)
+- **Admin console (MVP):** prioritize operational clarity and speed. Keep UI **utilitarian + dense** (tables/forms), reuse existing Tailwind/shadcn patterns, keep motion minimal, and avoid introducing new font systems or heavy visual effects unless explicitly requested by PO/Designer.
+- **Parent portal (Phase 2) / polish tasks:** this is where `skills/SKILL.md` applies—feel free to be more distinctive with typography, color, layout, and tasteful motion, as long as it remains production-grade and consistent with product trust.
 
 ---
 

@@ -264,7 +264,8 @@ export default function UsersClient({
     },
   ];
 
-  const loadingState = isLoading ? t("common.loading") : null;
+  const loadingState = t("common.loading");
+  const emptyState = t("admin.users.messages.empty");
 
   return (
     <div className="flex flex-col gap-6">
@@ -291,7 +292,8 @@ export default function UsersClient({
         rowKey={(user) => `user-row-${user.id}`}
         testId="users-table"
         isLoading={isLoading}
-        emptyState={loadingState}
+        loadingState={loadingState}
+        emptyState={emptyState}
       />
 
       {isModalOpen ? (

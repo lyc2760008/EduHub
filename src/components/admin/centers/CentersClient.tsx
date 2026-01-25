@@ -74,22 +74,28 @@ export default function CentersClient({ initialCenters }: CentersClientProps) {
   const [centers, setCenters] = useState<CenterRecord[]>(initialCenters);
   const [form, setForm] = useState<CenterFormState>(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   async function refreshCenters() {
+    setIsLoading(true);
     setError(null);
-    const result = await fetchJson<CenterRecord[]>(
-      "/api/centers?includeInactive=true",
-    );
+    try {
+      const result = await fetchJson<CenterRecord[]>(
+        "/api/centers?includeInactive=true",
+      );
 
-    if (!result.ok) {
-      // Error handling keeps the UI responsive even when the API fails.
-      setError(t("admin.centers.messages.loadError"));
-      return;
+      if (!result.ok) {
+        // Error handling keeps the UI responsive even when the API fails.
+        setError(t("admin.centers.messages.loadError"));
+        return;
+      }
+
+      setCenters(result.data);
+    } finally {
+      setIsLoading(false);
     }
-
-    setCenters(result.data);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -235,6 +241,9 @@ export default function CentersClient({ initialCenters }: CentersClientProps) {
       cellClassName: "px-4 py-3",
     },
   ];
+
+  const loadingState = t("common.loading");
+  const emptyState = t("admin.centers.messages.empty");
 
   return (
     <div className="flex flex-col gap-6">
@@ -396,6 +405,9 @@ export default function CentersClient({ initialCenters }: CentersClientProps) {
         columns={columns}
         rowKey={(center) => `center-row-${center.id}`}
         testId="centers-table"
+        isLoading={isLoading}
+        loadingState={loadingState}
+        emptyState={emptyState}
       />
     </div>
   );

@@ -45,7 +45,8 @@
         "createSuccess": "中心已创建",
         "updateSuccess": "中心已更新",
         "validationError": "请检查输入内容",
-        "requiredFields": "名称和时区为必填项"
+        "requiredFields": "名称和时区为必填项",
+        "empty": "暂无中心"
       }
     },
     "users": {
@@ -74,7 +75,8 @@
         "createSuccess": "用户已创建",
         "updateSuccess": "用户已更新",
         "validationError": "请检查表单输入",
-        "forbidden": "您没有权限管理用户"
+        "forbidden": "您没有权限管理用户",
+        "empty": "暂无用户"
       }
     }
   },

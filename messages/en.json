@@ -45,7 +45,8 @@
         "createSuccess": "Center created",
         "updateSuccess": "Center updated",
         "validationError": "Please check the form for errors",
-        "requiredFields": "Name and timezone are required"
+        "requiredFields": "Name and timezone are required",
+        "empty": "No centers yet"
       }
     },
     "users": {
@@ -74,7 +75,8 @@
         "createSuccess": "User created",
         "updateSuccess": "User updated",
         "validationError": "Please check the form for errors",
-        "forbidden": "You do not have permission to manage users"
+        "forbidden": "You do not have permission to manage users",
+        "empty": "No users yet"
       }
     }
   },
