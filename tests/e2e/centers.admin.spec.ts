@@ -2,6 +2,8 @@
 import { expect, test } from "@playwright/test";
 
 import { loginViaUI } from "./helpers/auth";
+import { uniqueString } from "./helpers/data";
+import { buildTenantPath } from "./helpers/tenant";
 
 test.describe("Centers - Admin smoke", () => {
   test("Admin can open Centers page, create a center, and see it in list", async ({
@@ -15,12 +17,12 @@ test.describe("Centers - Admin smoke", () => {
       throw new Error("Missing E2E_ADMIN_EMAIL or E2E_ADMIN_PASSWORD env vars.");
     }
 
-    const uniqueName = `E2E Center ${Date.now()}`;
+    const uniqueName = uniqueString("E2E Center");
 
     await loginViaUI(page, { email, password, tenantSlug });
 
-    // Navigate through the admin centers URL for the tenant.
-    await page.goto(`/${tenantSlug}/admin/centers`);
+    // Use tenant-aware paths to support subdomain or /t/<slug> routing.
+    await page.goto(buildTenantPath(tenantSlug, "/admin/centers"));
 
     await expect(page.getByTestId("centers-page")).toBeVisible();
 

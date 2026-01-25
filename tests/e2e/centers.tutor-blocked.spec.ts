@@ -2,6 +2,7 @@
 import { expect, test } from "@playwright/test";
 
 import { loginViaUI } from "./helpers/auth";
+import { buildTenantPath } from "./helpers/tenant";
 
 test.describe("Centers - Tutor access blocked", () => {
   test("Tutor cannot access /admin/centers", async ({ page }) => {
@@ -17,7 +18,8 @@ test.describe("Centers - Tutor access blocked", () => {
 
     await loginViaUI(page, { email, password, tenantSlug });
 
-    await page.goto(`/${tenantSlug}/admin/centers`);
+    // Use tenant-aware paths to support subdomain or /t/<slug> routing.
+    await page.goto(buildTenantPath(tenantSlug, "/admin/centers"));
 
     await expect(page.getByTestId("centers-page")).toHaveCount(0);
     await expect(page.getByTestId("access-denied")).toBeVisible();

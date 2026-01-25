@@ -250,6 +250,9 @@ export default function UsersClient({
       cell: (user) => (
         <button
           className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
+          // Test hooks keep row-level actions stable for Playwright selectors.
+          data-testid="edit-user-button"
+          data-user-email={user.email}
           onClick={() => openEditModal(user)}
           type="button"
         >
@@ -345,7 +348,7 @@ export default function UsersClient({
                 </span>
                 <select
                   className="rounded border border-slate-300 px-3 py-2"
-                  data-testid="user-role-select"
+                  data-testid="user-roles-select"
                   value={form.role}
                   onChange={(event) =>
                     setForm((prev) => ({
@@ -361,7 +364,10 @@ export default function UsersClient({
                   ))}
                 </select>
               </label>
-              <fieldset className="flex flex-col gap-2 text-sm">
+              <fieldset
+                className="flex flex-col gap-2 text-sm"
+                data-testid="user-centers-select"
+              >
                 <legend className="text-slate-700">
                   {t("admin.users.fields.centers")}
                 </legend>
