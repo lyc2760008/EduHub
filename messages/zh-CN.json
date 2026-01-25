@@ -1,5 +1,5 @@
 {
-  "_comment": "EduHub 简体中文界面文案（使用 locale Cookie 选择）。",
+  "_comment": "Simplified Chinese UI strings for EduHub.",
   "login": {
     "title": "登录",
     "emailLabel": "邮箱",
@@ -10,6 +10,10 @@
   "admin": {
     "title": "管理面板",
     "welcome": "您已以 {email} 登录",
+    "accessDenied": {
+      "title": "访问受限",
+      "message": "您没有权限查看此页面。"
+    },
     "centers": {
       "title": "中心管理",
       "create": "创建中心",
@@ -44,12 +48,38 @@
         "requiredFields": "名称和时区为必填项"
       }
     },
-    "accessDenied": {
-      "title": "访问受限",
-      "message": "您没有权限查看此页面。"
+    "users": {
+      "title": "用户",
+      "create": "创建用户",
+      "edit": "编辑",
+      "fields": {
+        "name": "姓名",
+        "email": "邮箱",
+        "role": "角色",
+        "centers": "中心"
+      },
+      "roles": {
+        "owner": "所有者",
+        "admin": "管理员",
+        "tutor": "导师",
+        "parent": "家长",
+        "student": "学生"
+      },
+      "actions": {
+        "save": "保存",
+        "cancel": "取消"
+      },
+      "messages": {
+        "loadError": "无法加载用户",
+        "createSuccess": "用户已创建",
+        "updateSuccess": "用户已更新",
+        "validationError": "请检查表单输入",
+        "forbidden": "您没有权限管理用户"
+      }
     }
   },
   "common": {
-    "loading": "加载中..."
+    "loading": "加载中...",
+    "error": "出现错误"
   }
 }

@@ -29,6 +29,8 @@ model Tenant {
   memberships   TenantMembership[]
   // Centers are tenant-scoped locations/settings for scheduling and reporting.
   centers Center[]
+  // Staff-to-center assignments scoped to this tenant.
+  staffCenters StaffCenter[]
 }
 
 // User is a credentials-auth entity (email + passwordHash required).
@@ -44,6 +46,8 @@ model User {
   updatedAt    DateTime @updatedAt
 
   memberships TenantMembership[]
+  // Staff center assignments for tenant-scoped staff scheduling.
+  staffCenters StaffCenter[]
 }
 
 // Join table linking users to tenants with a single role per tenant.
@@ -157,8 +161,27 @@ model Center {
   updatedAt  DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // Staff members assigned to this center.
+  staffMembers StaffCenter[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
   @@index([tenantId, isActive])
+}
+
+// StaffCenter links tenant-scoped staff users to the centers they can work from.
+model StaffCenter {
+  id       String @id @default(cuid())
+  tenantId String
+  userId   String
+  centerId String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  center Center @relation(fields: [centerId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, centerId])
+  @@index([tenantId])
+  @@index([userId])
+  @@index([centerId])
 }

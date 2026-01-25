@@ -58,6 +58,14 @@ export default async function AdminPage({ params }: PageProps) {
       >
         {t("admin.centers.title")}
       </Link>
+      {/* Admin navigation includes Users for staff and role management. */}
+      <Link
+        className="text-sm font-semibold text-slate-700 underline underline-offset-4"
+        data-testid="nav-admin-users"
+        href={`/${tenant}/admin/users`}
+      >
+        {t("admin.users.title")}
+      </Link>
       <div className="rounded border border-slate-200 bg-white p-4 text-sm text-slate-700">
         {t("admin.welcome", { email })}
       </div>

@@ -1,5 +1,5 @@
 {
-  "_comment": "English UI strings for EduHub (cookie-selected locale).",
+  "_comment": "English UI strings for EduHub (cookie-selected locale, including admin users).",
   "login": {
     "title": "Sign in",
     "emailLabel": "Email",
@@ -47,9 +47,39 @@
         "validationError": "Please check the form for errors",
         "requiredFields": "Name and timezone are required"
       }
+    },
+    "users": {
+      "title": "Users",
+      "create": "Create User",
+      "edit": "Edit",
+      "fields": {
+        "name": "Name",
+        "email": "Email",
+        "role": "Role",
+        "centers": "Centers"
+      },
+      "roles": {
+        "owner": "Owner",
+        "admin": "Admin",
+        "tutor": "Tutor",
+        "parent": "Parent",
+        "student": "Student"
+      },
+      "actions": {
+        "save": "Save",
+        "cancel": "Cancel"
+      },
+      "messages": {
+        "loadError": "Unable to load users",
+        "createSuccess": "User created",
+        "updateSuccess": "User updated",
+        "validationError": "Please check the form for errors",
+        "forbidden": "You do not have permission to manage users"
+      }
     }
   },
   "common": {
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "error": "Something went wrong"
   }
 }
