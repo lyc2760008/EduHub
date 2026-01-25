@@ -1,8 +1,13 @@
-// Client-side users admin UI with table listing and create/edit modals.
+// Client-side users admin UI with shared fetch + table helpers for list and modal flows.
 "use client";
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+
+import AdminTable, {
+  type AdminTableColumn,
+} from "@/components/admin/shared/AdminTable";
+import { fetchJson } from "@/lib/api/fetchJson";
 
 type RoleValue = "Owner" | "Admin" | "Tutor" | "Parent" | "Student";
 
@@ -82,28 +87,27 @@ export default function UsersClient({
     setError(null);
 
     try {
-      const res = await fetch("/api/users");
+      const result = await fetchJson<UserListItem[]>("/api/users");
 
-      if (res.status === 401 || res.status === 403) {
+      if (!result.ok && (result.status === 401 || result.status === 403)) {
         setError(t("admin.users.messages.forbidden"));
-        setIsLoading(false);
         return false;
       }
 
-      if (!res.ok) {
+      if (!result.ok && result.status === 0) {
+        // Network failures fall back to a generic localized error message.
+        console.error("Failed to load users", result.details);
+        setError(t("common.error"));
+        return false;
+      }
+
+      if (!result.ok) {
         setError(t("admin.users.messages.loadError"));
-        setIsLoading(false);
         return false;
       }
 
-      const data = (await res.json()) as UserListItem[];
-      setUsers(data);
+      setUsers(result.data);
       return true;
-    } catch (err) {
-      // Network failures fall back to a generic localized error message.
-      console.error("Failed to load users", err);
-      setError(t("common.error"));
-      return false;
     } finally {
       setIsLoading(false);
     }
@@ -178,24 +182,21 @@ export default function UsersClient({
     const url = isEditing ? `/api/users/${form.id}` : "/api/users";
     const method = isEditing ? "PATCH" : "POST";
 
-    const res = await fetch(url, {
+    const result = await fetchJson<UserListItem>(url, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
-    if (res.status === 401 || res.status === 403) {
+    if (!result.ok && (result.status === 401 || result.status === 403)) {
       setError(t("admin.users.messages.forbidden"));
       setIsSaving(false);
       return;
     }
 
-    if (!res.ok) {
-      const errorBody = (await res.json().catch(() => null)) as {
-        error?: string;
-      } | null;
+    if (!result.ok) {
       const isValidation =
-        res.status === 400 && errorBody?.error === "ValidationError";
+        result.status === 400 && result.error === "ValidationError";
       setError(
         isValidation
           ? t("admin.users.messages.validationError")
@@ -219,6 +220,49 @@ export default function UsersClient({
     );
   }
 
+  const columns: AdminTableColumn<UserListItem>[] = [
+    {
+      header: t("admin.users.fields.name"),
+      cell: (user) => user.name ?? "",
+      headClassName: "px-4 py-3",
+      cellClassName: "px-4 py-3 font-medium text-slate-900",
+    },
+    {
+      header: t("admin.users.fields.email"),
+      cell: (user) => user.email,
+      headClassName: "px-4 py-3",
+      cellClassName: "px-4 py-3 text-slate-700",
+    },
+    {
+      header: t("admin.users.fields.role"),
+      cell: (user) => t(roleTranslationKey(user.role)),
+      headClassName: "px-4 py-3",
+      cellClassName: "px-4 py-3 text-slate-700",
+    },
+    {
+      header: t("admin.users.fields.centers"),
+      cell: (user) => user.centers.map((center) => center.name).join(", "),
+      headClassName: "px-4 py-3",
+      cellClassName: "px-4 py-3 text-slate-700",
+    },
+    {
+      header: t("admin.users.edit"),
+      cell: (user) => (
+        <button
+          className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
+          onClick={() => openEditModal(user)}
+          type="button"
+        >
+          {t("admin.users.edit")}
+        </button>
+      ),
+      headClassName: "px-4 py-3",
+      cellClassName: "px-4 py-3",
+    },
+  ];
+
+  const loadingState = isLoading ? t("common.loading") : null;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -238,58 +282,14 @@ export default function UsersClient({
         <p className="text-sm text-slate-600">{t("common.loading")}</p>
       ) : null}
 
-      <div className="overflow-hidden rounded border border-slate-200 bg-white">
-        <table className="w-full text-left text-sm" data-testid="users-table">
-          <thead className="bg-slate-50 text-slate-700">
-            <tr>
-              <th className="px-4 py-3">{t("admin.users.fields.name")}</th>
-              <th className="px-4 py-3">{t("admin.users.fields.email")}</th>
-              <th className="px-4 py-3">{t("admin.users.fields.role")}</th>
-              <th className="px-4 py-3">{t("admin.users.fields.centers")}</th>
-              <th className="px-4 py-3">{t("admin.users.edit")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((user) => (
-              <tr
-                key={user.id}
-                className="border-t border-slate-200"
-                data-testid={`user-row-${user.id}`}
-              >
-                <td className="px-4 py-3 font-medium text-slate-900">
-                  {user.name ?? ""}
-                </td>
-                <td className="px-4 py-3 text-slate-700">{user.email}</td>
-                <td className="px-4 py-3 text-slate-700">
-                  {t(roleTranslationKey(user.role))}
-                </td>
-                <td className="px-4 py-3 text-slate-700">
-                  {user.centers.map((center) => center.name).join(", ")}
-                </td>
-                <td className="px-4 py-3">
-                  <button
-                    className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
-                    onClick={() => openEditModal(user)}
-                    type="button"
-                  >
-                    {t("admin.users.edit")}
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {!users.length && isLoading ? (
-              <tr className="border-t border-slate-200">
-                <td
-                  className="px-4 py-6 text-center text-sm text-slate-500"
-                  colSpan={5}
-                >
-                  {t("common.loading")}
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
+      <AdminTable
+        rows={users}
+        columns={columns}
+        rowKey={(user) => `user-row-${user.id}`}
+        testId="users-table"
+        isLoading={isLoading}
+        emptyState={loadingState}
+      />
 
       {isModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">

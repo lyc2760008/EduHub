@@ -1,8 +1,12 @@
-// Client-side centers admin UI with create, edit, and activation toggles.
+// Client-side centers admin UI with create/edit/toggle flows using shared fetch + table helpers.
 "use client";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 
+import AdminTable, {
+  type AdminTableColumn,
+} from "@/components/admin/shared/AdminTable";
+import { fetchJson } from "@/lib/api/fetchJson";
 import type { CenterRecord } from "@/lib/centers/getCenters";
 
 type CentersClientProps = {
@@ -75,16 +79,17 @@ export default function CentersClient({ initialCenters }: CentersClientProps) {
 
   async function refreshCenters() {
     setError(null);
-    const res = await fetch("/api/centers?includeInactive=true");
+    const result = await fetchJson<CenterRecord[]>(
+      "/api/centers?includeInactive=true",
+    );
 
-    if (!res.ok) {
+    if (!result.ok) {
       // Error handling keeps the UI responsive even when the API fails.
       setError(t("admin.centers.messages.loadError"));
       return;
     }
 
-    const data = (await res.json()) as CenterRecord[];
-    setCenters(data);
+    setCenters(result.data);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -109,23 +114,20 @@ export default function CentersClient({ initialCenters }: CentersClientProps) {
     const method = isEditing ? "PATCH" : "POST";
     const body = isEditing ? payload : { ...payload, isActive: true };
 
-    const res = await fetch(url, {
+    const result = await fetchJson<CenterRecord>(url, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
 
-    if (!res.ok) {
+    if (!result.ok) {
       // Validation errors surface a localized message while keeping form state.
-      const errorBody = (await res.json().catch(() => null)) as
-        | { error?: string }
-        | null;
       const isValidation =
-        res.status === 400 && errorBody?.error === "ValidationError";
+        result.status === 400 && result.error === "ValidationError";
       setError(
         isValidation
           ? t("admin.centers.messages.validationError")
-          : t("admin.centers.messages.loadError")
+          : t("admin.centers.messages.loadError"),
       );
       setIsSaving(false);
       return;
@@ -136,7 +138,7 @@ export default function CentersClient({ initialCenters }: CentersClientProps) {
     setMessage(
       isEditing
         ? t("admin.centers.messages.updateSuccess")
-        : t("admin.centers.messages.createSuccess")
+        : t("admin.centers.messages.createSuccess"),
     );
     setIsSaving(false);
   }
@@ -165,13 +167,13 @@ export default function CentersClient({ initialCenters }: CentersClientProps) {
     setError(null);
     setMessage(null);
 
-    const res = await fetch(`/api/centers/${center.id}`, {
+    const result = await fetchJson<CenterRecord>(`/api/centers/${center.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isActive: !center.isActive }),
     });
 
-    if (!res.ok) {
+    if (!result.ok) {
       // Error handling keeps the UI responsive even when the API fails.
       setError(t("admin.centers.messages.loadError"));
       setIsSaving(false);
@@ -182,6 +184,57 @@ export default function CentersClient({ initialCenters }: CentersClientProps) {
     setMessage(t("admin.centers.messages.updateSuccess"));
     setIsSaving(false);
   }
+
+  const columns: AdminTableColumn<CenterRecord>[] = [
+    {
+      header: t("admin.centers.fields.name"),
+      cell: (center) => center.name,
+      headClassName: "px-4 py-3",
+      cellClassName: "px-4 py-3 font-medium text-slate-900",
+    },
+    {
+      header: t("admin.centers.fields.timezone"),
+      cell: (center) => center.timezone,
+      headClassName: "px-4 py-3",
+      cellClassName: "px-4 py-3 text-slate-700",
+    },
+    {
+      header: t("admin.centers.fields.status"),
+      cell: (center) =>
+        center.isActive
+          ? t("admin.centers.status.active")
+          : t("admin.centers.status.inactive"),
+      headClassName: "px-4 py-3",
+      cellClassName: "px-4 py-3 text-slate-700",
+    },
+    {
+      header: t("admin.centers.fields.actions"),
+      cell: (center) => (
+        <div className="flex flex-wrap gap-2">
+          <button
+            className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
+            disabled={isSaving}
+            onClick={() => startEdit(center)}
+            type="button"
+          >
+            {t("admin.centers.edit")}
+          </button>
+          <button
+            className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
+            disabled={isSaving}
+            onClick={() => toggleActive(center)}
+            type="button"
+          >
+            {center.isActive
+              ? t("admin.centers.deactivate")
+              : t("admin.centers.activate")}
+          </button>
+        </div>
+      ),
+      headClassName: "px-4 py-3",
+      cellClassName: "px-4 py-3",
+    },
+  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -200,11 +253,7 @@ export default function CentersClient({ initialCenters }: CentersClientProps) {
             {t("admin.centers.create")}
           </button>
         </div>
-        <form
-          className="mt-4 grid gap-4"
-          noValidate
-          onSubmit={handleSubmit}
-        >
+        <form className="mt-4 grid gap-4" noValidate onSubmit={handleSubmit}>
           <div className="grid gap-4 md:grid-cols-2">
             <label className="flex flex-col gap-2 text-sm">
               <span className="text-slate-700">
@@ -324,9 +373,7 @@ export default function CentersClient({ initialCenters }: CentersClientProps) {
               disabled={isSaving}
               type="submit"
             >
-              {isSaving
-                ? t("common.loading")
-                : t("admin.centers.actions.save")}
+              {isSaving ? t("common.loading") : t("admin.centers.actions.save")}
             </button>
             {form.id ? (
               <button
@@ -344,67 +391,12 @@ export default function CentersClient({ initialCenters }: CentersClientProps) {
         </form>
       </div>
 
-      <div className="overflow-hidden rounded border border-slate-200 bg-white">
-        <table className="w-full text-left text-sm" data-testid="centers-table">
-          <thead className="bg-slate-50 text-slate-700">
-            <tr>
-              <th className="px-4 py-3">{t("admin.centers.fields.name")}</th>
-              <th className="px-4 py-3">
-                {t("admin.centers.fields.timezone")}
-              </th>
-              <th className="px-4 py-3">
-                {t("admin.centers.fields.status")}
-              </th>
-              <th className="px-4 py-3">
-                {t("admin.centers.fields.actions")}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {centers.map((center) => (
-              <tr
-                key={center.id}
-                className="border-t border-slate-200"
-                data-testid={`center-row-${center.id}`}
-              >
-                <td className="px-4 py-3 font-medium text-slate-900">
-                  {center.name}
-                </td>
-                <td className="px-4 py-3 text-slate-700">
-                  {center.timezone}
-                </td>
-                <td className="px-4 py-3 text-slate-700">
-                  {center.isActive
-                    ? t("admin.centers.status.active")
-                    : t("admin.centers.status.inactive")}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
-                      disabled={isSaving}
-                      onClick={() => startEdit(center)}
-                      type="button"
-                    >
-                      {t("admin.centers.edit")}
-                    </button>
-                    <button
-                      className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
-                      disabled={isSaving}
-                      onClick={() => toggleActive(center)}
-                      type="button"
-                    >
-                      {center.isActive
-                        ? t("admin.centers.deactivate")
-                        : t("admin.centers.activate")}
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <AdminTable
+        rows={centers}
+        columns={columns}
+        rowKey={(center) => `center-row-${center.id}`}
+        testId="centers-table"
+      />
     </div>
   );
 }
