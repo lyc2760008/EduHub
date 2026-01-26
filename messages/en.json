@@ -106,6 +106,60 @@
         "noSubject": "No subject"
       }
     },
+    "groups": {
+      "title": "Groups",
+      "detailTitle": "Group Details",
+      "create": "Create Group",
+      "edit": "Edit Group",
+      "types": {
+        "group": "Group",
+        "class": "Class"
+      },
+      "sections": {
+        "overview": "Overview",
+        "tutors": "Manage Tutors",
+        "students": "Manage Students"
+      },
+      "fields": {
+        "name": "Name",
+        "type": "Type",
+        "center": "Center",
+        "program": "Program",
+        "level": "Level",
+        "capacity": "Capacity",
+        "notes": "Notes",
+        "tutorsCount": "Tutors",
+        "studentsCount": "Students",
+        "status": "Status",
+        "actions": "Actions",
+        "studentFilter": "Student filter"
+      },
+      "actions": {
+        "manage": "Manage",
+        "back": "Back to Groups",
+        "saveTutors": "Save Tutors",
+        "saveStudents": "Save Students"
+      },
+      "messages": {
+        "loadError": "Unable to load groups",
+        "createSuccess": "Group created",
+        "updateSuccess": "Group updated",
+        "validationError": "Please check the form for errors",
+        "forbidden": "You do not have permission to manage groups",
+        "empty": "No groups yet",
+        "noLevel": "No level",
+        "noCenter": "Select a center",
+        "noProgram": "Select a program",
+        "noNotes": "No notes",
+        "noCapacity": "No capacity",
+        "noTutors": "No eligible tutors for this center",
+        "noStudents": "No students available",
+        "tutorsUpdated": "Tutors updated",
+        "studentsUpdated": "Roster updated",
+        "filterStudents": "Filter students by name",
+        "notFound": "Group not found"
+      }
+    },
     "users": {
       "title": "Users",
       "create": "Create User",

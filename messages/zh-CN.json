@@ -106,6 +106,60 @@
         "noSubject": "无学科"
       }
     },
+    "groups": {
+      "title": "分组",
+      "detailTitle": "分组详情",
+      "create": "创建分组",
+      "edit": "编辑分组",
+      "types": {
+        "group": "分组",
+        "class": "班级"
+      },
+      "sections": {
+        "overview": "概览",
+        "tutors": "管理导师",
+        "students": "管理学生"
+      },
+      "fields": {
+        "name": "名称",
+        "type": "类型",
+        "center": "中心",
+        "program": "课程",
+        "level": "级别",
+        "capacity": "容量",
+        "notes": "备注",
+        "tutorsCount": "导师数",
+        "studentsCount": "学生数",
+        "status": "状态",
+        "actions": "操作",
+        "studentFilter": "学生筛选"
+      },
+      "actions": {
+        "manage": "管理",
+        "back": "返回分组",
+        "saveTutors": "保存导师",
+        "saveStudents": "保存学生"
+      },
+      "messages": {
+        "loadError": "无法加载分组",
+        "createSuccess": "分组已创建",
+        "updateSuccess": "分组已更新",
+        "validationError": "请检查表单输入",
+        "forbidden": "您没有权限管理分组",
+        "empty": "暂无分组",
+        "noLevel": "无级别",
+        "noCenter": "请选择中心",
+        "noProgram": "请选择课程",
+        "noNotes": "无备注",
+        "noCapacity": "未设置容量",
+        "noTutors": "该中心暂无可选导师",
+        "noStudents": "暂无学生",
+        "tutorsUpdated": "导师已更新",
+        "studentsUpdated": "学生名单已更新",
+        "filterStudents": "按姓名筛选学生",
+        "notFound": "未找到分组"
+      }
+    },
     "users": {
       "title": "用户",
       "create": "创建用户",

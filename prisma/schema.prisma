@@ -35,6 +35,10 @@ model Tenant {
   subjects       Subject[]
   levels         Level[]
   programs       Program[]
+  // Instructional groups/classes scoped to this tenant.
+  groups         Group[]
+  groupTutors    GroupTutor[]
+  groupStudents  GroupStudent[]
 }
 
 // User is a credentials-auth entity (email + passwordHash required).
@@ -52,6 +56,7 @@ model User {
   memberships  TenantMembership[]
   // Staff center assignments for tenant-scoped staff scheduling.
   staffCenters StaffCenter[]
+  groupTutors  GroupTutor[]
 }
 
 // Join table linking users to tenants with a single role per tenant.
@@ -83,6 +88,12 @@ enum ParentRelationship {
   OTHER
 }
 
+// GroupType defines tenant-managed grouping for scheduling and instruction.
+enum GroupType {
+  GROUP
+  CLASS
+}
+
 // Role values for tenant membership and future RBAC.
 enum Role {
   Owner
@@ -105,8 +116,9 @@ model Student {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  tenant  Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  parents StudentParent[]
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parents       StudentParent[]
+  groupStudents GroupStudent[]
 
   @@index([tenantId, lastName])
   @@index([tenantId, createdAt])
@@ -167,6 +179,7 @@ model Center {
   tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   // Staff members assigned to this center.
   staffMembers StaffCenter[]
+  groups       Group[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -202,6 +215,7 @@ model Level {
 
   tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   programs Program[]
+  groups   Group[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -222,9 +236,72 @@ model Program {
   tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   subject Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
   level   Level?   @relation(fields: [levelId], references: [id], onDelete: SetNull)
+  groups  Group[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
+}
+
+// Group represents a tenant-scoped instructional grouping (GROUP or CLASS).
+model Group {
+  id        String    @id @default(cuid())
+  tenantId  String
+  name      String
+  type      GroupType
+  centerId  String
+  programId String
+  levelId   String?
+  isActive  Boolean   @default(true)
+  capacity  Int?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Tenant-scoped relations.
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  center  Center  @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  level   Level?  @relation(fields: [levelId], references: [id], onDelete: SetNull)
+
+  // Replace-set semantics use join tables for roster/tutor assignment.
+  tutors   GroupTutor[]
+  students GroupStudent[]
+
+  @@index([tenantId])
+  @@index([tenantId, centerId])
+  @@index([tenantId, programId])
+}
+
+// GroupTutor links tenant-scoped groups to staff users with replace-set semantics.
+model GroupTutor {
+  id       String @id @default(cuid())
+  tenantId String
+  groupId  String
+  userId   String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  group  Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, groupId, userId])
+  @@index([tenantId, userId])
+  @@index([tenantId, groupId])
+}
+
+// GroupStudent links tenant-scoped groups to students with replace-set semantics.
+model GroupStudent {
+  id        String @id @default(cuid())
+  tenantId  String
+  groupId   String
+  studentId String
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  group   Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, groupId, studentId])
+  @@index([tenantId, studentId])
+  @@index([tenantId, groupId])
 }
 
 // StaffCenter links tenant-scoped staff users to the centers they can work from.
