@@ -41,6 +41,27 @@ export default async function AdminPage({ params }: PageProps) {
             >
               {t("admin.centers.title")}
             </Link>
+            <Link
+              className="text-sm font-semibold text-slate-700 underline underline-offset-4"
+              data-testid="nav-admin-subjects"
+              href={`/${tenant}/admin/subjects`}
+            >
+              {t("admin.subjects.title")}
+            </Link>
+            <Link
+              className="text-sm font-semibold text-slate-700 underline underline-offset-4"
+              data-testid="nav-admin-levels"
+              href={`/${tenant}/admin/levels`}
+            >
+              {t("admin.levels.title")}
+            </Link>
+            <Link
+              className="text-sm font-semibold text-slate-700 underline underline-offset-4"
+              data-testid="nav-admin-programs"
+              href={`/${tenant}/admin/programs`}
+            >
+              {t("admin.programs.title")}
+            </Link>
             {/* Admin navigation includes Users for staff and role management. */}
             <Link
               className="text-sm font-semibold text-slate-700 underline underline-offset-4"

@@ -49,6 +49,63 @@
         "empty": "No centers yet"
       }
     },
+    "subjects": {
+      "title": "Subjects",
+      "create": "Create Subject",
+      "edit": "Edit Subject",
+      "fields": {
+        "name": "Name",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "messages": {
+        "loadError": "Unable to load subjects",
+        "createSuccess": "Subject created",
+        "updateSuccess": "Subject updated",
+        "validationError": "Please check the form for errors",
+        "forbidden": "You do not have permission to manage subjects",
+        "empty": "No subjects yet"
+      }
+    },
+    "levels": {
+      "title": "Levels",
+      "create": "Create Level",
+      "edit": "Edit Level",
+      "fields": {
+        "name": "Name",
+        "sortOrder": "Sort order",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "messages": {
+        "loadError": "Unable to load levels",
+        "createSuccess": "Level created",
+        "updateSuccess": "Level updated",
+        "validationError": "Please check the form for errors",
+        "forbidden": "You do not have permission to manage levels",
+        "empty": "No levels yet"
+      }
+    },
+    "programs": {
+      "title": "Programs",
+      "create": "Create Program",
+      "edit": "Edit Program",
+      "fields": {
+        "name": "Name",
+        "subject": "Subject",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "messages": {
+        "loadError": "Unable to load programs",
+        "createSuccess": "Program created",
+        "updateSuccess": "Program updated",
+        "validationError": "Please check the form for errors",
+        "forbidden": "You do not have permission to manage programs",
+        "empty": "No programs yet",
+        "noSubject": "No subject"
+      }
+    },
     "users": {
       "title": "Users",
       "create": "Create User",
@@ -82,6 +139,16 @@
   },
   "common": {
     "loading": "Loading...",
-    "error": "Something went wrong"
+    "error": "Something went wrong",
+    "actions": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "activate": "Activate",
+      "deactivate": "Deactivate"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    }
   }
 }

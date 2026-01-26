@@ -144,6 +144,87 @@ async function main() {
     });
   }
 
+  async function upsertSubject(params: {
+    tenantId: string;
+    name: string;
+    isActive?: boolean;
+  }) {
+    // Idempotent: upsert subjects by tenant + name for repeatable seeding.
+    return prisma.subject.upsert({
+      where: {
+        tenantId_name: {
+          tenantId: params.tenantId,
+          name: params.name,
+        },
+      },
+      update: {
+        isActive: params.isActive ?? true,
+      },
+      create: {
+        tenantId: params.tenantId,
+        name: params.name,
+        isActive: params.isActive ?? true,
+      },
+    });
+  }
+
+  async function upsertLevel(params: {
+    tenantId: string;
+    name: string;
+    sortOrder: number;
+    isActive?: boolean;
+  }) {
+    // Idempotent: upsert levels by tenant + name for repeatable seeding.
+    return prisma.level.upsert({
+      where: {
+        tenantId_name: {
+          tenantId: params.tenantId,
+          name: params.name,
+        },
+      },
+      update: {
+        sortOrder: params.sortOrder,
+        isActive: params.isActive ?? true,
+      },
+      create: {
+        tenantId: params.tenantId,
+        name: params.name,
+        sortOrder: params.sortOrder,
+        isActive: params.isActive ?? true,
+      },
+    });
+  }
+
+  async function upsertProgram(params: {
+    tenantId: string;
+    name: string;
+    subjectId?: string | null;
+    levelId?: string | null;
+    isActive?: boolean;
+  }) {
+    // Idempotent: upsert programs by tenant + name for repeatable seeding.
+    return prisma.program.upsert({
+      where: {
+        tenantId_name: {
+          tenantId: params.tenantId,
+          name: params.name,
+        },
+      },
+      update: {
+        subjectId: params.subjectId ?? null,
+        levelId: params.levelId ?? null,
+        isActive: params.isActive ?? true,
+      },
+      create: {
+        tenantId: params.tenantId,
+        name: params.name,
+        subjectId: params.subjectId ?? null,
+        levelId: params.levelId ?? null,
+        isActive: params.isActive ?? true,
+      },
+    });
+  }
+
   async function upsertParent(params: {
     tenantId: string;
     firstName: string;
@@ -380,6 +461,64 @@ async function main() {
       tenantId: westTenant.id,
       name: "West Center",
       timezone: "America/Los_Angeles",
+      isActive: true,
+    }),
+  ]);
+
+  // Seed a small academic catalog for the demo tenant only.
+  const demoSubjects = await Promise.all([
+    upsertSubject({
+      tenantId: demoTenant.id,
+      name: "Math",
+      isActive: true,
+    }),
+    upsertSubject({
+      tenantId: demoTenant.id,
+      name: "English",
+      isActive: true,
+    }),
+  ]);
+
+  const demoLevels = await Promise.all([
+    upsertLevel({
+      tenantId: demoTenant.id,
+      name: "Level 1",
+      sortOrder: 1,
+      isActive: true,
+    }),
+    upsertLevel({
+      tenantId: demoTenant.id,
+      name: "Level 2",
+      sortOrder: 2,
+      isActive: true,
+    }),
+  ]);
+
+  const demoMath = demoSubjects.find((subject) => subject.name === "Math");
+  const demoEnglish = demoSubjects.find((subject) => subject.name === "English");
+  const demoLevel1 = demoLevels.find((level) => level.name === "Level 1");
+  const demoLevel2 = demoLevels.find((level) => level.name === "Level 2");
+
+  await Promise.all([
+    upsertProgram({
+      tenantId: demoTenant.id,
+      name: "Algebra Basics",
+      subjectId: demoMath?.id ?? null,
+      levelId: demoLevel1?.id ?? null,
+      isActive: true,
+    }),
+    upsertProgram({
+      tenantId: demoTenant.id,
+      name: "English Foundations",
+      subjectId: demoEnglish?.id ?? null,
+      levelId: demoLevel1?.id ?? null,
+      isActive: true,
+    }),
+    upsertProgram({
+      tenantId: demoTenant.id,
+      name: "Advanced Writing",
+      subjectId: demoEnglish?.id ?? null,
+      levelId: demoLevel2?.id ?? null,
       isActive: true,
     }),
   ]);

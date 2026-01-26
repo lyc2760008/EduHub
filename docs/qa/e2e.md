@@ -4,6 +4,7 @@
 ## Prerequisites
 - A tenant exists (default slug: `demo`), and the admin user is a member of that tenant.
 - At least one center exists in the tenant (Users CRUD test will create one if needed).
+- Catalog tests create Subjects/Levels/Programs and require the admin role to access `/admin/*`.
 - The app is running locally (for example: `pnpm dev`).
 
 ## Required environment variables
@@ -26,5 +27,6 @@ pnpm playwright test
 
 ## Notes
 - Users tests avoid hardcoded UI text and rely on `data-testid` hooks.
+- Catalog tests also rely on `data-testid` hooks for create/edit flows and subject selection.
 - If you use a non-default tenant slug, set `E2E_TENANT_SLUG` to match.
 - When using `/t/<slug>` in `E2E_BASE_URL`, tests build URLs with the same prefix for API calls.

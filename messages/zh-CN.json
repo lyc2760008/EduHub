@@ -49,6 +49,63 @@
         "empty": "暂无中心"
       }
     },
+    "subjects": {
+      "title": "学科",
+      "create": "创建学科",
+      "edit": "编辑学科",
+      "fields": {
+        "name": "名称",
+        "status": "状态",
+        "actions": "操作"
+      },
+      "messages": {
+        "loadError": "无法加载学科",
+        "createSuccess": "学科已创建",
+        "updateSuccess": "学科已更新",
+        "validationError": "请检查输入内容",
+        "forbidden": "您没有权限管理学科",
+        "empty": "暂无学科"
+      }
+    },
+    "levels": {
+      "title": "级别",
+      "create": "创建级别",
+      "edit": "编辑级别",
+      "fields": {
+        "name": "名称",
+        "sortOrder": "排序",
+        "status": "状态",
+        "actions": "操作"
+      },
+      "messages": {
+        "loadError": "无法加载级别",
+        "createSuccess": "级别已创建",
+        "updateSuccess": "级别已更新",
+        "validationError": "请检查输入内容",
+        "forbidden": "您没有权限管理级别",
+        "empty": "暂无级别"
+      }
+    },
+    "programs": {
+      "title": "课程",
+      "create": "创建课程",
+      "edit": "编辑课程",
+      "fields": {
+        "name": "名称",
+        "subject": "学科",
+        "status": "状态",
+        "actions": "操作"
+      },
+      "messages": {
+        "loadError": "无法加载课程",
+        "createSuccess": "课程已创建",
+        "updateSuccess": "课程已更新",
+        "validationError": "请检查输入内容",
+        "forbidden": "您没有权限管理课程",
+        "empty": "暂无课程",
+        "noSubject": "无学科"
+      }
+    },
     "users": {
       "title": "用户",
       "create": "创建用户",
@@ -82,6 +139,16 @@
   },
   "common": {
     "loading": "加载中...",
-    "error": "出现错误"
+    "error": "出现错误",
+    "actions": {
+      "save": "保存",
+      "cancel": "取消",
+      "activate": "启用",
+      "deactivate": "停用"
+    },
+    "status": {
+      "active": "启用",
+      "inactive": "停用"
+    }
   }
 }

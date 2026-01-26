@@ -23,14 +23,18 @@ model Tenant {
   updatedAt DateTime @updatedAt
 
   // Relations (tenant-scoped domain models + auth membership)
-  students  Student[]
-  parents   Parent[]
+  students       Student[]
+  parents        Parent[]
   studentParents StudentParent[]
-  memberships   TenantMembership[]
+  memberships    TenantMembership[]
   // Centers are tenant-scoped locations/settings for scheduling and reporting.
-  centers Center[]
+  centers        Center[]
   // Staff-to-center assignments scoped to this tenant.
-  staffCenters StaffCenter[]
+  staffCenters   StaffCenter[]
+  // Academic catalog entities scoped to this tenant.
+  subjects       Subject[]
+  levels         Level[]
+  programs       Program[]
 }
 
 // User is a credentials-auth entity (email + passwordHash required).
@@ -45,7 +49,7 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  memberships TenantMembership[]
+  memberships  TenantMembership[]
   // Staff center assignments for tenant-scoped staff scheduling.
   staffCenters StaffCenter[]
 }
@@ -89,20 +93,20 @@ enum Role {
 }
 
 model Student {
-  id            String         @id @default(cuid())
+  id            String        @id @default(cuid())
   tenantId      String
   firstName     String
   lastName      String
   preferredName String?
   dateOfBirth   DateTime?
   grade         String?
-  status        StudentStatus  @default(ACTIVE)
+  status        StudentStatus @default(ACTIVE)
   notes         String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
-  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  parents       StudentParent[]
+  tenant  Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parents StudentParent[]
 
   @@index([tenantId, lastName])
   @@index([tenantId, createdAt])
@@ -119,7 +123,7 @@ model Parent {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   students StudentParent[]
 
   // A parent email should be unique per tenant when provided
@@ -128,7 +132,7 @@ model Parent {
 }
 
 model StudentParent {
-  id           String             @id @default(cuid())
+  id           String              @id @default(cuid())
   tenantId     String
   studentId    String
   parentId     String
@@ -138,9 +142,9 @@ model StudentParent {
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
   parent  Parent  @relation(fields: [parentId], references: [id], onDelete: Cascade)
 
+  @@unique([tenantId, studentId, parentId])
   @@index([studentId])
   @@index([parentId])
-  @@unique([tenantId, studentId, parentId])
 }
 
 // Center represents a tenant-owned location with local timezone and address data.
@@ -160,13 +164,67 @@ model Center {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   // Staff members assigned to this center.
   staffMembers StaffCenter[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
   @@index([tenantId, isActive])
+}
+
+// Subject is a tenant-scoped academic subject for catalog tagging.
+model Subject {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  programs Program[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+// Level is a tenant-scoped catalog level (ex: Grade/Level 1).
+model Level {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  // Sort order is tenant-managed for consistent ordering in UIs.
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  programs Program[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+// Program is a tenant-scoped offering with optional catalog links.
+model Program {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  // Optional catalog links allow partial setups without blocking creation.
+  subjectId String?
+  levelId   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subject Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  level   Level?   @relation(fields: [levelId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
 }
 
 // StaffCenter links tenant-scoped staff users to the centers they can work from.
