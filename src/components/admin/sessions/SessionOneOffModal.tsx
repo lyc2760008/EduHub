@@ -1,10 +1,18 @@
-// One-off session creation modal (admin-only) with minimal validation and API integration.
+﻿// One-off session creation modal (admin-only) with minimal validation and API integration.
 "use client";
 
 import { useMemo, useState } from "react";
 import { DateTime } from "luxon";
 import { useTranslations } from "next-intl";
 
+import AdminFormField from "@/components/admin/shared/AdminFormField";
+import AdminModalShell from "@/components/admin/shared/AdminModalShell";
+// Shared classes keep focus-visible and hover states consistent in Sessions UI.
+import {
+  inputBase,
+  primaryButton,
+  secondaryButton,
+} from "@/components/admin/shared/adminUiClasses";
 import { fetchJson } from "@/lib/api/fetchJson";
 
 type CenterOption = {
@@ -86,6 +94,13 @@ export default function SessionOneOffModal({
   onCreated,
 }: SessionOneOffModalProps) {
   const t = useTranslations();
+  const requiredFieldsMessage = t("admin.sessions.messages.requiredFields");
+  const studentRequiredMessage = t("admin.sessions.messages.studentRequired");
+  const groupRequiredMessage = t("admin.sessions.messages.groupRequired");
+  const invalidTimeMessage = t("admin.sessions.messages.invalidTime");
+  const invalidRangeMessage = t("admin.sessions.messages.invalidRange");
+  const validationErrorMessage = t("admin.sessions.messages.validationError");
+  const createErrorMessage = t("admin.sessions.messages.createError");
   const [form, setForm] = useState<FormState>(() => ({
     ...DEFAULT_FORM,
     timezone: defaultTimezone,
@@ -108,6 +123,13 @@ export default function SessionOneOffModal({
       return false;
     });
   }, [form.centerId, form.sessionType, groups]);
+
+  const studentError = error === studentRequiredMessage ? error : null;
+  const groupError = error === groupRequiredMessage ? error : null;
+  const endAtError =
+    error === invalidTimeMessage || error === invalidRangeMessage ? error : null;
+  const formError =
+    error && !studentError && !groupError && !endAtError ? error : null;
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -138,19 +160,19 @@ export default function SessionOneOffModal({
     setError(null);
 
     if (!form.centerId || !form.tutorId || !form.startAt || !form.endAt) {
-      setError(t("admin.sessions.messages.requiredFields"));
+      setError(requiredFieldsMessage);
       setIsSaving(false);
       return;
     }
 
     if (form.sessionType === "ONE_ON_ONE" && !form.studentId) {
-      setError(t("admin.sessions.messages.studentRequired"));
+      setError(studentRequiredMessage);
       setIsSaving(false);
       return;
     }
 
     if (form.sessionType !== "ONE_ON_ONE" && !form.groupId) {
-      setError(t("admin.sessions.messages.groupRequired"));
+      setError(groupRequiredMessage);
       setIsSaving(false);
       return;
     }
@@ -161,13 +183,13 @@ export default function SessionOneOffModal({
     const endLocal = DateTime.fromISO(form.endAt, { zone: form.timezone });
 
     if (!startLocal.isValid || !endLocal.isValid) {
-      setError(t("admin.sessions.messages.invalidTime"));
+      setError(invalidTimeMessage);
       setIsSaving(false);
       return;
     }
 
     if (endLocal <= startLocal) {
-      setError(t("admin.sessions.messages.invalidRange"));
+      setError(invalidRangeMessage);
       setIsSaving(false);
       return;
     }
@@ -176,7 +198,7 @@ export default function SessionOneOffModal({
     const endAtIso = endLocal.toUTC().toISO();
 
     if (!startAtIso || !endAtIso) {
-      setError(t("admin.sessions.messages.invalidTime"));
+      setError(invalidTimeMessage);
       setIsSaving(false);
       return;
     }
@@ -203,11 +225,7 @@ export default function SessionOneOffModal({
 
     if (!result.ok) {
       const isValidation = result.status === 400;
-      setError(
-        isValidation
-          ? t("admin.sessions.messages.validationError")
-          : t("admin.sessions.messages.createError"),
-      );
+      setError(isValidation ? validationErrorMessage : createErrorMessage);
       setIsSaving(false);
       return;
     }
@@ -220,188 +238,230 @@ export default function SessionOneOffModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
       <div className="w-full max-w-2xl rounded border border-slate-200 bg-white p-6 shadow-xl">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">
-            {t("admin.sessions.actions.createOneOff")}
-          </h2>
-          <button
-            className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
-            disabled={isSaving}
-            onClick={onClose}
-            type="button"
+        {/* AdminModalShell keeps sessions modals consistent without changing behavior. */}
+        <form noValidate onSubmit={handleSubmit}>
+          <AdminModalShell
+            title={t("admin.sessions.actions.createOneOff")}
+            footer={
+              <>
+                <button
+                  className={secondaryButton}
+                  disabled={isSaving}
+                  onClick={onClose}
+                  type="button"
+                >
+                  {t("common.actions.cancel")}
+                </button>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    className={primaryButton}
+                    disabled={isSaving}
+                    type="submit"
+                  >
+                    {isSaving
+                      ? t("common.loading")
+                      : t("admin.sessions.actions.saveOneOff")}
+                  </button>
+                </div>
+              </>
+            }
           >
-            {t("common.actions.cancel")}
-          </button>
-        </div>
-        <form className="mt-4 grid gap-4" noValidate onSubmit={handleSubmit}>
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="text-slate-700">
-                {t("admin.sessions.fields.center")}
-              </span>
-              <select
-                className="rounded border border-slate-300 px-3 py-2"
-                value={form.centerId}
-                onChange={(event) => applyCenterSelection(event.target.value)}
+            {/* AdminFormField keeps label/controls/error spacing consistent. */}
+            <div className="grid gap-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <AdminFormField
+                  label={t("admin.sessions.fields.center")}
+                  htmlFor="sessions-one-off-center"
+                  required
+                >
+                  <select
+                    className={inputBase}
+                    id="sessions-one-off-center"
+                    value={form.centerId}
+                    onChange={(event) =>
+                      applyCenterSelection(event.target.value)
+                    }
+                  >
+                    <option value="">
+                      {t("admin.sessions.placeholders.selectCenter")}
+                    </option>
+                    {centers.map((center) => (
+                      <option key={center.id} value={center.id}>
+                        {center.name}
+                      </option>
+                    ))}
+                  </select>
+                </AdminFormField>
+                <AdminFormField
+                  label={t("admin.sessions.fields.tutor")}
+                  htmlFor="sessions-one-off-tutor"
+                  required
+                >
+                  <select
+                    className={inputBase}
+                    id="sessions-one-off-tutor"
+                    value={form.tutorId}
+                    onChange={(event) =>
+                      updateField("tutorId", event.target.value)
+                    }
+                  >
+                    <option value="">
+                      {t("admin.sessions.placeholders.selectTutor")}
+                    </option>
+                    {filteredTutors.map((tutor) => (
+                      <option key={tutor.id} value={tutor.id}>
+                        {tutor.name ?? tutor.email}
+                      </option>
+                    ))}
+                  </select>
+                </AdminFormField>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <AdminFormField
+                  label={t("admin.sessions.fields.type")}
+                  htmlFor="sessions-one-off-type"
+                  required
+                >
+                  <select
+                    className={inputBase}
+                    id="sessions-one-off-type"
+                    value={form.sessionType}
+                    onChange={(event) =>
+                      handleSessionTypeChange(
+                        event.target.value as SessionType,
+                      )
+                    }
+                  >
+                    <option value="ONE_ON_ONE">
+                      {t("admin.sessions.types.oneOnOne")}
+                    </option>
+                    <option value="GROUP">
+                      {t("admin.sessions.types.group")}
+                    </option>
+                    <option value="CLASS">
+                      {t("admin.sessions.types.class")}
+                    </option>
+                  </select>
+                </AdminFormField>
+                {form.sessionType === "ONE_ON_ONE" ? (
+                  <AdminFormField
+                    label={t("admin.sessions.fields.student")}
+                    htmlFor="sessions-one-off-student"
+                    required
+                    error={studentError}
+                  >
+                    <select
+                      aria-describedby={
+                        studentError ? "sessions-one-off-student-error" : undefined
+                      }
+                      className={inputBase}
+                      id="sessions-one-off-student"
+                      value={form.studentId}
+                      onChange={(event) =>
+                        updateField("studentId", event.target.value)
+                      }
+                    >
+                      <option value="">
+                        {t("admin.sessions.placeholders.selectStudent")}
+                      </option>
+                      {students.map((student) => (
+                        <option key={student.id} value={student.id}>
+                          {formatStudentName(student)}
+                        </option>
+                      ))}
+                    </select>
+                  </AdminFormField>
+                ) : (
+                  <AdminFormField
+                    label={t("admin.sessions.fields.group")}
+                    htmlFor="sessions-one-off-group"
+                    required
+                    error={groupError}
+                  >
+                    <select
+                      aria-describedby={
+                        groupError ? "sessions-one-off-group-error" : undefined
+                      }
+                      className={inputBase}
+                      id="sessions-one-off-group"
+                      value={form.groupId}
+                      onChange={(event) =>
+                        updateField("groupId", event.target.value)
+                      }
+                    >
+                      <option value="">
+                        {t("admin.sessions.placeholders.selectGroup")}
+                      </option>
+                      {filteredGroups.map((group) => (
+                        <option key={group.id} value={group.id}>
+                          {group.name}
+                        </option>
+                      ))}
+                    </select>
+                  </AdminFormField>
+                )}
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <AdminFormField
+                  label={t("admin.sessions.fields.startAt")}
+                  htmlFor="sessions-one-off-start"
+                  required
+                >
+                  <input
+                    className={inputBase}
+                    id="sessions-one-off-start"
+                    type="datetime-local"
+                    value={form.startAt}
+                    onChange={(event) =>
+                      updateField("startAt", event.target.value)
+                    }
+                  />
+                </AdminFormField>
+                <AdminFormField
+                  label={t("admin.sessions.fields.endAt")}
+                  htmlFor="sessions-one-off-end"
+                  required
+                  error={endAtError}
+                >
+                  <input
+                    aria-describedby={
+                      endAtError ? "sessions-one-off-end-error" : undefined
+                    }
+                    className={inputBase}
+                    id="sessions-one-off-end"
+                    type="datetime-local"
+                    value={form.endAt}
+                    onChange={(event) => updateField("endAt", event.target.value)}
+                  />
+                </AdminFormField>
+              </div>
+              <AdminFormField
+                label={t("admin.sessions.fields.timezone")}
+                htmlFor="sessions-one-off-timezone"
               >
-                <option value="">
-                  {t("admin.sessions.placeholders.selectCenter")}
-                </option>
-                {centers.map((center) => (
-                  <option key={center.id} value={center.id}>
-                    {center.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="text-slate-700">
-                {t("admin.sessions.fields.tutor")}
-              </span>
-              <select
-                className="rounded border border-slate-300 px-3 py-2"
-                value={form.tutorId}
-                onChange={(event) => updateField("tutorId", event.target.value)}
-              >
-                <option value="">
-                  {t("admin.sessions.placeholders.selectTutor")}
-                </option>
-                {filteredTutors.map((tutor) => (
-                  <option key={tutor.id} value={tutor.id}>
-                    {tutor.name ?? tutor.email}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="text-slate-700">
-                {t("admin.sessions.fields.type")}
-              </span>
-              <select
-                className="rounded border border-slate-300 px-3 py-2"
-                value={form.sessionType}
-                onChange={(event) =>
-                  handleSessionTypeChange(event.target.value as SessionType)
-                }
-              >
-                <option value="ONE_ON_ONE">
-                  {t("admin.sessions.types.oneOnOne")}
-                </option>
-                <option value="GROUP">{t("admin.sessions.types.group")}</option>
-                <option value="CLASS">{t("admin.sessions.types.class")}</option>
-              </select>
-            </label>
-            {form.sessionType === "ONE_ON_ONE" ? (
-              <label className="flex flex-col gap-2 text-sm">
-                <span className="text-slate-700">
-                  {t("admin.sessions.fields.student")}
-                </span>
                 <select
-                  className="rounded border border-slate-300 px-3 py-2"
-                  value={form.studentId}
+                  className={inputBase}
+                  id="sessions-one-off-timezone"
+                  value={form.timezone}
                   onChange={(event) =>
-                    updateField("studentId", event.target.value)
+                    updateField("timezone", event.target.value)
                   }
                 >
                   <option value="">
-                    {t("admin.sessions.placeholders.selectStudent")}
+                    {t("admin.sessions.placeholders.selectTimezone")}
                   </option>
-                  {students.map((student) => (
-                    <option key={student.id} value={student.id}>
-                      {formatStudentName(student)}
+                  {timezoneOptions.map((timezone) => (
+                    <option key={timezone} value={timezone}>
+                      {timezone}
                     </option>
                   ))}
                 </select>
-              </label>
-            ) : (
-              <label className="flex flex-col gap-2 text-sm">
-                <span className="text-slate-700">
-                  {t("admin.sessions.fields.group")}
-                </span>
-                <select
-                  className="rounded border border-slate-300 px-3 py-2"
-                  value={form.groupId}
-                  onChange={(event) =>
-                    updateField("groupId", event.target.value)
-                  }
-                >
-                  <option value="">
-                    {t("admin.sessions.placeholders.selectGroup")}
-                  </option>
-                  {filteredGroups.map((group) => (
-                    <option key={group.id} value={group.id}>
-                      {group.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="text-slate-700">
-                {t("admin.sessions.fields.startAt")}
-              </span>
-              <input
-                className="rounded border border-slate-300 px-3 py-2"
-                type="datetime-local"
-                value={form.startAt}
-                onChange={(event) => updateField("startAt", event.target.value)}
-              />
-            </label>
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="text-slate-700">
-                {t("admin.sessions.fields.endAt")}
-              </span>
-              <input
-                className="rounded border border-slate-300 px-3 py-2"
-                type="datetime-local"
-                value={form.endAt}
-                onChange={(event) => updateField("endAt", event.target.value)}
-              />
-            </label>
-          </div>
-          <label className="flex flex-col gap-2 text-sm">
-            <span className="text-slate-700">
-              {t("admin.sessions.fields.timezone")}
-            </span>
-            <select
-              className="rounded border border-slate-300 px-3 py-2"
-              value={form.timezone}
-              onChange={(event) => updateField("timezone", event.target.value)}
-            >
-              <option value="">
-                {t("admin.sessions.placeholders.selectTimezone")}
-              </option>
-              {timezoneOptions.map((timezone) => (
-                <option key={timezone} value={timezone}>
-                  {timezone}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-              disabled={isSaving}
-              type="submit"
-            >
-              {isSaving
-                ? t("common.loading")
-                : t("admin.sessions.actions.saveOneOff")}
-            </button>
-            <button
-              className="rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
-              disabled={isSaving}
-              onClick={onClose}
-              type="button"
-            >
-              {t("common.actions.cancel")}
-            </button>
-          </div>
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+              </AdminFormField>
+            </div>
+          </AdminModalShell>
+          {formError ? (
+            <p className="mt-3 text-sm text-red-600">{formError}</p>
+          ) : null}
         </form>
       </div>
     </div>

@@ -1,9 +1,17 @@
-// Recurring session generator modal with dry-run preview and commit support.
+﻿// Recurring session generator modal with dry-run preview and commit support.
 "use client";
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 
+import AdminFormField from "@/components/admin/shared/AdminFormField";
+import AdminModalShell from "@/components/admin/shared/AdminModalShell";
+// Shared classes keep focus-visible and hover states consistent in Sessions UI.
+import {
+  inputBase,
+  primaryButton,
+  secondaryButton,
+} from "@/components/admin/shared/adminUiClasses";
 import { fetchJson } from "@/lib/api/fetchJson";
 
 type CenterOption = {
@@ -84,6 +92,9 @@ const DEFAULT_FORM: FormState = {
 };
 
 const WEEKDAY_VALUES = [1, 2, 3, 4, 5, 6, 7] as const;
+// Checkbox focus-visible styles keep keyboard navigation clear.
+const weekdayCheckboxBase =
+  "h-4 w-4 rounded border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
 
 function formatStudentName(student: StudentOption) {
   return student.preferredName?.trim().length
@@ -103,6 +114,12 @@ export default function SessionGeneratorModal({
 }: SessionGeneratorModalProps) {
   const t = useTranslations();
   const locale = typeof navigator !== "undefined" ? navigator.language : "en";
+  const requiredFieldsMessage = t("admin.sessions.messages.requiredFields");
+  const weekdayRequiredMessage = t("admin.sessions.messages.weekdayRequired");
+  const studentRequiredMessage = t("admin.sessions.messages.studentRequired");
+  const groupRequiredMessage = t("admin.sessions.messages.groupRequired");
+  const validationErrorMessage = t("admin.sessions.messages.validationError");
+  const generateErrorMessage = t("admin.sessions.messages.generateError");
   const [form, setForm] = useState<FormState>(() => ({
     ...DEFAULT_FORM,
     timezone: defaultTimezone,
@@ -126,6 +143,12 @@ export default function SessionGeneratorModal({
       return false;
     });
   }, [form.centerId, form.sessionType, groups]);
+
+  const weekdayError = error === weekdayRequiredMessage ? error : null;
+  const studentError = error === studentRequiredMessage ? error : null;
+  const groupError = error === groupRequiredMessage ? error : null;
+  const formError =
+    error && !weekdayError && !studentError && !groupError ? error : null;
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -171,19 +194,19 @@ export default function SessionGeneratorModal({
       !form.startTime ||
       !form.endTime
     ) {
-      return t("admin.sessions.messages.requiredFields");
+      return requiredFieldsMessage;
     }
 
     if (!form.weekdays.length) {
-      return t("admin.sessions.messages.weekdayRequired");
+      return weekdayRequiredMessage;
     }
 
     if (form.sessionType === "ONE_ON_ONE" && !form.studentId) {
-      return t("admin.sessions.messages.studentRequired");
+      return studentRequiredMessage;
     }
 
     if (form.sessionType !== "ONE_ON_ONE" && !form.groupId) {
-      return t("admin.sessions.messages.groupRequired");
+      return groupRequiredMessage;
     }
 
     return null;
@@ -229,11 +252,7 @@ export default function SessionGeneratorModal({
 
     if (!result.ok) {
       const isValidation = result.status === 400;
-      setError(
-        isValidation
-          ? t("admin.sessions.messages.validationError")
-          : t("admin.sessions.messages.generateError"),
-      );
+      setError(isValidation ? validationErrorMessage : generateErrorMessage);
       setIsSaving(false);
       return;
     }
@@ -264,11 +283,7 @@ export default function SessionGeneratorModal({
 
     if (!result.ok) {
       const isValidation = result.status === 400;
-      setError(
-        isValidation
-          ? t("admin.sessions.messages.validationError")
-          : t("admin.sessions.messages.generateError"),
-      );
+      setError(isValidation ? validationErrorMessage : generateErrorMessage);
       setIsSaving(false);
       return;
     }
@@ -281,240 +296,279 @@ export default function SessionGeneratorModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
       <div className="w-full max-w-3xl rounded border border-slate-200 bg-white p-6 shadow-xl">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">
-            {t("admin.sessions.actions.generateRecurring")}
-          </h2>
-          <button
-            className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
-            disabled={isSaving}
-            onClick={onClose}
-            type="button"
-          >
-            {t("common.actions.cancel")}
-          </button>
-        </div>
-        <form className="mt-4 grid gap-4" noValidate>
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="text-slate-700">
-                {t("admin.sessions.fields.center")}
-              </span>
-              <select
-                className="rounded border border-slate-300 px-3 py-2"
-                value={form.centerId}
-                onChange={(event) => applyCenterSelection(event.target.value)}
+        {/* AdminModalShell keeps recurring session modals aligned with one-off. */}
+        <AdminModalShell
+          title={t("admin.sessions.actions.generateRecurring")}
+          footer={
+            <>
+              <button
+                className={secondaryButton}
+                disabled={isSaving}
+                onClick={onClose}
+                type="button"
               >
-                <option value="">
-                  {t("admin.sessions.placeholders.selectCenter")}
-                </option>
-                {centers.map((center) => (
-                  <option key={center.id} value={center.id}>
-                    {center.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="text-slate-700">
-                {t("admin.sessions.fields.tutor")}
-              </span>
-              <select
-                className="rounded border border-slate-300 px-3 py-2"
-                value={form.tutorId}
-                onChange={(event) => updateField("tutorId", event.target.value)}
+                {t("common.actions.cancel")}
+              </button>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  className={primaryButton}
+                  data-testid="generator-preview-button"
+                  disabled={isSaving}
+                  onClick={runPreview}
+                  type="button"
+                >
+                  {t("admin.sessions.actions.preview")}
+                </button>
+                <button
+                  className={secondaryButton}
+                  data-testid="generator-confirm-button"
+                  disabled={isSaving}
+                  onClick={runCommit}
+                  type="button"
+                >
+                  {t("admin.sessions.actions.confirm")}
+                </button>
+              </div>
+            </>
+          }
+        >
+          {/* AdminFormField keeps label/controls/error spacing consistent. */}
+          <form className="grid gap-4" noValidate>
+            <div className="grid gap-4 md:grid-cols-2">
+              <AdminFormField
+                label={t("admin.sessions.fields.center")}
+                htmlFor="sessions-generator-center"
+                required
               >
-                <option value="">
-                  {t("admin.sessions.placeholders.selectTutor")}
-                </option>
-                {filteredTutors.map((tutor) => (
-                  <option key={tutor.id} value={tutor.id}>
-                    {tutor.name ?? tutor.email}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="text-slate-700">
-                {t("admin.sessions.fields.type")}
-              </span>
-              <select
-                className="rounded border border-slate-300 px-3 py-2"
-                value={form.sessionType}
-                onChange={(event) =>
-                  handleSessionTypeChange(event.target.value as SessionType)
-                }
-              >
-                <option value="ONE_ON_ONE">
-                  {t("admin.sessions.types.oneOnOne")}
-                </option>
-                <option value="GROUP">{t("admin.sessions.types.group")}</option>
-                <option value="CLASS">{t("admin.sessions.types.class")}</option>
-              </select>
-            </label>
-            {form.sessionType === "ONE_ON_ONE" ? (
-              <label className="flex flex-col gap-2 text-sm">
-                <span className="text-slate-700">
-                  {t("admin.sessions.fields.student")}
-                </span>
                 <select
-                  className="rounded border border-slate-300 px-3 py-2"
-                  value={form.studentId}
+                  className={inputBase}
+                  id="sessions-generator-center"
+                  value={form.centerId}
                   onChange={(event) =>
-                    updateField("studentId", event.target.value)
+                    applyCenterSelection(event.target.value)
                   }
                 >
                   <option value="">
-                    {t("admin.sessions.placeholders.selectStudent")}
+                    {t("admin.sessions.placeholders.selectCenter")}
                   </option>
-                  {students.map((student) => (
-                    <option key={student.id} value={student.id}>
-                      {formatStudentName(student)}
+                  {centers.map((center) => (
+                    <option key={center.id} value={center.id}>
+                      {center.name}
                     </option>
                   ))}
                 </select>
-              </label>
-            ) : (
-              <label className="flex flex-col gap-2 text-sm">
-                <span className="text-slate-700">
-                  {t("admin.sessions.fields.group")}
-                </span>
+              </AdminFormField>
+              <AdminFormField
+                label={t("admin.sessions.fields.tutor")}
+                htmlFor="sessions-generator-tutor"
+                required
+              >
                 <select
-                  className="rounded border border-slate-300 px-3 py-2"
-                  value={form.groupId}
+                  className={inputBase}
+                  id="sessions-generator-tutor"
+                  value={form.tutorId}
                   onChange={(event) =>
-                    updateField("groupId", event.target.value)
+                    updateField("tutorId", event.target.value)
                   }
                 >
                   <option value="">
-                    {t("admin.sessions.placeholders.selectGroup")}
+                    {t("admin.sessions.placeholders.selectTutor")}
                   </option>
-                  {filteredGroups.map((group) => (
-                    <option key={group.id} value={group.id}>
-                      {group.name}
+                  {filteredTutors.map((tutor) => (
+                    <option key={tutor.id} value={tutor.id}>
+                      {tutor.name ?? tutor.email}
                     </option>
                   ))}
                 </select>
-              </label>
-            )}
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="text-slate-700">
-                {t("admin.sessions.fields.startDate")}
-              </span>
-              <input
-                className="rounded border border-slate-300 px-3 py-2"
-                type="date"
-                value={form.startDate}
-                onChange={(event) =>
-                  updateField("startDate", event.target.value)
-                }
-              />
-            </label>
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="text-slate-700">
-                {t("admin.sessions.fields.endDate")}
-              </span>
-              <input
-                className="rounded border border-slate-300 px-3 py-2"
-                type="date"
-                value={form.endDate}
-                onChange={(event) => updateField("endDate", event.target.value)}
-              />
-            </label>
-          </div>
-          <fieldset className="flex flex-col gap-2 text-sm">
-            <legend className="text-slate-700">
-              {t("admin.sessions.fields.weekdays")}
-            </legend>
-            <div className="flex flex-wrap gap-3">
-              {WEEKDAY_VALUES.map((weekday) => (
-                <label key={weekday} className="flex items-center gap-2">
-                  <input
-                    checked={form.weekdays.includes(weekday)}
-                    className="h-4 w-4 rounded border-slate-300"
-                    onChange={() => toggleWeekday(weekday)}
-                    type="checkbox"
-                  />
-                  <span className="text-slate-700">
-                    {t(`admin.sessions.weekdays.${weekday}`)}
-                  </span>
-                </label>
-              ))}
+              </AdminFormField>
             </div>
-          </fieldset>
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="text-slate-700">
-                {t("admin.sessions.fields.startTime")}
-              </span>
-              <input
-                className="rounded border border-slate-300 px-3 py-2"
-                type="time"
-                value={form.startTime}
-                onChange={(event) =>
-                  updateField("startTime", event.target.value)
-                }
-              />
-            </label>
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="text-slate-700">
-                {t("admin.sessions.fields.endTime")}
-              </span>
-              <input
-                className="rounded border border-slate-300 px-3 py-2"
-                type="time"
-                value={form.endTime}
-                onChange={(event) => updateField("endTime", event.target.value)}
-              />
-            </label>
-          </div>
-          <label className="flex flex-col gap-2 text-sm">
-            <span className="text-slate-700">
-              {t("admin.sessions.fields.timezone")}
-            </span>
-            <select
-              className="rounded border border-slate-300 px-3 py-2"
-              value={form.timezone}
-              onChange={(event) => updateField("timezone", event.target.value)}
+            <div className="grid gap-4 md:grid-cols-2">
+              <AdminFormField
+                label={t("admin.sessions.fields.type")}
+                htmlFor="sessions-generator-type"
+                required
+              >
+                <select
+                  className={inputBase}
+                  id="sessions-generator-type"
+                  value={form.sessionType}
+                  onChange={(event) =>
+                    handleSessionTypeChange(
+                      event.target.value as SessionType,
+                    )
+                  }
+                >
+                  <option value="ONE_ON_ONE">
+                    {t("admin.sessions.types.oneOnOne")}
+                  </option>
+                  <option value="GROUP">{t("admin.sessions.types.group")}</option>
+                  <option value="CLASS">{t("admin.sessions.types.class")}</option>
+                </select>
+              </AdminFormField>
+              {form.sessionType === "ONE_ON_ONE" ? (
+                <AdminFormField
+                  label={t("admin.sessions.fields.student")}
+                  htmlFor="sessions-generator-student"
+                  required
+                  error={studentError}
+                >
+                  <select
+                    aria-describedby={
+                      studentError ? "sessions-generator-student-error" : undefined
+                    }
+                    className={inputBase}
+                    id="sessions-generator-student"
+                    value={form.studentId}
+                    onChange={(event) =>
+                      updateField("studentId", event.target.value)
+                    }
+                  >
+                    <option value="">
+                      {t("admin.sessions.placeholders.selectStudent")}
+                    </option>
+                    {students.map((student) => (
+                      <option key={student.id} value={student.id}>
+                        {formatStudentName(student)}
+                      </option>
+                    ))}
+                  </select>
+                </AdminFormField>
+              ) : (
+                <AdminFormField
+                  label={t("admin.sessions.fields.group")}
+                  htmlFor="sessions-generator-group"
+                  required
+                  error={groupError}
+                >
+                  <select
+                    aria-describedby={
+                      groupError ? "sessions-generator-group-error" : undefined
+                    }
+                    className={inputBase}
+                    id="sessions-generator-group"
+                    value={form.groupId}
+                    onChange={(event) =>
+                      updateField("groupId", event.target.value)
+                    }
+                  >
+                    <option value="">
+                      {t("admin.sessions.placeholders.selectGroup")}
+                    </option>
+                    {filteredGroups.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.name}
+                      </option>
+                    ))}
+                  </select>
+                </AdminFormField>
+              )}
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <AdminFormField
+                label={t("admin.sessions.fields.startDate")}
+                htmlFor="sessions-generator-start-date"
+                required
+              >
+                <input
+                  className={inputBase}
+                  id="sessions-generator-start-date"
+                  type="date"
+                  value={form.startDate}
+                  onChange={(event) =>
+                    updateField("startDate", event.target.value)
+                  }
+                />
+              </AdminFormField>
+              <AdminFormField
+                label={t("admin.sessions.fields.endDate")}
+                htmlFor="sessions-generator-end-date"
+                required
+              >
+                <input
+                  className={inputBase}
+                  id="sessions-generator-end-date"
+                  type="date"
+                  value={form.endDate}
+                  onChange={(event) => updateField("endDate", event.target.value)}
+                />
+              </AdminFormField>
+            </div>
+            <AdminFormField
+              label={t("admin.sessions.fields.weekdays")}
+              required
+              error={weekdayError}
             >
-              <option value="">
-                {t("admin.sessions.placeholders.selectTimezone")}
-              </option>
-              {timezoneOptions.map((timezone) => (
-                <option key={timezone} value={timezone}>
-                  {timezone}
+              <div className="flex flex-wrap gap-3">
+                {WEEKDAY_VALUES.map((weekday) => (
+                  <label
+                    key={weekday}
+                    className="flex items-center gap-2 text-sm text-slate-700"
+                  >
+                    <input
+                      checked={form.weekdays.includes(weekday)}
+                      className={weekdayCheckboxBase}
+                      onChange={() => toggleWeekday(weekday)}
+                      type="checkbox"
+                    />
+                    <span>{t(`admin.sessions.weekdays.${weekday}`)}</span>
+                  </label>
+                ))}
+              </div>
+            </AdminFormField>
+            <div className="grid gap-4 md:grid-cols-2">
+              <AdminFormField
+                label={t("admin.sessions.fields.startTime")}
+                htmlFor="sessions-generator-start-time"
+                required
+              >
+                <input
+                  className={inputBase}
+                  id="sessions-generator-start-time"
+                  type="time"
+                  value={form.startTime}
+                  onChange={(event) =>
+                    updateField("startTime", event.target.value)
+                  }
+                />
+              </AdminFormField>
+              <AdminFormField
+                label={t("admin.sessions.fields.endTime")}
+                htmlFor="sessions-generator-end-time"
+                required
+              >
+                <input
+                  className={inputBase}
+                  id="sessions-generator-end-time"
+                  type="time"
+                  value={form.endTime}
+                  onChange={(event) => updateField("endTime", event.target.value)}
+                />
+              </AdminFormField>
+            </div>
+            <AdminFormField
+              label={t("admin.sessions.fields.timezone")}
+              htmlFor="sessions-generator-timezone"
+            >
+              <select
+                className={inputBase}
+                id="sessions-generator-timezone"
+                value={form.timezone}
+                onChange={(event) => updateField("timezone", event.target.value)}
+              >
+                <option value="">
+                  {t("admin.sessions.placeholders.selectTimezone")}
                 </option>
-              ))}
-            </select>
-          </label>
-        </form>
+                {timezoneOptions.map((timezone) => (
+                  <option key={timezone} value={timezone}>
+                    {timezone}
+                  </option>
+                ))}
+              </select>
+            </AdminFormField>
+          </form>
+        </AdminModalShell>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <button
-            className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-            data-testid="generator-preview-button"
-            disabled={isSaving}
-            onClick={runPreview}
-            type="button"
-          >
-            {t("admin.sessions.actions.preview")}
-          </button>
-          <button
-            className="rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
-            data-testid="generator-confirm-button"
-            disabled={isSaving}
-            onClick={runCommit}
-            type="button"
-          >
-            {t("admin.sessions.actions.confirm")}
-          </button>
-        </div>
-
-        {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+        {formError ? <p className="mt-3 text-sm text-red-600">{formError}</p> : null}
 
         {preview ? (
           <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-4">

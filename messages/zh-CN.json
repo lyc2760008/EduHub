@@ -1,293 +1,306 @@
-{
+﻿{
   "_comment": "Simplified Chinese UI strings for EduHub.",
   "login": {
-    "title": "登录",
-    "emailLabel": "邮箱",
-    "passwordLabel": "密码",
-    "submit": "登录",
-    "errorInvalid": "邮箱或密码无效"
+    "title": "ç™»å½•",
+    "emailLabel": "é‚®ç®±",
+    "passwordLabel": "å¯†ç ",
+    "submit": "ç™»å½•",
+    "errorInvalid": "é‚®ç®±æˆ–å¯†ç æ— æ•ˆ"
   },
   "admin": {
-    "title": "管理面板",
-    "welcome": "您已以 {email} 登录",
+    "title": "ç®¡ç†é¢æ¿",
+    "welcome": "æ‚¨å·²ä»¥ {email} ç™»å½•",
     "accessDenied": {
-      "title": "访问受限",
-      "message": "您没有权限查看此页面。"
+      "title": "è®¿é—®å—é™",
+      "message": "æ‚¨æ²¡æœ‰æƒé™æŸ¥çœ‹æ­¤é¡µé¢ã€‚"
     },
     "centers": {
-      "title": "中心管理",
-      "create": "创建中心",
-      "edit": "编辑中心",
-      "activate": "启用",
-      "deactivate": "停用",
+      "title": "ä¸­å¿ƒç®¡ç†",
+      "create": "åˆ›å»ºä¸­å¿ƒ",
+      "edit": "ç¼–è¾‘ä¸­å¿ƒ",
+      "activate": "å¯ç”¨",
+      "deactivate": "åœç”¨",
       "status": {
-        "active": "启用",
-        "inactive": "停用"
+        "active": "å¯ç”¨",
+        "inactive": "åœç”¨"
       },
       "fields": {
-        "name": "名称",
-        "timezone": "时区",
-        "address1": "地址 1",
-        "address2": "地址 2",
-        "city": "城市",
-        "province": "省/州",
-        "postalCode": "邮编",
-        "country": "国家",
-        "status": "状态",
-        "actions": "操作"
+        "name": "åç§°",
+        "timezone": "æ—¶åŒº",
+        "address1": "åœ°å€ 1",
+        "address2": "åœ°å€ 2",
+        "city": "åŸŽå¸‚",
+        "province": "çœ/å·ž",
+        "postalCode": "é‚®ç¼–",
+        "country": "å›½å®¶",
+        "status": "çŠ¶æ€",
+        "actions": "æ“ä½œ"
       },
       "actions": {
-        "save": "保存",
-        "cancel": "取消"
+        "save": "ä¿å­˜",
+        "cancel": "å–æ¶ˆ"
       },
       "messages": {
-        "loadError": "无法加载中心",
-        "createSuccess": "中心已创建",
-        "updateSuccess": "中心已更新",
-        "validationError": "请检查输入内容",
-        "requiredFields": "名称和时区为必填项",
-        "empty": "暂无中心"
+        "loadError": "æ— æ³•åŠ è½½ä¸­å¿ƒ",
+        "createSuccess": "ä¸­å¿ƒå·²åˆ›å»º",
+        "updateSuccess": "ä¸­å¿ƒå·²æ›´æ–°",
+        "validationError": "è¯·æ£€æŸ¥è¾“å…¥å†…å®¹",
+        "requiredFields": "åç§°å’Œæ—¶åŒºä¸ºå¿…å¡«é¡¹",
+        "empty": "æš‚æ— ä¸­å¿ƒ"
       }
     },
     "subjects": {
-      "title": "学科",
-      "create": "创建学科",
-      "edit": "编辑学科",
+      "title": "å­¦ç§‘",
+      "create": "åˆ›å»ºå­¦ç§‘",
+      "edit": "ç¼–è¾‘å­¦ç§‘",
       "fields": {
-        "name": "名称",
-        "status": "状态",
-        "actions": "操作"
+        "name": "åç§°",
+        "status": "çŠ¶æ€",
+        "actions": "æ“ä½œ"
       },
       "messages": {
-        "loadError": "无法加载学科",
-        "createSuccess": "学科已创建",
-        "updateSuccess": "学科已更新",
-        "validationError": "请检查输入内容",
-        "forbidden": "您没有权限管理学科",
-        "empty": "暂无学科"
+        "loadError": "æ— æ³•åŠ è½½å­¦ç§‘",
+        "createSuccess": "å­¦ç§‘å·²åˆ›å»º",
+        "updateSuccess": "å­¦ç§‘å·²æ›´æ–°",
+        "validationError": "è¯·æ£€æŸ¥è¾“å…¥å†…å®¹",
+        "forbidden": "æ‚¨æ²¡æœ‰æƒé™ç®¡ç†å­¦ç§‘",
+        "empty": "æš‚æ— å­¦ç§‘"
       }
     },
     "levels": {
-      "title": "级别",
-      "create": "创建级别",
-      "edit": "编辑级别",
+      "title": "çº§åˆ«",
+      "create": "åˆ›å»ºçº§åˆ«",
+      "edit": "ç¼–è¾‘çº§åˆ«",
       "fields": {
-        "name": "名称",
-        "sortOrder": "排序",
-        "status": "状态",
-        "actions": "操作"
+        "name": "åç§°",
+        "sortOrder": "æŽ’åº",
+        "status": "çŠ¶æ€",
+        "actions": "æ“ä½œ"
       },
       "messages": {
-        "loadError": "无法加载级别",
-        "createSuccess": "级别已创建",
-        "updateSuccess": "级别已更新",
-        "validationError": "请检查输入内容",
-        "forbidden": "您没有权限管理级别",
-        "empty": "暂无级别"
+        "loadError": "æ— æ³•åŠ è½½çº§åˆ«",
+        "createSuccess": "çº§åˆ«å·²åˆ›å»º",
+        "updateSuccess": "çº§åˆ«å·²æ›´æ–°",
+        "validationError": "è¯·æ£€æŸ¥è¾“å…¥å†…å®¹",
+        "forbidden": "æ‚¨æ²¡æœ‰æƒé™ç®¡ç†çº§åˆ«",
+        "empty": "æš‚æ— çº§åˆ«"
       }
     },
     "programs": {
-      "title": "课程",
-      "create": "创建课程",
-      "edit": "编辑课程",
+      "title": "è¯¾ç¨‹",
+      "create": "åˆ›å»ºè¯¾ç¨‹",
+      "edit": "ç¼–è¾‘è¯¾ç¨‹",
       "fields": {
-        "name": "名称",
-        "subject": "学科",
-        "status": "状态",
-        "actions": "操作"
+        "name": "åç§°",
+        "subject": "å­¦ç§‘",
+        "status": "çŠ¶æ€",
+        "actions": "æ“ä½œ"
       },
       "messages": {
-        "loadError": "无法加载课程",
-        "createSuccess": "课程已创建",
-        "updateSuccess": "课程已更新",
-        "validationError": "请检查输入内容",
-        "forbidden": "您没有权限管理课程",
-        "empty": "暂无课程",
-        "noSubject": "无学科"
+        "loadError": "æ— æ³•åŠ è½½è¯¾ç¨‹",
+        "createSuccess": "è¯¾ç¨‹å·²åˆ›å»º",
+        "updateSuccess": "è¯¾ç¨‹å·²æ›´æ–°",
+        "validationError": "è¯·æ£€æŸ¥è¾“å…¥å†…å®¹",
+        "forbidden": "æ‚¨æ²¡æœ‰æƒé™ç®¡ç†è¯¾ç¨‹",
+        "empty": "æš‚æ— è¯¾ç¨‹",
+        "noSubject": "æ— å­¦ç§‘"
       }
     },
     "groups": {
-      "title": "分组",
-      "detailTitle": "分组详情",
-      "create": "创建分组",
-      "edit": "编辑分组",
+      "title": "åˆ†ç»„",
+      "detailTitle": "åˆ†ç»„è¯¦æƒ…",
+      "create": "åˆ›å»ºåˆ†ç»„",
+      "edit": "ç¼–è¾‘åˆ†ç»„",
       "types": {
-        "group": "分组",
-        "class": "班级"
+        "group": "åˆ†ç»„",
+        "class": "ç­çº§"
       },
       "sections": {
-        "overview": "概览",
-        "tutors": "管理导师",
-        "students": "管理学生"
+        "overview": "æ¦‚è§ˆ",
+        "tutors": "ç®¡ç†å¯¼å¸ˆ",
+        "students": "ç®¡ç†å­¦ç”Ÿ"
       },
       "fields": {
-        "name": "名称",
-        "type": "类型",
-        "center": "中心",
-        "program": "课程",
-        "level": "级别",
-        "capacity": "容量",
-        "notes": "备注",
-        "tutorsCount": "导师数",
-        "studentsCount": "学生数",
-        "status": "状态",
-        "actions": "操作",
-        "studentFilter": "学生筛选"
+        "name": "åç§°",
+        "type": "ç±»åž‹",
+        "center": "ä¸­å¿ƒ",
+        "program": "è¯¾ç¨‹",
+        "level": "çº§åˆ«",
+        "capacity": "å®¹é‡",
+        "notes": "å¤‡æ³¨",
+        "tutorsCount": "å¯¼å¸ˆæ•°",
+        "studentsCount": "å­¦ç”Ÿæ•°",
+        "status": "çŠ¶æ€",
+        "actions": "æ“ä½œ",
+        "studentFilter": "å­¦ç”Ÿç­›é€‰"
       },
       "actions": {
-        "manage": "管理",
-        "back": "返回分组",
-        "saveTutors": "保存导师",
-        "saveStudents": "保存学生"
+        "manage": "ç®¡ç†",
+        "back": "è¿”å›žåˆ†ç»„",
+        "saveTutors": "ä¿å­˜å¯¼å¸ˆ",
+        "saveStudents": "ä¿å­˜å­¦ç”Ÿ"
       },
       "messages": {
-        "loadError": "无法加载分组",
-        "createSuccess": "分组已创建",
-        "updateSuccess": "分组已更新",
-        "validationError": "请检查表单输入",
-        "forbidden": "您没有权限管理分组",
-        "empty": "暂无分组",
-        "noLevel": "无级别",
-        "noCenter": "请选择中心",
-        "noProgram": "请选择课程",
-        "noNotes": "无备注",
-        "noCapacity": "未设置容量",
-        "noTutors": "该中心暂无可选导师",
-        "noStudents": "暂无学生",
-        "tutorsUpdated": "导师已更新",
-        "studentsUpdated": "学生名单已更新",
-        "filterStudents": "按姓名筛选学生",
-        "notFound": "未找到分组"
+        "loadError": "æ— æ³•åŠ è½½åˆ†ç»„",
+        "createSuccess": "åˆ†ç»„å·²åˆ›å»º",
+        "updateSuccess": "åˆ†ç»„å·²æ›´æ–°",
+        "validationError": "è¯·æ£€æŸ¥è¡¨å•è¾“å…¥",
+        "forbidden": "æ‚¨æ²¡æœ‰æƒé™ç®¡ç†åˆ†ç»„",
+        "empty": "æš‚æ— åˆ†ç»„",
+        "noLevel": "æ— çº§åˆ«",
+        "noCenter": "è¯·é€‰æ‹©ä¸­å¿ƒ",
+        "noProgram": "è¯·é€‰æ‹©è¯¾ç¨‹",
+        "noNotes": "æ— å¤‡æ³¨",
+        "noCapacity": "æœªè®¾ç½®å®¹é‡",
+        "noTutors": "è¯¥ä¸­å¿ƒæš‚æ— å¯é€‰å¯¼å¸ˆ",
+        "noStudents": "æš‚æ— å­¦ç”Ÿ",
+        "tutorsUpdated": "å¯¼å¸ˆå·²æ›´æ–°",
+        "studentsUpdated": "å­¦ç”Ÿåå•å·²æ›´æ–°",
+        "filterStudents": "æŒ‰å§“åç­›é€‰å­¦ç”Ÿ",
+        "notFound": "æœªæ‰¾åˆ°åˆ†ç»„"
       }
     },
     "sessions": {
-      "title": "课次",
-      "detailTitle": "课次详情",
+      "title": "è¯¾æ¬¡",
+      "detailTitle": "è¯¾æ¬¡è¯¦æƒ…",
       "sections": {
-        "overview": "课次概览",
-        "roster": "学生名单"
+        "overview": "è¯¾æ¬¡æ¦‚è§ˆ",
+        "roster": "å­¦ç”Ÿåå•"
       },
       "filters": {
-        "center": "中心",
-        "tutor": "导师",
-        "from": "开始日期",
-        "to": "结束日期",
-        "allCenters": "全部中心",
-        "allTutors": "全部导师"
+        "center": "ä¸­å¿ƒ",
+        "tutor": "å¯¼å¸ˆ",
+        "from": "å¼€å§‹æ—¥æœŸ",
+        "to": "ç»“æŸæ—¥æœŸ",
+        "allCenters": "å…¨éƒ¨ä¸­å¿ƒ",
+        "allTutors": "å…¨éƒ¨å¯¼å¸ˆ"
       },
       "fields": {
-        "center": "中心",
-        "tutor": "导师",
-        "type": "类型",
-        "group": "分组",
-        "student": "学生",
-        "startAt": "开始时间",
-        "endAt": "结束时间",
-        "timezone": "时区",
-        "startDate": "开始日期",
-        "endDate": "结束日期",
-        "weekdays": "每周",
-        "startTime": "开始时间",
-        "endTime": "结束时间",
-        "actions": "操作",
-        "studentsCount": "学生（{count}）"
+        "center": "ä¸­å¿ƒ",
+        "tutor": "å¯¼å¸ˆ",
+        "type": "ç±»åž‹",
+        "group": "åˆ†ç»„",
+        "student": "å­¦ç”Ÿ",
+        "startAt": "å¼€å§‹æ—¶é—´",
+        "endAt": "ç»“æŸæ—¶é—´",
+        "timezone": "æ—¶åŒº",
+        "startDate": "å¼€å§‹æ—¥æœŸ",
+        "endDate": "ç»“æŸæ—¥æœŸ",
+        "weekdays": "æ¯å‘¨",
+        "startTime": "å¼€å§‹æ—¶é—´",
+        "endTime": "ç»“æŸæ—¶é—´",
+        "actions": "æ“ä½œ",
+        "studentsCount": "å­¦ç”Ÿï¼ˆ{count}ï¼‰"
       },
       "types": {
-        "oneOnOne": "一对一",
-        "group": "小组",
-        "class": "班级"
+        "oneOnOne": "ä¸€å¯¹ä¸€",
+        "group": "å°ç»„",
+        "class": "ç­çº§"
       },
       "actions": {
-        "createOneOff": "创建单次课次",
-        "generateRecurring": "生成重复课次",
-        "saveOneOff": "创建课次",
-        "preview": "预览",
-        "confirm": "确认",
-        "view": "查看",
-        "back": "返回课次"
+        "createOneOff": "åˆ›å»ºå•æ¬¡è¯¾æ¬¡",
+        "generateRecurring": "ç”Ÿæˆé‡å¤è¯¾æ¬¡",
+        "saveOneOff": "åˆ›å»ºè¯¾æ¬¡",
+        "preview": "é¢„è§ˆ",
+        "confirm": "ç¡®è®¤",
+        "view": "æŸ¥çœ‹",
+        "back": "è¿”å›žè¯¾æ¬¡"
       },
       "placeholders": {
-        "selectCenter": "选择中心",
-        "selectTutor": "选择导师",
-        "selectStudent": "选择学生",
-        "selectGroup": "选择分组",
-        "selectTimezone": "选择时区"
+        "selectCenter": "é€‰æ‹©ä¸­å¿ƒ",
+        "selectTutor": "é€‰æ‹©å¯¼å¸ˆ",
+        "selectStudent": "é€‰æ‹©å­¦ç”Ÿ",
+        "selectGroup": "é€‰æ‹©åˆ†ç»„",
+        "selectTimezone": "é€‰æ‹©æ—¶åŒº"
       },
       "weekdays": {
-        "1": "周一",
-        "2": "周二",
-        "3": "周三",
-        "4": "周四",
-        "5": "周五",
-        "6": "周六",
-        "7": "周日"
+        "1": "å‘¨ä¸€",
+        "2": "å‘¨äºŒ",
+        "3": "å‘¨ä¸‰",
+        "4": "å‘¨å››",
+        "5": "å‘¨äº”",
+        "6": "å‘¨å…­",
+        "7": "å‘¨æ—¥"
       },
       "messages": {
-        "loadError": "无法加载课次",
-        "createSuccess": "课次已创建",
-        "generateSuccess": "课次已生成",
-        "createError": "无法创建课次",
-        "generateError": "无法生成课次",
-        "validationError": "请检查表单输入",
-        "requiredFields": "请填写必填项",
-        "studentRequired": "一对一课次需要选择学生",
-        "groupRequired": "小组/班级课次需要选择分组",
-        "invalidTime": "请输入有效的日期和时间",
-        "invalidRange": "结束时间必须晚于开始时间",
-        "weekdayRequired": "请至少选择一个星期",
-        "empty": "暂无课次",
-        "noGroup": "无分组",
-        "noTutor": "导师不可用",
-        "previewCount": "预览数量",
-        "previewTruncated": "仅显示前 50 个课次",
-        "noRoster": "暂无学生名单",
-        "notFound": "未找到课次",
-        "forbidden": "您没有权限查看课次"
+        "loadError": "æ— æ³•åŠ è½½è¯¾æ¬¡",
+        "createSuccess": "è¯¾æ¬¡å·²åˆ›å»º",
+        "generateSuccess": "è¯¾æ¬¡å·²ç”Ÿæˆ",
+        "createError": "æ— æ³•åˆ›å»ºè¯¾æ¬¡",
+        "generateError": "æ— æ³•ç”Ÿæˆè¯¾æ¬¡",
+        "validationError": "è¯·æ£€æŸ¥è¡¨å•è¾“å…¥",
+        "requiredFields": "è¯·å¡«å†™å¿…å¡«é¡¹",
+        "studentRequired": "ä¸€å¯¹ä¸€è¯¾æ¬¡éœ€è¦é€‰æ‹©å­¦ç”Ÿ",
+        "groupRequired": "å°ç»„/ç­çº§è¯¾æ¬¡éœ€è¦é€‰æ‹©åˆ†ç»„",
+        "invalidTime": "è¯·è¾“å…¥æœ‰æ•ˆçš„æ—¥æœŸå’Œæ—¶é—´",
+        "invalidRange": "ç»“æŸæ—¶é—´å¿…é¡»æ™šäºŽå¼€å§‹æ—¶é—´",
+        "weekdayRequired": "è¯·è‡³å°‘é€‰æ‹©ä¸€ä¸ªæ˜ŸæœŸ",
+        "empty": "æš‚æ— è¯¾æ¬¡",
+        "noGroup": "æ— åˆ†ç»„",
+        "noTutor": "å¯¼å¸ˆä¸å¯ç”¨",
+        "previewCount": "é¢„è§ˆæ•°é‡",
+        "previewTruncated": "ä»…æ˜¾ç¤ºå‰ 50 ä¸ªè¯¾æ¬¡",
+        "noRoster": "æš‚æ— å­¦ç”Ÿåå•",
+        "notFound": "æœªæ‰¾åˆ°è¯¾æ¬¡",
+        "forbidden": "æ‚¨æ²¡æœ‰æƒé™æŸ¥çœ‹è¯¾æ¬¡"
       }
     },
     "users": {
-      "title": "用户",
-      "create": "创建用户",
-      "edit": "编辑",
+      "title": "ç”¨æˆ·",
+      "create": "åˆ›å»ºç”¨æˆ·",
+      "edit": "ç¼–è¾‘",
       "fields": {
-        "name": "姓名",
-        "email": "邮箱",
-        "role": "角色",
-        "centers": "中心"
+        "name": "å§“å",
+        "email": "é‚®ç®±",
+        "role": "è§’è‰²",
+        "centers": "ä¸­å¿ƒ"
       },
       "roles": {
-        "owner": "所有者",
-        "admin": "管理员",
-        "tutor": "导师",
-        "parent": "家长",
-        "student": "学生"
+        "owner": "æ‰€æœ‰è€…",
+        "admin": "ç®¡ç†å‘˜",
+        "tutor": "å¯¼å¸ˆ",
+        "parent": "å®¶é•¿",
+        "student": "å­¦ç”Ÿ"
       },
       "actions": {
-        "save": "保存",
-        "cancel": "取消"
+        "save": "ä¿å­˜",
+        "cancel": "å–æ¶ˆ"
       },
       "messages": {
-        "loadError": "无法加载用户",
-        "createSuccess": "用户已创建",
-        "updateSuccess": "用户已更新",
-        "validationError": "请检查表单输入",
-        "forbidden": "您没有权限管理用户",
-        "empty": "暂无用户"
+        "loadError": "æ— æ³•åŠ è½½ç”¨æˆ·",
+        "createSuccess": "ç”¨æˆ·å·²åˆ›å»º",
+        "updateSuccess": "ç”¨æˆ·å·²æ›´æ–°",
+        "validationError": "è¯·æ£€æŸ¥è¡¨å•è¾“å…¥",
+        "forbidden": "æ‚¨æ²¡æœ‰æƒé™ç®¡ç†ç”¨æˆ·",
+        "empty": "æš‚æ— ç”¨æˆ·"
       }
     }
   },
+  "nav": {
+    "_comment": "管理后台快速导航标题。",
+    "admin": {
+      "centers": "中心管理",
+      "subjects": "学科",
+      "levels": "级别",
+      "programs": "课程",
+      "groups": "分组",
+      "sessions": "课次",
+      "users": "用户"
+    }
+  },
   "common": {
-    "loading": "加载中...",
-    "error": "出现错误",
+    "loading": "åŠ è½½ä¸­...",
+    "error": "å‡ºçŽ°é”™è¯¯",
     "actions": {
-      "save": "保存",
-      "cancel": "取消",
-      "activate": "启用",
-      "deactivate": "停用"
+      "save": "ä¿å­˜",
+      "cancel": "å–æ¶ˆ",
+      "activate": "å¯ç”¨",
+      "deactivate": "åœç”¨"
     },
     "status": {
-      "active": "启用",
-      "inactive": "停用"
+      "active": "å¯ç”¨",
+      "inactive": "åœç”¨"
     }
   }
 }
+

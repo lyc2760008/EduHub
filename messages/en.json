@@ -276,6 +276,18 @@
       }
     }
   },
+  "nav": {
+    "_comment": "Navigation labels for admin quick links.",
+    "admin": {
+      "centers": "Centers",
+      "subjects": "Subjects",
+      "levels": "Levels",
+      "programs": "Programs",
+      "groups": "Groups",
+      "sessions": "Sessions",
+      "users": "Users"
+    }
+  },
   "common": {
     "loading": "Loading...",
     "error": "Something went wrong",

@@ -3,11 +3,18 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import AdminTable, {
   type AdminTableColumn,
 } from "@/components/admin/shared/AdminTable";
+// Shared classes keep focus-visible and hover states consistent in Sessions UI.
+import {
+  inputBase,
+  primaryButton,
+  secondaryButton,
+} from "@/components/admin/shared/adminUiClasses";
 import { fetchJson } from "@/lib/api/fetchJson";
 import SessionGeneratorModal from "@/components/admin/sessions/SessionGeneratorModal";
 import SessionOneOffModal from "@/components/admin/sessions/SessionOneOffModal";
@@ -69,6 +76,13 @@ type SessionsResponse = {
   sessions: SessionListItem[];
 };
 
+type SessionFilters = {
+  centerId: string;
+  tutorId: string;
+  from: string;
+  to: string;
+};
+
 type StudentsResponse = {
   students: StudentOption[];
 };
@@ -122,6 +136,24 @@ export default function SessionsClient({
   const t = useTranslations();
   const isAdmin = viewerRole === "Owner" || viewerRole === "Admin";
   const locale = typeof navigator !== "undefined" ? navigator.language : "en";
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // URL contract: centerId, tutorId, from, to (YYYY-MM-DD); only non-empty values are persisted.
+  // Tutor lock: non-admins always scope tutorId to self, ignoring URL overrides.
+  const filters = useMemo<SessionFilters>(() => {
+    const centerId = searchParams.get("centerId") ?? "";
+    const urlTutorId = searchParams.get("tutorId") ?? "";
+    const from = searchParams.get("from") ?? "";
+    const to = searchParams.get("to") ?? "";
+    return {
+      centerId,
+      tutorId: isAdmin ? urlTutorId : viewerId,
+      from,
+      to,
+    };
+  }, [isAdmin, searchParams, viewerId]);
 
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [centers, setCenters] = useState<CenterOption[]>([]);
@@ -133,13 +165,77 @@ export default function SessionsClient({
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const [filterCenterId, setFilterCenterId] = useState("");
-  const [filterTutorId, setFilterTutorId] = useState(isAdmin ? "" : viewerId);
-  const [filterFrom, setFilterFrom] = useState("");
-  const [filterTo, setFilterTo] = useState("");
-
   const [isOneOffOpen, setIsOneOffOpen] = useState(false);
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
+
+  // Serialize filters in a stable order to avoid URL churn when nothing changed.
+  const serializeFiltersToQueryString = useCallback(
+    (filters: SessionFilters) => {
+      const params = new URLSearchParams();
+      if (filters.centerId) params.set("centerId", filters.centerId);
+      if (filters.tutorId) params.set("tutorId", filters.tutorId);
+      if (filters.from) params.set("from", filters.from);
+      if (filters.to) params.set("to", filters.to);
+      return params.toString();
+    },
+    [],
+  );
+
+  // Helper to update the URL without pushing history entries.
+  const updateFiltersInUrl = useCallback(
+    (nextFilters: Partial<SessionFilters>) => {
+      const merged: SessionFilters = {
+        centerId: nextFilters.centerId ?? filters.centerId,
+        tutorId: nextFilters.tutorId ?? filters.tutorId,
+        from: nextFilters.from ?? filters.from,
+        to: nextFilters.to ?? filters.to,
+      };
+      const sanitized = isAdmin ? merged : { ...merged, tutorId: viewerId };
+      const nextQuery = serializeFiltersToQueryString(sanitized);
+      const currentQuery = searchParams.toString();
+      // Loop prevention: only replace when the query string actually changes.
+      if (nextQuery === currentQuery) return;
+      const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+      router.replace(nextUrl);
+    },
+    [
+      filters.centerId,
+      filters.from,
+      filters.to,
+      filters.tutorId,
+      isAdmin,
+      pathname,
+      router,
+      searchParams,
+      serializeFiltersToQueryString,
+      viewerId,
+    ],
+  );
+
+  useEffect(() => {
+    // Tutor lock: non-admins always persist their own tutorId, stripping overrides.
+    if (isAdmin) return;
+    const nextQuery = serializeFiltersToQueryString({
+      centerId: filters.centerId,
+      tutorId: viewerId,
+      from: filters.from,
+      to: filters.to,
+    });
+    const currentQuery = searchParams.toString();
+    if (nextQuery === currentQuery) return;
+    const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+    router.replace(nextUrl);
+  }, [
+    filters.centerId,
+    filters.from,
+    filters.to,
+    isAdmin,
+    pathname,
+    router,
+    searchParams,
+    serializeFiltersToQueryString,
+    viewerId,
+  ]);
 
   const derivedCenters = useMemo(() => {
     if (isAdmin) return centers;
@@ -156,15 +252,15 @@ export default function SessionsClient({
 
   const availableTutors = useMemo(() => {
     if (!isAdmin) return [];
-    if (!filterCenterId) {
+    if (!filters.centerId) {
       return tutors.filter((user) => user.role === "Tutor");
     }
     return tutors.filter(
       (user) =>
         user.role === "Tutor" &&
-        user.centers.some((center) => center.id === filterCenterId),
+        user.centers.some((center) => center.id === filters.centerId),
     );
-  }, [filterCenterId, isAdmin, tutors]);
+  }, [filters.centerId, isAdmin, tutors]);
 
   const timezoneOptions = useMemo(() => {
     const unique = new Set<string>();
@@ -178,23 +274,23 @@ export default function SessionsClient({
   }, [centers]);
 
   const defaultTimezone = useMemo(() => {
-    if (filterCenterId) {
-      const center = centers.find((option) => option.id === filterCenterId);
+    if (filters.centerId) {
+      const center = centers.find((option) => option.id === filters.centerId);
       if (center?.timezone) return center.timezone;
     }
     return timezoneOptions[0] ?? DEFAULT_TIMEZONE;
-  }, [centers, filterCenterId, timezoneOptions]);
+  }, [centers, filters.centerId, timezoneOptions]);
 
   const loadSessions = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     const params = new URLSearchParams();
-    if (filterCenterId) params.set("centerId", filterCenterId);
-    if (filterTutorId) params.set("tutorId", filterTutorId);
+    if (filters.centerId) params.set("centerId", filters.centerId);
+    if (filters.tutorId) params.set("tutorId", filters.tutorId);
 
-    const startAtFrom = buildStartOfDayISO(filterFrom);
-    const startAtTo = buildEndOfDayISO(filterTo);
+    const startAtFrom = buildStartOfDayISO(filters.from);
+    const startAtTo = buildEndOfDayISO(filters.to);
     if (startAtFrom) params.set("startAtFrom", startAtFrom);
     if (startAtTo) params.set("startAtTo", startAtTo);
 
@@ -217,7 +313,7 @@ export default function SessionsClient({
 
     setSessions(result.data.sessions);
     setIsLoading(false);
-  }, [filterCenterId, filterFrom, filterTo, filterTutorId, t]);
+  }, [filters.centerId, filters.from, filters.to, filters.tutorId, t]);
 
   const loadAdminOptions = useCallback(async () => {
     if (!isAdmin) return;
@@ -276,10 +372,8 @@ export default function SessionsClient({
   }, [loadAdminOptions]);
 
   function handleFilterCenterChange(value: string) {
-    setFilterCenterId(value);
-    if (!isAdmin) return;
     // Reset tutor filter when the center filter changes for admins.
-    setFilterTutorId("");
+    updateFiltersInUrl({ centerId: value, tutorId: isAdmin ? "" : viewerId });
   }
 
   function openOneOffModal() {
@@ -369,7 +463,7 @@ export default function SessionsClient({
       header: t("admin.sessions.fields.actions"),
       cell: (session) => (
         <Link
-          className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+          className={`${secondaryButton} px-3 py-1 text-xs`}
           data-testid="sessions-open-detail"
           href={`/${tenant}/admin/sessions/${session.id}`}
         >
@@ -393,9 +487,9 @@ export default function SessionsClient({
               {t("admin.sessions.filters.center")}
             </span>
             <select
-              className="min-w-[180px] rounded border border-slate-300 px-3 py-2"
+              className={`${inputBase} min-w-[180px]`}
               data-testid="sessions-filter-center"
-              value={filterCenterId}
+              value={filters.centerId}
               onChange={(event) => handleFilterCenterChange(event.target.value)}
             >
               <option value="">{t("admin.sessions.filters.allCenters")}</option>
@@ -411,11 +505,13 @@ export default function SessionsClient({
               {t("admin.sessions.filters.from")}
             </span>
             <input
-              className="rounded border border-slate-300 px-3 py-2"
+              className={inputBase}
               data-testid="sessions-filter-from"
               type="date"
-              value={filterFrom}
-              onChange={(event) => setFilterFrom(event.target.value)}
+              value={filters.from}
+              onChange={(event) =>
+                updateFiltersInUrl({ from: event.target.value })
+              }
             />
           </label>
           <label className="flex flex-col gap-2 text-sm">
@@ -423,11 +519,13 @@ export default function SessionsClient({
               {t("admin.sessions.filters.to")}
             </span>
             <input
-              className="rounded border border-slate-300 px-3 py-2"
+              className={inputBase}
               data-testid="sessions-filter-to"
               type="date"
-              value={filterTo}
-              onChange={(event) => setFilterTo(event.target.value)}
+              value={filters.to}
+              onChange={(event) =>
+                updateFiltersInUrl({ to: event.target.value })
+              }
             />
           </label>
           {isAdmin ? (
@@ -436,10 +534,12 @@ export default function SessionsClient({
                 {t("admin.sessions.filters.tutor")}
               </span>
               <select
-                className="min-w-[180px] rounded border border-slate-300 px-3 py-2"
+                className={`${inputBase} min-w-[180px]`}
                 data-testid="sessions-filter-tutor"
-                value={filterTutorId}
-                onChange={(event) => setFilterTutorId(event.target.value)}
+                value={filters.tutorId}
+                onChange={(event) =>
+                  updateFiltersInUrl({ tutorId: event.target.value })
+                }
               >
                 <option value="">
                   {t("admin.sessions.filters.allTutors")}
@@ -457,7 +557,7 @@ export default function SessionsClient({
                 {t("admin.sessions.filters.tutor")}
               </span>
               <input
-                className="rounded border border-slate-300 bg-slate-100 px-3 py-2 text-slate-600"
+                className={`${inputBase} bg-slate-100 text-slate-600`}
                 disabled
                 value={viewerLabel}
               />
@@ -467,7 +567,7 @@ export default function SessionsClient({
         {isAdmin ? (
           <div className="flex flex-wrap items-center gap-2">
             <button
-              className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              className={primaryButton}
               data-testid="sessions-create-button"
               disabled={isLoadingOptions}
               onClick={openOneOffModal}
@@ -476,7 +576,7 @@ export default function SessionsClient({
               {t("admin.sessions.actions.createOneOff")}
             </button>
             <button
-              className="rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
+              className={secondaryButton}
               data-testid="sessions-generate-button"
               disabled={isLoadingOptions}
               onClick={openGeneratorModal}

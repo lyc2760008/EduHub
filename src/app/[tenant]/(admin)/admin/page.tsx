@@ -34,40 +34,41 @@ export default async function AdminPage({ params }: PageProps) {
             maxWidth="max-w-3xl"
             testId="app-shell"
           >
+            {/* nav.* keeps admin quick links aligned with the design-system namespace. */}
             <Link
               className="text-sm font-semibold text-slate-700 underline underline-offset-4"
               data-testid="nav-admin-centers"
               href={`/${tenant}/admin/centers`}
             >
-              {t("admin.centers.title")}
+              {t("nav.admin.centers")}
             </Link>
             <Link
               className="text-sm font-semibold text-slate-700 underline underline-offset-4"
               data-testid="nav-admin-subjects"
               href={`/${tenant}/admin/subjects`}
             >
-              {t("admin.subjects.title")}
+              {t("nav.admin.subjects")}
             </Link>
             <Link
               className="text-sm font-semibold text-slate-700 underline underline-offset-4"
               data-testid="nav-admin-levels"
               href={`/${tenant}/admin/levels`}
             >
-              {t("admin.levels.title")}
+              {t("nav.admin.levels")}
             </Link>
             <Link
               className="text-sm font-semibold text-slate-700 underline underline-offset-4"
               data-testid="nav-admin-programs"
               href={`/${tenant}/admin/programs`}
             >
-              {t("admin.programs.title")}
+              {t("nav.admin.programs")}
             </Link>
             <Link
               className="text-sm font-semibold text-slate-700 underline underline-offset-4"
               data-testid="nav-admin-groups"
               href={`/${tenant}/admin/groups`}
             >
-              {t("admin.groups.title")}
+              {t("nav.admin.groups")}
             </Link>
             {/* Sessions navigation keeps scheduling workflows reachable from the admin home. */}
             <Link
@@ -75,7 +76,7 @@ export default async function AdminPage({ params }: PageProps) {
               data-testid="nav-admin-sessions"
               href={`/${tenant}/admin/sessions`}
             >
-              {t("admin.sessions.title")}
+              {t("nav.admin.sessions")}
             </Link>
             {/* Admin navigation includes Users for staff and role management. */}
             <Link
@@ -83,7 +84,7 @@ export default async function AdminPage({ params }: PageProps) {
               data-testid="nav-admin-users"
               href={`/${tenant}/admin/users`}
             >
-              {t("admin.users.title")}
+              {t("nav.admin.users")}
             </Link>
             <div className="rounded border border-slate-200 bg-white p-4 text-sm text-slate-700">
               {t("admin.welcome", { email })}
