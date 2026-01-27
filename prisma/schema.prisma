@@ -23,22 +23,26 @@ model Tenant {
   updatedAt DateTime @updatedAt
 
   // Relations (tenant-scoped domain models + auth membership)
-  students       Student[]
-  parents        Parent[]
-  studentParents StudentParent[]
-  memberships    TenantMembership[]
+  students        Student[]
+  parents         Parent[]
+  studentParents  StudentParent[]
+  memberships     TenantMembership[]
   // Centers are tenant-scoped locations/settings for scheduling and reporting.
-  centers        Center[]
+  centers         Center[]
   // Staff-to-center assignments scoped to this tenant.
-  staffCenters   StaffCenter[]
+  staffCenters    StaffCenter[]
   // Academic catalog entities scoped to this tenant.
-  subjects       Subject[]
-  levels         Level[]
-  programs       Program[]
+  subjects        Subject[]
+  levels          Level[]
+  programs        Program[]
   // Instructional groups/classes scoped to this tenant.
-  groups         Group[]
-  groupTutors    GroupTutor[]
-  groupStudents  GroupStudent[]
+  groups          Group[]
+  groupTutors     GroupTutor[]
+  groupStudents   GroupStudent[]
+  // Scheduled sessions scoped to this tenant.
+  sessions        Session[]
+  // Session roster snapshots for attendance-ready workflows.
+  sessionStudents SessionStudent[]
 }
 
 // User is a credentials-auth entity (email + passwordHash required).
@@ -57,6 +61,7 @@ model User {
   // Staff center assignments for tenant-scoped staff scheduling.
   staffCenters StaffCenter[]
   groupTutors  GroupTutor[]
+  sessions     Session[]
 }
 
 // Join table linking users to tenants with a single role per tenant.
@@ -94,6 +99,13 @@ enum GroupType {
   CLASS
 }
 
+// SessionType defines how a session is scheduled and linked to roster data.
+enum SessionType {
+  ONE_ON_ONE
+  GROUP
+  CLASS
+}
+
 // Role values for tenant membership and future RBAC.
 enum Role {
   Owner
@@ -116,9 +128,10 @@ model Student {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  parents       StudentParent[]
-  groupStudents GroupStudent[]
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parents         StudentParent[]
+  groupStudents   GroupStudent[]
+  sessionStudents SessionStudent[]
 
   @@index([tenantId, lastName])
   @@index([tenantId, createdAt])
@@ -180,6 +193,7 @@ model Center {
   // Staff members assigned to this center.
   staffMembers StaffCenter[]
   groups       Group[]
+  sessions     Session[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -266,6 +280,8 @@ model Group {
   // Replace-set semantics use join tables for roster/tutor assignment.
   tutors   GroupTutor[]
   students GroupStudent[]
+  // Sessions can optionally reference a group/class for roster snapshots.
+  sessions Session[]
 
   @@index([tenantId])
   @@index([tenantId, centerId])
@@ -319,4 +335,52 @@ model StaffCenter {
   @@index([tenantId])
   @@index([userId])
   @@index([centerId])
+}
+
+// Session represents a single scheduled instructional session (no recurrence yet).
+model Session {
+  id          String      @id @default(cuid())
+  tenantId    String
+  centerId    String
+  tutorId     String
+  sessionType SessionType
+  groupId     String?
+  startAt     DateTime
+  endAt       DateTime
+  // Store the IANA timezone string provided by the client for display.
+  timezone    String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  center Center @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  tutor  User   @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  group  Group? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  // Roster snapshot rows live in SessionStudent (attendance added later).
+  sessionStudents SessionStudent[]
+
+  @@unique([tenantId, tutorId, centerId, startAt])
+  @@index([tenantId, startAt])
+  @@index([tenantId, centerId, startAt])
+  @@index([tenantId, tutorId, startAt])
+}
+
+// SessionStudent captures the roster snapshot at creation time.
+// Attendance/notes fields will be added later without changing the snapshot semantics.
+model SessionStudent {
+  id        String   @id @default(cuid())
+  tenantId  String
+  sessionId String
+  studentId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, sessionId, studentId])
+  @@index([tenantId, sessionId])
+  @@index([tenantId, studentId])
 }

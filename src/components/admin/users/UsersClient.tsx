@@ -298,7 +298,7 @@ export default function UsersClient({
 
       {isModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-          <div className="w-full max-w-lg rounded border border-slate-200 bg-white p-6 shadow-xl">
+          <div className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded border border-slate-200 bg-white p-6 shadow-xl">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-semibold">
                 {isEditing ? t("admin.users.edit") : t("admin.users.create")}

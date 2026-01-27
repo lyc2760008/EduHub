@@ -69,6 +69,14 @@ export default async function AdminPage({ params }: PageProps) {
             >
               {t("admin.groups.title")}
             </Link>
+            {/* Sessions navigation keeps scheduling workflows reachable from the admin home. */}
+            <Link
+              className="text-sm font-semibold text-slate-700 underline underline-offset-4"
+              data-testid="nav-admin-sessions"
+              href={`/${tenant}/admin/sessions`}
+            >
+              {t("admin.sessions.title")}
+            </Link>
             {/* Admin navigation includes Users for staff and role management. */}
             <Link
               className="text-sm font-semibold text-slate-700 underline underline-offset-4"

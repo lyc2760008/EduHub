@@ -1,0 +1,212 @@
+// Session detail page with roster display and RBAC via AdminAccessGate.
+import { getLocale, getTranslations } from "next-intl/server";
+import Link from "next/link";
+
+import type { Role } from "@/generated/prisma/client";
+import AdminAccessGate from "@/components/admin/shared/AdminAccessGate";
+import AdminPageShell from "@/components/admin/shared/AdminPageShell";
+import { prisma } from "@/lib/db/prisma";
+
+export const runtime = "nodejs";
+
+const READ_ROLES: Role[] = ["Owner", "Admin", "Tutor"];
+
+type PageProps = {
+  params: Promise<{
+    tenant: string;
+    id: string;
+  }>;
+};
+
+export default async function SessionDetailPage({ params }: PageProps) {
+  // i18n: resolve admin copy on the server to stay locale-correct.
+  const t = await getTranslations();
+  const locale = await getLocale();
+  // Next.js 16 may supply dynamic params as a Promise in server components.
+  const { tenant, id } = await params;
+
+  return (
+    <AdminAccessGate tenant={tenant} roles={READ_ROLES} maxWidth="max-w-6xl">
+      {async (access) => {
+        const tenantId = access.tenant.tenantId;
+        const isTutor = access.membership.role === "Tutor";
+
+        const session = await prisma.session.findFirst({
+          where: {
+            id,
+            tenantId,
+            ...(isTutor ? { tutorId: access.user.id } : {}),
+          },
+          select: {
+            id: true,
+            centerId: true,
+            center: { select: { name: true } },
+            tutorId: true,
+            tutor: { select: { name: true, email: true } },
+            sessionType: true,
+            groupId: true,
+            group: { select: { name: true, type: true } },
+            startAt: true,
+            endAt: true,
+            timezone: true,
+            sessionStudents: {
+              select: {
+                student: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    preferredName: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        if (!session) {
+          return (
+            <AdminPageShell
+              title={t("admin.sessions.title")}
+              maxWidth="max-w-6xl"
+              testId="session-detail-missing"
+              actions={
+                <Link
+                  className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+                  href={`/${tenant}/admin/sessions`}
+                >
+                  {t("admin.sessions.actions.back")}
+                </Link>
+              }
+            >
+              <p className="text-sm text-slate-600">
+                {t("admin.sessions.messages.notFound")}
+              </p>
+            </AdminPageShell>
+          );
+        }
+
+        const roster = session.sessionStudents.map((entry) => entry.student);
+        const tutorLabel = session.tutor.name ?? session.tutor.email;
+        const formatDateTime = (date: Date) =>
+          new Intl.DateTimeFormat(locale, {
+            dateStyle: "medium",
+            timeStyle: "short",
+            timeZone: session.timezone,
+          }).format(date);
+
+        return (
+          <AdminPageShell
+            title={t("admin.sessions.detailTitle")}
+            subtitle={`${session.center.name} · ${formatDateTime(session.startAt)}`}
+            maxWidth="max-w-6xl"
+            testId="session-detail-page"
+            actions={
+              <Link
+                className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+                href={`/${tenant}/admin/sessions`}
+              >
+                {t("admin.sessions.actions.back")}
+              </Link>
+            }
+          >
+            <section className="rounded border border-slate-200 bg-white p-5">
+              <h2
+                className="text-lg font-semibold text-slate-900"
+                data-testid="session-detail-title"
+              >
+                {t("admin.sessions.sections.overview")}
+              </h2>
+              <div className="mt-4 grid gap-3 text-sm text-slate-700 md:grid-cols-2">
+                <div>
+                  <span className="text-xs uppercase text-slate-500">
+                    {t("admin.sessions.fields.center")}
+                  </span>
+                  <p className="mt-1 font-medium">{session.center.name}</p>
+                </div>
+                <div>
+                  <span className="text-xs uppercase text-slate-500">
+                    {t("admin.sessions.fields.tutor")}
+                  </span>
+                  <p className="mt-1 font-medium">{tutorLabel}</p>
+                </div>
+                <div>
+                  <span className="text-xs uppercase text-slate-500">
+                    {t("admin.sessions.fields.type")}
+                  </span>
+                  <p className="mt-1 font-medium">
+                    {t(
+                      session.sessionType === "ONE_ON_ONE"
+                        ? "admin.sessions.types.oneOnOne"
+                        : session.sessionType === "GROUP"
+                          ? "admin.sessions.types.group"
+                          : "admin.sessions.types.class",
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-xs uppercase text-slate-500">
+                    {t("admin.sessions.fields.group")}
+                  </span>
+                  <p className="mt-1 font-medium">
+                    {session.group?.name ??
+                      t("admin.sessions.messages.noGroup")}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-xs uppercase text-slate-500">
+                    {t("admin.sessions.fields.startAt")}
+                  </span>
+                  <p className="mt-1 font-medium">
+                    {formatDateTime(session.startAt)}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-xs uppercase text-slate-500">
+                    {t("admin.sessions.fields.endAt")}
+                  </span>
+                  <p className="mt-1 font-medium">
+                    {formatDateTime(session.endAt)}
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded border border-slate-200 bg-white p-5">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {t("admin.sessions.sections.roster")}
+                </h2>
+                <span className="text-sm text-slate-500">
+                  {t("admin.sessions.fields.studentsCount", {
+                    count: roster.length,
+                  })}
+                </span>
+              </div>
+              <div className="mt-4" data-testid="session-detail-roster">
+                {roster.length ? (
+                  <ul className="grid gap-2 text-sm text-slate-700">
+                    {roster.map((student) => (
+                      <li
+                        key={student.id}
+                        className="rounded border border-slate-200 px-3 py-2"
+                      >
+                        {student.preferredName?.trim().length
+                          ? `${student.preferredName} ${student.lastName}`
+                          : `${student.firstName} ${student.lastName}`}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    {t("admin.sessions.messages.noRoster")}
+                  </p>
+                )}
+              </div>
+            </section>
+          </AdminPageShell>
+        );
+      }}
+    </AdminAccessGate>
+  );
+}

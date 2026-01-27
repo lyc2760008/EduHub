@@ -65,7 +65,9 @@ test.describe("Users - CRUD", () => {
     // Select the first center during create to ensure at least one assignment.
     await createCenters.nth(0).check();
 
-    await page.getByTestId("save-user-button").click();
+    const saveButton = page.getByTestId("save-user-button");
+    await saveButton.scrollIntoViewIfNeeded();
+    await saveButton.click();
     await expect(page.getByTestId("save-user-button")).toHaveCount(0);
     await expect(page.getByTestId("users-table")).toBeVisible();
     await expect(page.getByTestId("users-table").getByText(userEmail)).toBeVisible();
@@ -87,7 +89,8 @@ test.describe("Users - CRUD", () => {
       await editCenters.nth(1).check();
     }
 
-    await page.getByTestId("save-user-button").click();
+    await saveButton.scrollIntoViewIfNeeded();
+    await saveButton.click();
     await expect(page.getByTestId("save-user-button")).toHaveCount(0);
     await expect(page.getByTestId("users-table")).toBeVisible();
 

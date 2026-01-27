@@ -160,6 +160,91 @@
         "notFound": "未找到分组"
       }
     },
+    "sessions": {
+      "title": "课次",
+      "detailTitle": "课次详情",
+      "sections": {
+        "overview": "课次概览",
+        "roster": "学生名单"
+      },
+      "filters": {
+        "center": "中心",
+        "tutor": "导师",
+        "from": "开始日期",
+        "to": "结束日期",
+        "allCenters": "全部中心",
+        "allTutors": "全部导师"
+      },
+      "fields": {
+        "center": "中心",
+        "tutor": "导师",
+        "type": "类型",
+        "group": "分组",
+        "student": "学生",
+        "startAt": "开始时间",
+        "endAt": "结束时间",
+        "timezone": "时区",
+        "startDate": "开始日期",
+        "endDate": "结束日期",
+        "weekdays": "每周",
+        "startTime": "开始时间",
+        "endTime": "结束时间",
+        "actions": "操作",
+        "studentsCount": "学生（{count}）"
+      },
+      "types": {
+        "oneOnOne": "一对一",
+        "group": "小组",
+        "class": "班级"
+      },
+      "actions": {
+        "createOneOff": "创建单次课次",
+        "generateRecurring": "生成重复课次",
+        "saveOneOff": "创建课次",
+        "preview": "预览",
+        "confirm": "确认",
+        "view": "查看",
+        "back": "返回课次"
+      },
+      "placeholders": {
+        "selectCenter": "选择中心",
+        "selectTutor": "选择导师",
+        "selectStudent": "选择学生",
+        "selectGroup": "选择分组",
+        "selectTimezone": "选择时区"
+      },
+      "weekdays": {
+        "1": "周一",
+        "2": "周二",
+        "3": "周三",
+        "4": "周四",
+        "5": "周五",
+        "6": "周六",
+        "7": "周日"
+      },
+      "messages": {
+        "loadError": "无法加载课次",
+        "createSuccess": "课次已创建",
+        "generateSuccess": "课次已生成",
+        "createError": "无法创建课次",
+        "generateError": "无法生成课次",
+        "validationError": "请检查表单输入",
+        "requiredFields": "请填写必填项",
+        "studentRequired": "一对一课次需要选择学生",
+        "groupRequired": "小组/班级课次需要选择分组",
+        "invalidTime": "请输入有效的日期和时间",
+        "invalidRange": "结束时间必须晚于开始时间",
+        "weekdayRequired": "请至少选择一个星期",
+        "empty": "暂无课次",
+        "noGroup": "无分组",
+        "noTutor": "导师不可用",
+        "previewCount": "预览数量",
+        "previewTruncated": "仅显示前 50 个课次",
+        "noRoster": "暂无学生名单",
+        "notFound": "未找到课次",
+        "forbidden": "您没有权限查看课次"
+      }
+    },
     "users": {
       "title": "用户",
       "create": "创建用户",

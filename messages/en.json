@@ -160,6 +160,91 @@
         "notFound": "Group not found"
       }
     },
+    "sessions": {
+      "title": "Sessions",
+      "detailTitle": "Session Details",
+      "sections": {
+        "overview": "Session overview",
+        "roster": "Roster"
+      },
+      "filters": {
+        "center": "Center",
+        "tutor": "Tutor",
+        "from": "From",
+        "to": "To",
+        "allCenters": "All centers",
+        "allTutors": "All tutors"
+      },
+      "fields": {
+        "center": "Center",
+        "tutor": "Tutor",
+        "type": "Type",
+        "group": "Group",
+        "student": "Student",
+        "startAt": "Start",
+        "endAt": "End",
+        "timezone": "Timezone",
+        "startDate": "Start date",
+        "endDate": "End date",
+        "weekdays": "Weekdays",
+        "startTime": "Start time",
+        "endTime": "End time",
+        "actions": "Actions",
+        "studentsCount": "Students ({count})"
+      },
+      "types": {
+        "oneOnOne": "One-on-one",
+        "group": "Group",
+        "class": "Class"
+      },
+      "actions": {
+        "createOneOff": "Create one-off session",
+        "generateRecurring": "Generate recurring sessions",
+        "saveOneOff": "Create session",
+        "preview": "Preview",
+        "confirm": "Confirm",
+        "view": "View",
+        "back": "Back to Sessions"
+      },
+      "placeholders": {
+        "selectCenter": "Select a center",
+        "selectTutor": "Select a tutor",
+        "selectStudent": "Select a student",
+        "selectGroup": "Select a group",
+        "selectTimezone": "Select a timezone"
+      },
+      "weekdays": {
+        "1": "Mon",
+        "2": "Tue",
+        "3": "Wed",
+        "4": "Thu",
+        "5": "Fri",
+        "6": "Sat",
+        "7": "Sun"
+      },
+      "messages": {
+        "loadError": "Unable to load sessions",
+        "createSuccess": "Session created",
+        "generateSuccess": "Sessions generated",
+        "createError": "Unable to create session",
+        "generateError": "Unable to generate sessions",
+        "validationError": "Please check the form for errors",
+        "requiredFields": "Please fill all required fields",
+        "studentRequired": "Student is required for one-on-one sessions",
+        "groupRequired": "Group is required for group/class sessions",
+        "invalidTime": "Please enter a valid date and time",
+        "invalidRange": "End time must be after start time",
+        "weekdayRequired": "Select at least one weekday",
+        "empty": "No sessions yet",
+        "noGroup": "No group",
+        "noTutor": "Tutor unavailable",
+        "previewCount": "Preview occurrences",
+        "previewTruncated": "Showing first 50 occurrences",
+        "noRoster": "No students in roster",
+        "notFound": "Session not found",
+        "forbidden": "You do not have permission to view sessions"
+      }
+    },
     "users": {
       "title": "Users",
       "create": "Create User",
