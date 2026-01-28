@@ -274,6 +274,60 @@
         "forbidden": "You do not have permission to view sessions"
       }
     },
+    "reports": {
+      "_comment": "Admin reports labels, filters, and table headers.",
+      "title": "Reports",
+      "sections": {
+        "upcomingSessions": "Upcoming Sessions",
+        "weeklyAttendance": "Weekly Attendance Summary",
+        "studentActivity": "Student Activity"
+      },
+      "filters": {
+        "from": "From",
+        "to": "To",
+        "center": "Center",
+        "tutor": "Tutor",
+        "weekStart": "Week start",
+        "allCenters": "All centers",
+        "allTutors": "All tutors"
+      },
+      "actions": {
+        "apply": "Apply"
+      },
+      "table": {
+        "upcoming": {
+          "startAt": "Start",
+          "endAt": "End",
+          "center": "Center",
+          "tutor": "Tutor",
+          "sessionType": "Type",
+          "rosterCount": "Roster"
+        },
+        "weekly": {
+          "rosterTotal": "Roster total",
+          "markedTotal": "Marked total",
+          "unsetTotal": "Unset total",
+          "present": "Present",
+          "absent": "Absent",
+          "late": "Late",
+          "excused": "Excused"
+        },
+        "studentActivity": {
+          "studentName": "Student",
+          "sessionsScheduled": "Sessions scheduled",
+          "present": "Present",
+          "absent": "Absent",
+          "late": "Late",
+          "excused": "Excused",
+          "lastSessionAt": "Last session"
+        }
+      },
+      "messages": {
+        "loading": "Loading report...",
+        "error": "Unable to load report",
+        "empty": "No results"
+      }
+    },
     "users": {
       "title": "Users",
       "create": "Create User",
@@ -312,6 +366,7 @@
     "users": "Users",
     "catalog": "Catalog",
     "groups": "Groups",
+    "reports": "Reports",
     "sessions": "Sessions",
     "admin": {
       "centers": "Centers",

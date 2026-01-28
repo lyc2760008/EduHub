@@ -274,6 +274,60 @@
         "forbidden": "您没有权限查看课次"
       }
     },
+    "reports": {
+      "_comment": "管理后台报表页标题、筛选和表格标题。",
+      "title": "报表",
+      "sections": {
+        "upcomingSessions": "即将开始的课次",
+        "weeklyAttendance": "每周出勤汇总",
+        "studentActivity": "学生参与情况"
+      },
+      "filters": {
+        "from": "开始日期",
+        "to": "结束日期",
+        "center": "中心",
+        "tutor": "老师",
+        "weekStart": "周开始日",
+        "allCenters": "全部中心",
+        "allTutors": "全部老师"
+      },
+      "actions": {
+        "apply": "应用"
+      },
+      "table": {
+        "upcoming": {
+          "startAt": "开始时间",
+          "endAt": "结束时间",
+          "center": "中心",
+          "tutor": "老师",
+          "sessionType": "类型",
+          "rosterCount": "名单数"
+        },
+        "weekly": {
+          "rosterTotal": "名单总数",
+          "markedTotal": "已标记",
+          "unsetTotal": "未标记",
+          "present": "出席",
+          "absent": "缺席",
+          "late": "迟到",
+          "excused": "请假"
+        },
+        "studentActivity": {
+          "studentName": "学生",
+          "sessionsScheduled": "安排课次",
+          "present": "出席",
+          "absent": "缺席",
+          "late": "迟到",
+          "excused": "请假",
+          "lastSessionAt": "最近课次"
+        }
+      },
+      "messages": {
+        "loading": "报表加载中...",
+        "error": "无法加载报表",
+        "empty": "暂无结果"
+      }
+    },
     "users": {
       "title": "用户",
       "create": "创建用户",
@@ -312,6 +366,7 @@
     "users": "用户",
     "catalog": "课程",
     "groups": "分组",
+    "reports": "报表",
     "sessions": "课次",
     "admin": {
       "centers": "中心管理",
@@ -338,3 +393,6 @@
     }
   }
 }
+
+
+
