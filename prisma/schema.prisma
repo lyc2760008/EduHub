@@ -43,6 +43,8 @@ model Tenant {
   sessions        Session[]
   // Session roster snapshots for attendance-ready workflows.
   sessionStudents SessionStudent[]
+  // Attendance markings scoped to this tenant.
+  attendances     Attendance[]
 }
 
 // User is a credentials-auth entity (email + passwordHash required).
@@ -57,11 +59,13 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  memberships  TenantMembership[]
+  memberships       TenantMembership[]
   // Staff center assignments for tenant-scoped staff scheduling.
-  staffCenters StaffCenter[]
-  groupTutors  GroupTutor[]
-  sessions     Session[]
+  staffCenters      StaffCenter[]
+  groupTutors       GroupTutor[]
+  sessions          Session[]
+  // Attendance marks applied by this staff user.
+  markedAttendances Attendance[]       @relation("AttendanceMarkedBy")
 }
 
 // Join table linking users to tenants with a single role per tenant.
@@ -106,6 +110,14 @@ enum SessionType {
   CLASS
 }
 
+// AttendanceStatus captures per-session attendance markings.
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
 // Role values for tenant membership and future RBAC.
 enum Role {
   Owner
@@ -132,6 +144,8 @@ model Student {
   parents         StudentParent[]
   groupStudents   GroupStudent[]
   sessionStudents SessionStudent[]
+  // Attendance markings for this student.
+  attendances     Attendance[]
 
   @@index([tenantId, lastName])
   @@index([tenantId, createdAt])
@@ -357,8 +371,10 @@ model Session {
   tutor  User   @relation(fields: [tutorId], references: [id], onDelete: Cascade)
   group  Group? @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
-  // Roster snapshot rows live in SessionStudent (attendance added later).
+  // Roster snapshot rows live in SessionStudent; attendance is stored separately.
   sessionStudents SessionStudent[]
+  // Attendance markings captured per student for this session.
+  attendances     Attendance[]
 
   @@unique([tenantId, tutorId, centerId, startAt])
   @@index([tenantId, startAt])
@@ -367,7 +383,7 @@ model Session {
 }
 
 // SessionStudent captures the roster snapshot at creation time.
-// Attendance/notes fields will be added later without changing the snapshot semantics.
+// Attendance data is stored separately to keep roster snapshots immutable.
 model SessionStudent {
   id        String   @id @default(cuid())
   tenantId  String
@@ -379,6 +395,30 @@ model SessionStudent {
   tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, sessionId, studentId])
+  @@index([tenantId, sessionId])
+  @@index([tenantId, studentId])
+}
+
+// Attendance stores per-session attendance markings for students on the roster.
+model Attendance {
+  id             String           @id @default(cuid())
+  tenantId       String
+  sessionId      String
+  studentId      String
+  status         AttendanceStatus
+  // Optional per-student note for this session.
+  note           String?
+  markedByUserId String
+  markedAt       DateTime         @default(now())
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  tenant       Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session      Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student      Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  markedByUser User    @relation("AttendanceMarkedBy", fields: [markedByUserId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, sessionId, studentId])
   @@index([tenantId, sessionId])

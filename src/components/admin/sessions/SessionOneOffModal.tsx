@@ -409,6 +409,8 @@ export default function SessionOneOffModal({
                 >
                   <input
                     className={inputBase}
+                    // Stable test id avoids locale-specific labels in E2E.
+                    data-testid="sessions-one-off-start"
                     id="sessions-one-off-start"
                     type="datetime-local"
                     value={form.startAt}
@@ -428,6 +430,8 @@ export default function SessionOneOffModal({
                       endAtError ? "sessions-one-off-end-error" : undefined
                     }
                     className={inputBase}
+                    // Stable test id avoids locale-specific labels in E2E.
+                    data-testid="sessions-one-off-end"
                     id="sessions-one-off-end"
                     type="datetime-local"
                     value={form.endAt}

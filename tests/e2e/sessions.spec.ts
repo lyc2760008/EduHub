@@ -169,8 +169,9 @@ test.describe("Sessions - admin UI", () => {
       const startAt = futureDateTime(timezone, dayOffset, 9 + attempt, minute);
       const endAt = futureDateTime(timezone, dayOffset, 10 + attempt, minute);
 
-      await modal.getByLabel(/^start$/i).fill(startAt);
-      await modal.getByLabel(/^end$/i).fill(endAt);
+      // Use test ids to avoid locale-specific labels in E2E.
+      await modal.getByTestId("sessions-one-off-start").fill(startAt);
+      await modal.getByTestId("sessions-one-off-end").fill(endAt);
       await saveButton.click();
 
       const closed = await heading

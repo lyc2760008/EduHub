@@ -167,6 +167,24 @@
         "overview": "Session overview",
         "roster": "Roster"
       },
+      "attendance": {
+        "_comment": "Session attendance labels and status options for the detail page.",
+        "sectionTitle": "Attendance",
+        "statusLabel": "Status",
+        "noteLabel": "Note",
+        "save": "Save attendance",
+        "saving": "Saving...",
+        "saved": "Attendance saved",
+        "loadError": "Unable to load attendance",
+        "errorSaving": "Unable to save attendance",
+        "status": {
+          "unset": "Unset",
+          "present": "Present",
+          "absent": "Absent",
+          "late": "Late",
+          "excused": "Excused"
+        }
+      },
       "filters": {
         "center": "Center",
         "tutor": "Tutor",
@@ -277,7 +295,13 @@
     }
   },
   "nav": {
-    "_comment": "Navigation labels for admin quick links.",
+    "_comment": "Navigation labels for admin quick links and the global admin bar.",
+    "dashboard": "Dashboard",
+    "centers": "Centers",
+    "users": "Users",
+    "catalog": "Catalog",
+    "groups": "Groups",
+    "sessions": "Sessions",
     "admin": {
       "centers": "Centers",
       "subjects": "Subjects",

@@ -32,7 +32,8 @@ export default async function SessionsPage({ params }: PageProps) {
           <AdminPageShell
             title={t("admin.sessions.title")}
             maxWidth="max-w-6xl"
-            testId="sessions-page"
+            // Stable test id keeps sessions list checks deterministic in E2E.
+            testId="sessions-list-page"
           >
             <SessionsClient
               tenant={tenant}

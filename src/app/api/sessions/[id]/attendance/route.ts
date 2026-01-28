@@ -1,0 +1,321 @@
+// Session attendance API routes with tenant scoping, RBAC, and roster validation.
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+
+import { prisma } from "@/lib/db/prisma";
+import { jsonError } from "@/lib/http/response";
+import { requireRole } from "@/lib/rbac";
+import {
+  AttendanceStatus,
+  type Prisma,
+  type Role,
+} from "@/generated/prisma/client";
+
+export const runtime = "nodejs";
+
+type Params = {
+  params: Promise<{ id: string }>;
+};
+
+type ErrorCode =
+  | "ValidationError"
+  | "Unauthorized"
+  | "Forbidden"
+  | "NotFound"
+  | "Conflict"
+  | "InternalError";
+
+const READ_ROLES: Role[] = ["Owner", "Admin", "Tutor"];
+
+const AttendanceItemSchema = z
+  .object({
+    studentId: z.string().trim().min(1),
+    status: z.nativeEnum(AttendanceStatus).nullable(),
+    note: z.string().trim().max(1000).optional().nullable(),
+  })
+  .strict();
+
+const AttendancePayloadSchema = z
+  .object({
+    items: z.array(AttendanceItemSchema),
+  })
+  .strict();
+
+function buildErrorResponse(
+  status: number,
+  code: ErrorCode,
+  message: string,
+  details: Record<string, unknown> = {},
+) {
+  // Standardized error shape for all attendance endpoints.
+  return jsonError(status, message, { error: { code, message, details } });
+}
+
+async function normalizeAuthResponse(response: Response) {
+  // Convert auth/tenant errors into the standard error response shape.
+  const status = response.status;
+  const code: ErrorCode =
+    status === 401
+      ? "Unauthorized"
+      : status === 403
+        ? "Forbidden"
+        : status === 404
+          ? "NotFound"
+          : "ValidationError";
+  const fallbackMessage =
+    status === 401
+      ? "Unauthorized"
+      : status === 403
+        ? "Forbidden"
+        : status === 404
+          ? "NotFound"
+          : "ValidationError";
+  let message = fallbackMessage;
+  let details: Record<string, unknown> = {};
+
+  try {
+    const data = (await response.clone().json()) as {
+      error?: unknown;
+      message?: unknown;
+      details?: unknown;
+    };
+    if (typeof data?.error === "string") {
+      message = data.error;
+    } else if (typeof data?.message === "string") {
+      message = data.message;
+    }
+    if (data?.details) {
+      details =
+        typeof data.details === "string"
+          ? { message: data.details }
+          : (data.details as Record<string, unknown>);
+    }
+  } catch {
+    // If the response body is not JSON, fall back to the default message.
+  }
+
+  return buildErrorResponse(status, code, message, details);
+}
+
+export async function GET(req: NextRequest, context: Params) {
+  try {
+    const { id } = await context.params;
+
+    // RBAC guard runs first to avoid leaking tenant data to unauthorized users.
+    const ctx = await requireRole(req, READ_ROLES);
+    if (ctx instanceof Response) return await normalizeAuthResponse(ctx);
+    const tenantId = ctx.tenant.tenantId;
+
+    const where: Prisma.SessionWhereInput = { id, tenantId };
+    if (ctx.membership.role === "Tutor") {
+      where.tutorId = ctx.user.id;
+    }
+
+    const session = await prisma.session.findFirst({
+      where,
+      select: {
+        id: true,
+        tutorId: true,
+        centerId: true,
+        startAt: true,
+        endAt: true,
+        sessionType: true,
+        sessionStudents: {
+          select: {
+            student: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                preferredName: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!session) {
+      return buildErrorResponse(404, "NotFound", "Session not found");
+    }
+
+    const roster = session.sessionStudents.map((entry) => entry.student);
+    const rosterStudentIds = roster.map((student) => student.id);
+
+    const attendanceRows = rosterStudentIds.length
+      ? await prisma.attendance.findMany({
+          where: {
+            tenantId,
+            sessionId: session.id,
+            studentId: { in: rosterStudentIds },
+          },
+          select: {
+            studentId: true,
+            status: true,
+            note: true,
+            markedAt: true,
+            markedByUserId: true,
+          },
+        })
+      : [];
+
+    const attendanceByStudentId = new Map(
+      attendanceRows.map((row) => [
+        row.studentId,
+        {
+          status: row.status,
+          note: row.note,
+          markedAt: row.markedAt,
+          markedByUserId: row.markedByUserId,
+        },
+      ]),
+    );
+
+    // Response shape: session summary + roster rows with optional attendance.
+    return NextResponse.json({
+      session: {
+        id: session.id,
+        tutorId: session.tutorId,
+        centerId: session.centerId,
+        startAt: session.startAt,
+        endAt: session.endAt,
+        sessionType: session.sessionType,
+      },
+      roster: roster.map((student) => ({
+        student,
+        attendance: attendanceByStudentId.get(student.id) ?? null,
+      })),
+    });
+  } catch (error) {
+    console.error("GET /api/sessions/[id]/attendance failed", error);
+    return buildErrorResponse(500, "InternalError", "Internal server error");
+  }
+}
+
+export async function PUT(req: NextRequest, context: Params) {
+  try {
+    const { id } = await context.params;
+
+    // RBAC guard runs first to avoid leaking tenant data to unauthorized users.
+    const ctx = await requireRole(req, READ_ROLES);
+    if (ctx instanceof Response) return await normalizeAuthResponse(ctx);
+    const tenantId = ctx.tenant.tenantId;
+
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return buildErrorResponse(400, "ValidationError", "Invalid JSON body", {
+        message: "Invalid JSON body",
+      });
+    }
+
+    const parsed = AttendancePayloadSchema.safeParse(body);
+    if (!parsed.success) {
+      return buildErrorResponse(400, "ValidationError", "Invalid payload", {
+        issues: parsed.error.issues,
+      });
+    }
+
+    const session = await prisma.session.findFirst({
+      where: { id, tenantId },
+      select: { id: true, tutorId: true },
+    });
+
+    if (!session) {
+      return buildErrorResponse(404, "NotFound", "Session not found");
+    }
+
+    if (ctx.membership.role === "Tutor" && session.tutorId !== ctx.user.id) {
+      return buildErrorResponse(
+        403,
+        "Forbidden",
+        "Tutor cannot mark attendance for this session",
+      );
+    }
+
+    const rosterEntries = await prisma.sessionStudent.findMany({
+      where: { tenantId, sessionId: session.id },
+      select: { studentId: true },
+    });
+    const rosterStudentIds = new Set(
+      rosterEntries.map((entry) => entry.studentId),
+    );
+
+    const invalidItem = parsed.data.items.find(
+      (item) => !rosterStudentIds.has(item.studentId),
+    );
+    if (invalidItem) {
+      return buildErrorResponse(
+        400,
+        "ValidationError",
+        "Student is not in this session roster",
+        { studentId: invalidItem.studentId },
+      );
+    }
+
+    const now = new Date();
+    const upsertItems = parsed.data.items
+      .filter((item) => item.status !== null)
+      .map((item) => ({
+        studentId: item.studentId,
+        status: item.status as AttendanceStatus,
+        note: item.note?.trim() ? item.note.trim() : null,
+      }));
+    const deleteStudentIds = parsed.data.items
+      .filter((item) => item.status === null)
+      .map((item) => item.studentId);
+
+    await prisma.$transaction(async (tx) => {
+      if (upsertItems.length) {
+        await Promise.all(
+          upsertItems.map((item) =>
+            tx.attendance.upsert({
+              where: {
+                tenantId_sessionId_studentId: {
+                  tenantId,
+                  sessionId: session.id,
+                  studentId: item.studentId,
+                },
+              },
+              create: {
+                tenantId,
+                sessionId: session.id,
+                studentId: item.studentId,
+                status: item.status,
+                note: item.note,
+                markedByUserId: ctx.user.id,
+                markedAt: now,
+              },
+              update: {
+                status: item.status,
+                note: item.note,
+                markedByUserId: ctx.user.id,
+                markedAt: now,
+              },
+            }),
+          ),
+        );
+      }
+
+      if (deleteStudentIds.length) {
+        await tx.attendance.deleteMany({
+          where: {
+            tenantId,
+            sessionId: session.id,
+            studentId: { in: deleteStudentIds },
+          },
+        });
+      }
+    });
+
+    // Response shape: counts for upserted and cleared attendance rows.
+    return NextResponse.json({
+      updatedCount: upsertItems.length,
+      clearedCount: deleteStudentIds.length,
+    });
+  } catch (error) {
+    console.error("PUT /api/sessions/[id]/attendance failed", error);
+    return buildErrorResponse(500, "InternalError", "Internal server error");
+  }
+}
