@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import type { Role } from "@/generated/prisma/client";
 import SessionAttendanceSection from "@/components/admin/sessions/SessionAttendanceSection";
+import SessionNotesSection from "@/components/admin/sessions/SessionNotesSection";
 import AdminAccessGate from "@/components/admin/shared/AdminAccessGate";
 import AdminPageShell from "@/components/admin/shared/AdminPageShell";
 import { prisma } from "@/lib/db/prisma";
@@ -175,6 +176,9 @@ export default async function SessionDetailPage({ params }: PageProps) {
 
             {/* Attendance section uses client-side fetch to keep page load minimal. */}
             <SessionAttendanceSection sessionId={session.id} tenant={tenant} />
+
+            {/* Notes section stays client-side to fetch and save session notes. */}
+            <SessionNotesSection sessionId={session.id} tenant={tenant} />
 
             <section className="rounded border border-slate-200 bg-white p-5">
               <div className="flex items-center justify-between gap-3">

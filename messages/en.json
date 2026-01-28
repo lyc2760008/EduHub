@@ -185,6 +185,17 @@
           "excused": "Excused"
         }
       },
+      "notes": {
+        "_comment": "Session notes labels and actions for the detail page.",
+        "sectionTitle": "Notes",
+        "internalLabel": "Internal note",
+        "parentVisibleLabel": "Parent-visible note",
+        "parentVisibleHint": "Shown to parents in the portal",
+        "save": "Save notes",
+        "saving": "Saving...",
+        "saved": "Notes saved",
+        "errorSaving": "Unable to save notes"
+      },
       "filters": {
         "center": "Center",
         "tutor": "Tutor",

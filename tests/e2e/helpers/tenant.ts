@@ -1,6 +1,9 @@
 // Tenant-aware path helpers for E2E tests so baseURL can be subdomain or /t/<slug>.
 // These helpers keep API and UI routing consistent with the configured E2E_BASE_URL.
 
+// Playwright Page is used for tenant context assertions via API requests.
+import type { Page } from "@playwright/test";
+
 export function resolveTenantBasePath(tenantSlug: string): string {
   const baseUrl = process.env.E2E_BASE_URL;
 
@@ -46,4 +49,26 @@ export function buildTenantApiPath(tenantSlug: string, suffix: string): string {
   }
 
   return normalizedSuffix;
+}
+
+export async function assertTenantContext(page: Page, tenantSlug: string) {
+  // Tenant context check verifies that API requests resolve the expected tenant.
+  const response = await page.request.get(
+    buildTenantApiPath(tenantSlug, "/api/me"),
+  );
+  if (response.status() !== 200) {
+    throw new Error(`Expected /api/me to return 200, got ${response.status()}.`);
+  }
+  const payload = (await response.json()) as {
+    membership?: { tenantId?: string; role?: string };
+    tenant?: { tenantSlug?: string };
+  };
+  if (payload.tenant?.tenantSlug !== tenantSlug) {
+    throw new Error(
+      `Expected tenant slug ${tenantSlug}, got ${payload.tenant?.tenantSlug ?? "unknown"}.`,
+    );
+  }
+  if (!payload.membership?.tenantId || !payload.membership?.role) {
+    throw new Error("Expected tenant membership info in /api/me response.");
+  }
 }

@@ -45,6 +45,8 @@ model Tenant {
   sessionStudents SessionStudent[]
   // Attendance markings scoped to this tenant.
   attendances     Attendance[]
+  // Session-level notes scoped to this tenant.
+  sessionNotes    SessionNote[]
 }
 
 // User is a credentials-auth entity (email + passwordHash required).
@@ -59,13 +61,15 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  memberships       TenantMembership[]
+  memberships         TenantMembership[]
   // Staff center assignments for tenant-scoped staff scheduling.
-  staffCenters      StaffCenter[]
-  groupTutors       GroupTutor[]
-  sessions          Session[]
+  staffCenters        StaffCenter[]
+  groupTutors         GroupTutor[]
+  sessions            Session[]
   // Attendance marks applied by this staff user.
-  markedAttendances Attendance[]       @relation("AttendanceMarkedBy")
+  markedAttendances   Attendance[]       @relation("AttendanceMarkedBy")
+  // Session notes last updated by this staff user.
+  sessionNotesUpdated SessionNote[]      @relation("SessionNoteUpdatedBy")
 }
 
 // Join table linking users to tenants with a single role per tenant.
@@ -375,6 +379,8 @@ model Session {
   sessionStudents SessionStudent[]
   // Attendance markings captured per student for this session.
   attendances     Attendance[]
+  // Staff-authored session notes for this session (one per session enforced by unique constraint).
+  sessionNotes    SessionNote[]
 
   @@unique([tenantId, tutorId, centerId, startAt])
   @@index([tenantId, startAt])
@@ -423,4 +429,33 @@ model Attendance {
   @@unique([tenantId, sessionId, studentId])
   @@index([tenantId, sessionId])
   @@index([tenantId, studentId])
+}
+
+// SessionNote stores staff-authored notes scoped to a single session.
+model SessionNote {
+  id                String   @id @default(cuid())
+  // Tenant scope for isolation and indexing.
+  tenantId          String
+  // Session this note belongs to (one note per session).
+  sessionId         String
+  // Staff-only note (never exposed to parents).
+  internalNote      String?
+  // Note intended for parents/portal in a later phase.
+  parentVisibleNote String?
+  // Optional homework follow-up.
+  homework          String?
+  // Optional next steps for the student/family.
+  nextSteps         String?
+  // Staff user who last updated this note.
+  updatedByUserId   String
+  // Auditable timestamps for session note edits.
+  updatedAt         DateTime @default(now()) @updatedAt
+  createdAt         DateTime @default(now())
+
+  tenant        Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session       Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  updatedByUser User    @relation("SessionNoteUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, sessionId])
+  @@index([tenantId, sessionId])
 }
