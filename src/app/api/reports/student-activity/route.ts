@@ -165,6 +165,20 @@ export async function GET(req: NextRequest) {
         lastSessionAt: rollup?.lastSessionAt ?? null,
       };
     });
+    // Apply a deterministic ordering before optional limiting for dashboard widgets.
+    const orderedRows = params.limit
+      ? [...rows].sort((a, b) => {
+          const scheduledDiff = b.sessionsScheduled - a.sessionsScheduled;
+          if (scheduledDiff !== 0) return scheduledDiff;
+          const lastA = a.lastSessionAt ? a.lastSessionAt.getTime() : 0;
+          const lastB = b.lastSessionAt ? b.lastSessionAt.getTime() : 0;
+          if (lastA !== lastB) return lastB - lastA;
+          return a.studentName.localeCompare(b.studentName);
+        })
+      : rows;
+    const limitedRows = params.limit
+      ? orderedRows.slice(0, params.limit)
+      : orderedRows;
 
     const meta = {
       from: formatDateOnly(fromDate),
@@ -172,7 +186,7 @@ export async function GET(req: NextRequest) {
       ...(params.centerId ? { centerId: params.centerId } : {}),
     };
 
-    return NextResponse.json({ meta, rows });
+    return NextResponse.json({ meta, rows: limitedRows });
   } catch (error) {
     if (error instanceof ZodError) {
       return buildReportError(400, "ValidationError", "Invalid query params", {

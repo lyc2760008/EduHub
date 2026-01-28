@@ -10,6 +10,36 @@
   "admin": {
     "title": "Admin Dashboard",
     "welcome": "You are logged in as {email}",
+    "dashboard": {
+      "_comment": "Admin dashboard ops snapshot widgets and quick actions.",
+      "title": "Ops Snapshot",
+      "widgets": {
+        "upcomingSessions": {
+          "title": "Upcoming Sessions"
+        },
+        "weeklyAttendance": {
+          "title": "Weekly Attendance"
+        },
+        "studentActivity": {
+          "title": "Student Activity"
+        }
+      },
+      "actions": {
+        "title": "Quick Actions",
+        "centers": "Centers",
+        "users": "Users",
+        "catalog": "Catalog",
+        "groups": "Groups",
+        "sessions": "Sessions",
+        "reports": "Reports"
+      },
+      "viewAll": "View all",
+      "empty": {
+        "upcomingSessions": "No upcoming sessions in the next 7 days",
+        "weeklyAttendance": "No attendance marked for this week",
+        "studentActivity": "No student activity in the last 30 days"
+      }
+    },
     "accessDenied": {
       "title": "Access denied",
       "message": "You do not have permission to view this page."
@@ -377,6 +407,16 @@
       "sessions": "Sessions",
       "users": "Users"
     }
+  },
+  "catalog": {
+    "_comment": "Catalog hub labels and descriptions for admin navigation.",
+    "title": "Catalog",
+    "subjects": "Subjects",
+    "subjectsDesc": "Manage subject names and status.",
+    "levels": "Levels",
+    "levelsDesc": "Maintain level labels and ordering.",
+    "programs": "Programs",
+    "programsDesc": "Curate program offerings for enrollment."
   },
   "common": {
     "loading": "Loading...",

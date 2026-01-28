@@ -1,7 +1,7 @@
 // Admin dashboard page that uses shared admin gate + shell for consistent RBAC and layout.
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
 
+import AdminDashboardClient from "@/components/admin/dashboard/AdminDashboardClient";
 import AdminAccessGate from "@/components/admin/shared/AdminAccessGate";
 import AdminPageShell from "@/components/admin/shared/AdminPageShell";
 import type { Role } from "@/generated/prisma/client";
@@ -25,70 +25,18 @@ export default async function AdminPage({ params }: PageProps) {
   return (
     <AdminAccessGate tenant={tenant} roles={ADMIN_ROLES} maxWidth="max-w-3xl">
       {(access) => {
-        // RBAC context from AdminAccessGate keeps user data scoped to the tenant.
-        const email = access.user.email ?? "";
+        // RBAC context from AdminAccessGate keeps tenant data scoped and available.
+        void access;
 
         return (
           <AdminPageShell
-            title={t("admin.title")}
-            maxWidth="max-w-3xl"
+            title={t("admin.dashboard.title")}
+            maxWidth="max-w-6xl"
+            // Keep app-shell for shared login helper, and use a child test id for dashboard-specific checks.
             testId="app-shell"
           >
-            {/* nav.* keeps admin quick links aligned with the design-system namespace. */}
-            <Link
-              className="text-sm font-semibold text-slate-700 underline underline-offset-4"
-              data-testid="nav-admin-centers"
-              href={`/${tenant}/admin/centers`}
-            >
-              {t("nav.admin.centers")}
-            </Link>
-            <Link
-              className="text-sm font-semibold text-slate-700 underline underline-offset-4"
-              data-testid="nav-admin-subjects"
-              href={`/${tenant}/admin/subjects`}
-            >
-              {t("nav.admin.subjects")}
-            </Link>
-            <Link
-              className="text-sm font-semibold text-slate-700 underline underline-offset-4"
-              data-testid="nav-admin-levels"
-              href={`/${tenant}/admin/levels`}
-            >
-              {t("nav.admin.levels")}
-            </Link>
-            <Link
-              className="text-sm font-semibold text-slate-700 underline underline-offset-4"
-              data-testid="nav-admin-programs"
-              href={`/${tenant}/admin/programs`}
-            >
-              {t("nav.admin.programs")}
-            </Link>
-            <Link
-              className="text-sm font-semibold text-slate-700 underline underline-offset-4"
-              data-testid="nav-admin-groups"
-              href={`/${tenant}/admin/groups`}
-            >
-              {t("nav.admin.groups")}
-            </Link>
-            {/* Sessions navigation keeps scheduling workflows reachable from the admin home. */}
-            <Link
-              className="text-sm font-semibold text-slate-700 underline underline-offset-4"
-              data-testid="nav-admin-sessions"
-              href={`/${tenant}/admin/sessions`}
-            >
-              {t("nav.admin.sessions")}
-            </Link>
-            {/* Admin navigation includes Users for staff and role management. */}
-            <Link
-              className="text-sm font-semibold text-slate-700 underline underline-offset-4"
-              data-testid="nav-admin-users"
-              href={`/${tenant}/admin/users`}
-            >
-              {t("nav.admin.users")}
-            </Link>
-            <div className="rounded border border-slate-200 bg-white p-4 text-sm text-slate-700">
-              {t("admin.welcome", { email })}
-            </div>
+            {/* Client widget layer keeps API fetching fast without bloating the server page. */}
+            <AdminDashboardClient tenant={tenant} />
           </AdminPageShell>
         );
       }}

@@ -33,6 +33,10 @@ Set these in your shell or `.env` before running Playwright:
 ```bash
 pnpm playwright test
 ```
+<!-- Dashboard navigation spec keeps admin widget links and nav highlight regression-safe. -->
+```bash
+pnpm playwright test tests/e2e/dashboard.navigation.spec.ts
+```
 
 ## Notes
 - Users tests avoid hardcoded UI text and rely on `data-testid` hooks.

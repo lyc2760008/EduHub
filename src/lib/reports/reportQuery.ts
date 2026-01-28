@@ -24,6 +24,13 @@ export const dateOnlySchema = z
 
 // Optional id schema used by centerId/tutorId search params.
 const optionalIdSchema = z.string().trim().min(1).optional();
+// Optional limit for lightweight report widgets (positive int, max 100).
+const optionalLimitSchema = z.coerce
+  .number()
+  .int()
+  .positive()
+  .max(100)
+  .optional();
 
 // Query params for upcoming sessions reports.
 export const upcomingSessionsQuerySchema = z
@@ -32,6 +39,7 @@ export const upcomingSessionsQuerySchema = z
     to: dateOnlySchema.optional(),
     centerId: optionalIdSchema,
     tutorId: optionalIdSchema,
+    limit: optionalLimitSchema,
   })
   .strict();
 
@@ -49,6 +57,7 @@ export const studentActivityQuerySchema = z
     from: dateOnlySchema.optional(),
     to: dateOnlySchema.optional(),
     centerId: optionalIdSchema,
+    limit: optionalLimitSchema,
   })
   .strict();
 

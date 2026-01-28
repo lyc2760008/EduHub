@@ -8,12 +8,19 @@ type AdminNavProps = {
   tenant: string;
 };
 
+type AdminNavItem = {
+  id: string;
+  href: string;
+  labelKey: string;
+  activePrefixes?: string[];
+};
+
 export default function AdminNav({ tenant }: AdminNavProps) {
   const pathname = usePathname();
   const t = useTranslations();
 
   // Centralized admin navigation items keep labels and routes consistent.
-  const navItems = [
+  const navItems: AdminNavItem[] = [
     { id: "dashboard", href: `/${tenant}/admin`, labelKey: "nav.dashboard" },
     {
       id: "centers",
@@ -23,8 +30,15 @@ export default function AdminNav({ tenant }: AdminNavProps) {
     { id: "users", href: `/${tenant}/admin/users`, labelKey: "nav.users" },
     {
       id: "catalog",
-      href: `/${tenant}/admin/programs`,
+      href: `/${tenant}/admin/catalog`,
       labelKey: "nav.catalog",
+      // Catalog stays active while navigating across catalog sub-pages.
+      activePrefixes: [
+        `/${tenant}/admin/catalog`,
+        `/${tenant}/admin/subjects`,
+        `/${tenant}/admin/levels`,
+        `/${tenant}/admin/programs`,
+      ],
     },
     { id: "groups", href: `/${tenant}/admin/groups`, labelKey: "nav.groups" },
     // Reports lives in the admin module list so staff can find operational dashboards quickly.
@@ -52,7 +66,11 @@ export default function AdminNav({ tenant }: AdminNavProps) {
           const isActive =
             item.id === "dashboard"
               ? pathname === item.href
-              : pathname.startsWith(item.href);
+              : item.activePrefixes
+                ? item.activePrefixes.some((prefix) =>
+                    pathname.startsWith(prefix),
+                  )
+                : pathname.startsWith(item.href);
           const linkClassName = isActive
             ? "rounded bg-slate-100 px-2 py-1 font-semibold text-slate-900"
             : "rounded px-2 py-1 text-slate-600 hover:text-slate-900";

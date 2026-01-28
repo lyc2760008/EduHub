@@ -10,6 +10,36 @@
   "admin": {
     "title": "管理面板",
     "welcome": "您已以 {email} 登录",
+    "dashboard": {
+      "_comment": "管理员后台运营快照与快捷操作。",
+      "title": "运营快照",
+      "widgets": {
+        "upcomingSessions": {
+          "title": "即将开始的课次"
+        },
+        "weeklyAttendance": {
+          "title": "本周出勤"
+        },
+        "studentActivity": {
+          "title": "学生活动"
+        }
+      },
+      "actions": {
+        "title": "快捷操作",
+        "centers": "中心管理",
+        "users": "用户",
+        "catalog": "课程",
+        "groups": "分组",
+        "sessions": "课次",
+        "reports": "报表"
+      },
+      "viewAll": "查看全部",
+      "empty": {
+        "upcomingSessions": "未来 7 天无即将开始的课次",
+        "weeklyAttendance": "本周无出勤记录",
+        "studentActivity": "近 30 天无学生活动"
+      }
+    },
     "accessDenied": {
       "title": "访问受限",
       "message": "您没有权限查看此页面。"
@@ -186,15 +216,15 @@
         }
       },
       "notes": {
-        "_comment": "??????????????",
-        "sectionTitle": "??",
-        "internalLabel": "????",
-        "parentVisibleLabel": "??????",
-        "parentVisibleHint": "???????",
-        "save": "????",
-        "saving": "???...",
-        "saved": "?????",
-        "errorSaving": "??????"
+        "_comment": "课次备注（详情页）标签与操作。",
+        "sectionTitle": "备注",
+        "internalLabel": "内部备注",
+        "parentVisibleLabel": "家长可见备注",
+        "parentVisibleHint": "在家长端展示",
+        "save": "保存备注",
+        "saving": "保存中...",
+        "saved": "备注已保存",
+        "errorSaving": "无法保存备注"
       },
       "filters": {
         "center": "中心",
@@ -378,6 +408,16 @@
       "users": "用户"
     }
   },
+  "catalog": {
+    "_comment": "课程目录入口与描述。",
+    "title": "课程目录",
+    "subjects": "学科",
+    "subjectsDesc": "管理学科名称与状态。",
+    "levels": "级别",
+    "levelsDesc": "维护级别名称与排序。",
+    "programs": "课程",
+    "programsDesc": "维护课程项目与招生配置。"
+  },
   "common": {
     "loading": "加载中...",
     "error": "出现错误",
@@ -393,6 +433,3 @@
     }
   }
 }
-
-
-

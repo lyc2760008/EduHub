@@ -82,6 +82,8 @@ export async function GET(req: NextRequest) {
       tutorName: session.tutor.name ?? session.tutor.email ?? null,
       rosterCount: session._count.sessionStudents,
     }));
+    // Apply optional limits after ordering to keep dashboard widgets lightweight.
+    const limitedRows = params.limit ? rows.slice(0, params.limit) : rows;
 
     const meta = {
       from: formatDateOnly(fromDate),
@@ -90,7 +92,7 @@ export async function GET(req: NextRequest) {
       ...(tutorId ? { tutorId } : {}),
     };
 
-    return NextResponse.json({ meta, rows });
+    return NextResponse.json({ meta, rows: limitedRows });
   } catch (error) {
     if (error instanceof ZodError) {
       return buildReportError(400, "ValidationError", "Invalid query params", {
