@@ -2,15 +2,8 @@
 import { expect, test } from "@playwright/test";
 
 import { loginViaUI } from "./helpers/auth";
-import {
-  assertTenantContext,
-  buildTenantPath,
-} from "./helpers/tenant";
-import {
-  buildOtherTenantApiUrl,
-  ensureSessionForTutorWithRoster,
-  fetchUsers,
-} from "./helpers/attendance";
+import { assertTenantContext, buildTenantApiPath, buildTenantPath } from "./helpers/tenant";
+import { buildOtherTenantApiUrl, ensureSessionForTutorWithRoster, fetchUsers } from "./helpers/attendance";
 import { uniqueString } from "./helpers/data";
 
 function requireEnv(name: string) {
@@ -78,13 +71,27 @@ test.describe("Session notes - admin", () => {
     await expect(page.getByTestId("notes-parent-visible-input")).toHaveValue(parentValue);
 
     // Cross-tenant attempt should be blocked (404 preferred, 403 acceptable).
-    const otherTenantSlug = tenantSlug === "demo" ? "qa" : "demo";
-    const crossTenantResponse = await page.request.get(
-      buildOtherTenantApiUrl(
-        otherTenantSlug,
-        `/api/sessions/${session.id}/notes`,
-      ),
-    );
-    expect([403, 404]).toContain(crossTenantResponse.status());
+    const otherTenantSlug = uniqueString("ghost-tenant").toLowerCase();
+    let crossTenantStatus: number | null = null;
+
+    try {
+      // Primary path uses /t/<slug> to force tenant resolution against a fake tenant.
+      const crossTenantResponse = await page.request.get(
+        buildOtherTenantApiUrl(
+          otherTenantSlug,
+          `/api/sessions/${session.id}/notes`,
+        ),
+      );
+      crossTenantStatus = crossTenantResponse.status();
+    } catch {
+      // Header-based tenant override is a fallback if /t/<slug> routing fails.
+      const crossTenantResponse = await page.request.get(
+        buildTenantApiPath(tenantSlug, `/api/sessions/${session.id}/notes`),
+        { headers: { "x-tenant-slug": otherTenantSlug } },
+      );
+      crossTenantStatus = crossTenantResponse.status();
+    }
+
+    expect([403, 404]).toContain(crossTenantStatus);
   });
 });

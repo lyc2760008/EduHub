@@ -33,3 +33,47 @@ export async function loginViaUI(page: Page, opts: LoginOptions) {
   );
   await expect(postLoginMarker.first()).toBeVisible();
 }
+
+// Env helpers keep login credentials centralized for deterministic auth setup.
+export function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing ${name} env var.`);
+  }
+  return value;
+}
+
+function resolveTenantSlug(override?: string) {
+  return override || process.env.E2E_TENANT_SLUG || "demo";
+}
+
+function resolveTutorCredentials() {
+  const email = process.env.E2E_TUTOR_EMAIL || process.env.E2E_TUTOR1_EMAIL;
+  const password =
+    process.env.E2E_TUTOR_PASSWORD || process.env.E2E_TUTOR1_PASSWORD;
+
+  if (!email || !password) {
+    throw new Error(
+      "Missing E2E_TUTOR_EMAIL/E2E_TUTOR_PASSWORD (or E2E_TUTOR1_EMAIL/E2E_TUTOR1_PASSWORD) env vars.",
+    );
+  }
+
+  return { email, password };
+}
+
+// Admin login wrapper keeps env resolution and tenant defaults consistent.
+export async function loginAsAdmin(page: Page, tenantSlug?: string) {
+  const email = requireEnv("E2E_ADMIN_EMAIL");
+  const password = requireEnv("E2E_ADMIN_PASSWORD");
+  const resolvedTenant = resolveTenantSlug(tenantSlug);
+  await loginViaUI(page, { email, password, tenantSlug: resolvedTenant });
+  return { email, tenantSlug: resolvedTenant };
+}
+
+// Tutor login wrapper mirrors admin login for RBAC coverage.
+export async function loginAsTutor(page: Page, tenantSlug?: string) {
+  const { email, password } = resolveTutorCredentials();
+  const resolvedTenant = resolveTenantSlug(tenantSlug);
+  await loginViaUI(page, { email, password, tenantSlug: resolvedTenant });
+  return { email, tenantSlug: resolvedTenant };
+}

@@ -15,6 +15,7 @@ type User = {
   centers: Array<{ id: string; name: string }>;
 };
 type Student = { id: string };
+type StudentCreateResponse = { student?: Student };
 
 function nextWeekRange(timezone: string) {
   const start = DateTime.now()
@@ -96,6 +97,37 @@ async function fetchStudents(page: Page, tenant: string) {
   return payload.students;
 }
 
+let studentCounter = 0;
+
+function buildStudentName() {
+  studentCounter += 1;
+  return `E2E${Date.now()}-${studentCounter}`;
+}
+
+// Ensure at least one student exists so session creation can select a roster.
+async function ensureStudent(page: Page, tenant: string) {
+  const students = await fetchStudents(page, tenant);
+  if (students.length) {
+    return { student: students[0], created: false };
+  }
+
+  const response = await page.request.post(
+    buildTenantApiPath(tenant, "/api/students"),
+    {
+      data: {
+        firstName: buildStudentName(),
+        lastName: "Session",
+      },
+    },
+  );
+  expect(response.status()).toBe(201);
+  const payload = (await response.json()) as StudentCreateResponse;
+  if (!payload.student?.id) {
+    throw new Error("Expected student id in create student response.");
+  }
+  return { student: payload.student, created: true };
+}
+
 test.describe("Sessions - admin UI", () => {
   test("Admin can create a one-off session and open detail", async ({
     page,
@@ -113,10 +145,10 @@ test.describe("Sessions - admin UI", () => {
     await loginViaUI(page, { email, password, tenantSlug });
     await page.goto(buildTenantPath(tenantSlug, "/admin/sessions"));
 
-    const [centers, users, students] = await Promise.all([
+    const [centers, users, studentResult] = await Promise.all([
       fetchCenters(page, tenantSlug),
       fetchUsers(page, tenantSlug),
-      fetchStudents(page, tenantSlug),
+      ensureStudent(page, tenantSlug),
     ]);
 
     const tutor = users.find(
@@ -132,9 +164,11 @@ test.describe("Sessions - admin UI", () => {
       throw new Error("No center available for test.");
     }
 
-    const student = students[0];
-    if (!student) {
-      throw new Error("No student available for test.");
+    const { student, created } = studentResult;
+
+    if (created) {
+      // Refresh sessions page so admin options include the newly created student.
+      await page.goto(buildTenantPath(tenantSlug, "/admin/sessions"));
     }
 
     await page.getByTestId("sessions-filter-center").selectOption(center.id);
@@ -214,10 +248,10 @@ test.describe("Sessions - admin UI", () => {
     await loginViaUI(page, { email, password, tenantSlug });
     await page.goto(buildTenantPath(tenantSlug, "/admin/sessions"));
 
-    const [centers, users, students] = await Promise.all([
+    const [centers, users, studentResult] = await Promise.all([
       fetchCenters(page, tenantSlug),
       fetchUsers(page, tenantSlug),
-      fetchStudents(page, tenantSlug),
+      ensureStudent(page, tenantSlug),
     ]);
 
     const tutor = users.find(
@@ -233,9 +267,11 @@ test.describe("Sessions - admin UI", () => {
       throw new Error("No center available for test.");
     }
 
-    const student = students[0];
-    if (!student) {
-      throw new Error("No student available for test.");
+    const { student, created } = studentResult;
+
+    if (created) {
+      // Refresh sessions page so admin options include the newly created student.
+      await page.goto(buildTenantPath(tenantSlug, "/admin/sessions"));
     }
 
     await page.getByTestId("sessions-filter-center").selectOption(center.id);

@@ -34,6 +34,10 @@ Set these in your shell or `.env` before running Playwright:
 ```bash
 pnpm playwright test
 ```
+<!-- Release gate spec runs the MVP critical path checks only. -->
+```bash
+pnpm playwright test tests/e2e/release.gate.spec.ts
+```
 <!-- Dashboard navigation spec keeps admin widget links and nav highlight regression-safe. -->
 ```bash
 pnpm playwright test tests/e2e/dashboard.navigation.spec.ts
