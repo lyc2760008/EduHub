@@ -40,6 +40,8 @@ export default function AdminNav({ tenant }: AdminNavProps) {
         `/${tenant}/admin/programs`,
       ],
     },
+    // Students nav keeps roster management discoverable alongside core modules.
+    { id: "students", href: `/${tenant}/admin/students`, labelKey: "nav.students" },
     { id: "groups", href: `/${tenant}/admin/groups`, labelKey: "nav.groups" },
     // Reports lives in the admin module list so staff can find operational dashboards quickly.
     {

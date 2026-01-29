@@ -355,6 +355,8 @@ export default function SessionOneOffModal({
                         studentError ? "sessions-one-off-student-error" : undefined
                       }
                       className={inputBase}
+                      // data-testid keeps one-to-one student selection stable in E2E.
+                      data-testid="one-to-one-student-select"
                       id="sessions-one-off-student"
                       value={form.studentId}
                       onChange={(event) =>

@@ -1,4 +1,4 @@
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma, StudentStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
 import { requireRole } from "@/lib/rbac";
@@ -26,6 +26,7 @@ const studentSelect = {
   notes: true,
   createdAt: true,
   updatedAt: true,
+  level: { select: { id: true, name: true } },
 } satisfies Prisma.StudentSelect;
 
 export async function GET(req: NextRequest, context: Params) {
@@ -69,35 +70,59 @@ export async function PATCH(req: NextRequest, context: Params) {
 
     const parsed = updateStudentSchema.safeParse(body);
     if (!parsed.success) {
-      return jsonError(422, "Validation error", { issues: parsed.error.issues });
+      return jsonError(400, "Validation error", { issues: parsed.error.issues });
     }
 
     const data = parsed.data;
     if (Object.keys(data).length === 0) {
-      return jsonError(422, "Validation error", { message: "Request body is empty" });
+      return jsonError(400, "Validation error", { message: "Request body is empty" });
     }
 
-    const existing = await prisma.student.findFirst({
-      where: { id: studentId, tenantId },
-      select: { id: true },
-    });
-    if (!existing) {
+    if (data.levelId !== undefined && data.levelId !== null) {
+      const level = await prisma.level.findFirst({
+        where: { id: data.levelId, tenantId },
+        select: { id: true },
+      });
+      if (!level) {
+        return jsonError(404, "Level not found");
+      }
+    }
+
+    const status =
+      data.status ??
+      (data.isActive === undefined
+        ? undefined
+        : data.isActive
+          ? StudentStatus.ACTIVE
+          : StudentStatus.INACTIVE);
+
+    // updateMany expects the unchecked update input to support levelId mutations.
+    const updateData: Prisma.StudentUncheckedUpdateManyInput = {
+      firstName: data.firstName,
+      lastName: data.lastName,
+      preferredName: data.preferredName,
+      grade: data.grade,
+      levelId: data.levelId === undefined ? undefined : data.levelId,
+      dateOfBirth: data.dateOfBirth,
+      // Map isActive to status when provided, while keeping status as canonical.
+      status,
+      notes: data.notes === undefined ? undefined : data.notes,
+    };
+
+    const [result, updated] = await prisma.$transaction([
+      prisma.student.updateMany({
+        where: { id: studentId, tenantId },
+        data: updateData,
+      }),
+      prisma.student.findFirst({
+        where: { id: studentId, tenantId },
+        select: studentSelect,
+      }),
+    ]);
+
+    if (result.count === 0 || !updated) {
       return jsonError(404, "Student not found");
     }
-
-    const updated = await prisma.student.update({
-      where: { id: studentId },
-      data: {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        preferredName: data.preferredName,
-        grade: data.grade,
-        dateOfBirth: data.dateOfBirth,
-        status: data.status,
-        notes: data.notes,
-      },
-      select: studentSelect,
-    });
 
     return NextResponse.json({ student: updated });
   } catch (error) {

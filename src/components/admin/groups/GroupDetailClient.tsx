@@ -340,33 +340,36 @@ export default function GroupDetailClient({
           <p className="mt-3 text-sm text-green-600">{studentMessage}</p>
         ) : null}
 
-        {/* data-testid hooks keep roster selection stable in E2E. */}
-        <div className="mt-4 grid gap-2" data-testid="add-student-select">
-          {studentEmpty ? (
-            <p
-              className="text-sm text-slate-500"
-              data-testid="student-empty-state"
-            >
-              {t("admin.groups.messages.noStudents")}
-            </p>
-          ) : (
-            filteredStudents.map((student) => (
-              <label
-                key={student.id}
-                className="flex items-center gap-2 text-sm"
+        {/* Wrapper adds a stable roster hook without removing existing selectors. */}
+        <div className="mt-4" data-testid="group-roster-student-select">
+          {/* data-testid hooks keep roster selection stable in E2E. */}
+          <div className="grid gap-2" data-testid="add-student-select">
+            {studentEmpty ? (
+              <p
+                className="text-sm text-slate-500"
+                data-testid="student-empty-state"
               >
-                <input
-                  checked={selectedStudentIds.includes(student.id)}
-                  className="h-4 w-4 rounded border-slate-300"
-                  onChange={() => toggleStudent(student.id)}
-                  type="checkbox"
-                />
-                <span className="text-slate-700">
-                  {formatStudentLabel(student)}
-                </span>
-              </label>
-            ))
-          )}
+                {t("admin.groups.messages.noStudents")}
+              </p>
+            ) : (
+              filteredStudents.map((student) => (
+                <label
+                  key={student.id}
+                  className="flex items-center gap-2 text-sm"
+                >
+                  <input
+                    checked={selectedStudentIds.includes(student.id)}
+                    className="h-4 w-4 rounded border-slate-300"
+                    onChange={() => toggleStudent(student.id)}
+                    type="checkbox"
+                  />
+                  <span className="text-slate-700">
+                    {formatStudentLabel(student)}
+                  </span>
+                </label>
+              ))
+            )}
+          </div>
         </div>
       </section>
     </div>

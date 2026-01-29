@@ -139,12 +139,15 @@ model Student {
   preferredName String?
   dateOfBirth   DateTime?
   grade         String?
+  // Optional tenant-scoped catalog level for reporting and filters.
+  levelId       String?
   status        StudentStatus @default(ACTIVE)
   notes         String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
   tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  level           Level?           @relation(fields: [levelId], references: [id], onDelete: SetNull)
   parents         StudentParent[]
   groupStudents   GroupStudent[]
   sessionStudents SessionStudent[]
@@ -186,6 +189,7 @@ model StudentParent {
   parent  Parent  @relation(fields: [parentId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, studentId, parentId])
+  @@index([tenantId])
   @@index([studentId])
   @@index([parentId])
 }
@@ -248,6 +252,7 @@ model Level {
   tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   programs Program[]
   groups   Group[]
+  students Student[]
 
   @@unique([tenantId, name])
   @@index([tenantId])

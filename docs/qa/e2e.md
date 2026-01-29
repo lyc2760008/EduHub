@@ -22,6 +22,7 @@ Set these in your shell or `.env` before running Playwright:
 - `E2E_TUTOR1_PASSWORD` (required for attendance + reports filter tests)
 - `E2E_TUTOR2_EMAIL` (required for attendance tests)
 - `E2E_TUTOR2_PASSWORD` (required for attendance tests)
+<!-- Students parent-link E2E uses a unique email per run and does not require a pre-seeded parent. -->
 <!-- Attendance + notes RBAC tests use Tutor1/Tutor2; other security tests still use the legacy tutor vars. -->
 <!-- Reports tests create a future session for Tutor1 when needed to make filters deterministic. -->
 
@@ -37,6 +38,12 @@ pnpm playwright test
 ```bash
 pnpm playwright test tests/e2e/dashboard.navigation.spec.ts
 ```
+<!-- Students CRUD + parent-link spec and RBAC guard. -->
+```bash
+pnpm playwright test tests/e2e/students.parent-link.spec.ts
+pnpm playwright test tests/e2e/students.rbac.tutor.spec.ts
+pnpm playwright test tests/e2e/students.regression-deps.spec.ts
+```
 
 ## Notes
 - Users tests avoid hardcoded UI text and rely on `data-testid` hooks.
@@ -47,3 +54,4 @@ pnpm playwright test tests/e2e/dashboard.navigation.spec.ts
 - Attendance tests require at least one upcoming session assigned to Tutor1 with a roster of 2+ students and a different Tutor2 user in the tenant.
 - Notes tests reuse the same Tutor1/Tutor2 setup and persist session notes through the detail page.
 - Reports filter tests reuse Tutor1 to create a future session and assert upcoming date-range changes.
+<!-- Students regression spec expects at least one group and one student for the roster and one-off session flows. -->

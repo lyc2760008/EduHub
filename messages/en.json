@@ -387,6 +387,60 @@
         "forbidden": "You do not have permission to manage users",
         "empty": "No users yet"
       }
+    },
+    "students": {
+      "_comment": "Admin student roster labels, table headings, and detail copy.",
+      "title": "Students",
+      "actions": {
+        "create": "Create student",
+        "view": "View",
+        "edit": "Edit"
+      },
+      "fields": {
+        "firstName": "First name",
+        "lastName": "Last name",
+        "grade": "Grade",
+        "level": "Level",
+        "levelPlaceholder": "No level",
+        "notes": "Notes",
+        "status": "Status",
+        "parents": "Parents"
+      },
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "table": {
+        "name": "Name",
+        "level": "Level",
+        "grade": "Grade",
+        "parentCount": "Parents",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "messages": {
+        "loading": "Loading students...",
+        "empty": "No students yet",
+        "error": "Unable to load students"
+      },
+      "detail": {
+        "title": "Student detail",
+        "save": "Save changes",
+        "saving": "Saving...",
+        "saved": "Saved",
+        "errorSaving": "Unable to save student"
+      },
+      "parents": {
+        "title": "Parents",
+        "linkTitle": "Link parent",
+        "parentEmail": "Parent email",
+        "link": "Link parent",
+        "unlink": "Unlink",
+        "empty": "No parents linked",
+        "error": "Unable to update parents",
+        "linkedSuccess": "Parent linked",
+        "unlinkedSuccess": "Parent unlinked"
+      }
     }
   },
   "nav": {
@@ -394,6 +448,7 @@
     "dashboard": "Dashboard",
     "centers": "Centers",
     "users": "Users",
+    "students": "Students",
     "catalog": "Catalog",
     "groups": "Groups",
     "reports": "Reports",

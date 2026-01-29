@@ -1,5 +1,5 @@
 {
-  "_comment": "Simplified Chinese UI strings for EduHub (UTF-8, includes nav.* labels).",
+  "_comment": "EduHub 简体中文界面文案（包含导航标签）。",
   "login": {
     "title": "登录",
     "emailLabel": "邮箱",
@@ -387,6 +387,60 @@
         "forbidden": "您没有权限管理用户",
         "empty": "暂无用户"
       }
+    },
+    "students": {
+      "_comment": "管理学生名单相关标题、表格与详情文案。",
+      "title": "学生",
+      "actions": {
+        "create": "新增学生",
+        "view": "查看",
+        "edit": "编辑"
+      },
+      "fields": {
+        "firstName": "名",
+        "lastName": "姓",
+        "grade": "年级",
+        "level": "等级",
+        "levelPlaceholder": "无等级",
+        "notes": "备注",
+        "status": "状态",
+        "parents": "家长"
+      },
+      "status": {
+        "active": "启用",
+        "inactive": "停用"
+      },
+      "table": {
+        "name": "姓名",
+        "level": "等级",
+        "grade": "年级",
+        "parentCount": "家长",
+        "status": "状态",
+        "actions": "操作"
+      },
+      "messages": {
+        "loading": "正在加载学生...",
+        "empty": "暂无学生",
+        "error": "无法加载学生"
+      },
+      "detail": {
+        "title": "学生详情",
+        "save": "保存更改",
+        "saving": "正在保存...",
+        "saved": "已保存",
+        "errorSaving": "保存学生失败"
+      },
+      "parents": {
+        "title": "家长",
+        "linkTitle": "关联家长",
+        "parentEmail": "家长邮箱",
+        "link": "关联家长",
+        "unlink": "解除关联",
+        "empty": "暂无关联家长",
+        "error": "无法更新家长",
+        "linkedSuccess": "家长已关联",
+        "unlinkedSuccess": "家长已解除关联"
+      }
     }
   },
   "nav": {
@@ -394,6 +448,7 @@
     "dashboard": "管理面板",
     "centers": "中心管理",
     "users": "用户",
+    "students": "学生",
     "catalog": "课程",
     "groups": "分组",
     "reports": "报表",

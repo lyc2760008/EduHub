@@ -61,14 +61,21 @@ export async function GET(req: NextRequest) {
           lastName: true,
           preferredName: true,
           grade: true,
+          level: { select: { id: true, name: true } },
           status: true,
           createdAt: true,
+          _count: { select: { parents: true } },
         },
       }),
       prisma.student.count({ where }),
     ]);
 
-    return NextResponse.json({ students, page, pageSize, total });
+    const payload = students.map(({ _count, ...student }) => ({
+      ...student,
+      parentCount: _count.parents,
+    }));
+
+    return NextResponse.json({ students: payload, page, pageSize, total });
   } catch (error) {
     console.error("GET /api/students failed", error);
     return jsonError(500, "Internal server error");
@@ -90,12 +97,29 @@ export async function POST(req: NextRequest) {
 
     const parsed = createStudentSchema.safeParse(body);
     if (!parsed.success) {
-      return jsonError(422, "Validation error", {
+      return jsonError(400, "Validation error", {
         issues: parsed.error.issues,
       });
     }
 
     const data = parsed.data;
+    const status =
+      data.status ??
+      (data.isActive === undefined
+        ? StudentStatus.ACTIVE
+        : data.isActive
+          ? StudentStatus.ACTIVE
+          : StudentStatus.INACTIVE);
+
+    if (data.levelId) {
+      const level = await prisma.level.findFirst({
+        where: { id: data.levelId, tenantId },
+        select: { id: true },
+      });
+      if (!level) {
+        return jsonError(404, "Level not found");
+      }
+    }
 
     const created = await prisma.student.create({
       data: {
@@ -104,8 +128,10 @@ export async function POST(req: NextRequest) {
         lastName: data.lastName,
         preferredName: data.preferredName,
         grade: data.grade,
+        levelId: data.levelId,
         dateOfBirth: data.dateOfBirth,
-        status: data.status,
+        // Use status as the canonical flag; isActive is mapped for API compatibility.
+        status,
         notes: data.notes,
       },
       select: {
@@ -115,6 +141,7 @@ export async function POST(req: NextRequest) {
         lastName: true,
         preferredName: true,
         grade: true,
+        level: { select: { id: true, name: true } },
         status: true,
         dateOfBirth: true,
         createdAt: true,

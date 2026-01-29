@@ -2,7 +2,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
 import { requireRole } from "@/lib/rbac";
-import { linkStudentParentSchema } from "@/lib/validation/studentParent";
+import { linkStudentParentByEmailSchema } from "@/lib/validation/studentParent";
 import { NextRequest, NextResponse } from "next/server";
 import type { Role } from "@/generated/prisma/client";
 
@@ -13,6 +13,35 @@ type Params = {
 };
 
 const ADMIN_ROLES: Role[] = ["Owner", "Admin"];
+
+const parentSelect = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  email: true,
+  phone: true,
+} satisfies Prisma.ParentSelect;
+
+const linkSelect = {
+  id: true,
+  studentId: true,
+  parentId: true,
+  relationship: true,
+} satisfies Prisma.StudentParentSelect;
+
+// Derive required first/last names from optional name or email for existing schema.
+const deriveParentName = (rawName: string | null | undefined, email: string) => {
+  const normalized = rawName?.trim();
+  const fallback = email.split("@")[0]?.trim() || "Parent";
+  if (normalized) {
+    const parts = normalized.split(/\s+/);
+    if (parts.length > 1) {
+      return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+    }
+    return { firstName: normalized, lastName: "Parent" };
+  }
+  return { firstName: fallback, lastName: "Parent" };
+};
 
 export async function GET(req: NextRequest, context: Params) {
   try {
@@ -85,47 +114,67 @@ export async function POST(req: NextRequest, context: Params) {
       return jsonError(400, "Invalid JSON body");
     }
 
-    const parsed = linkStudentParentSchema.safeParse(body);
+    const parsed = linkStudentParentByEmailSchema.safeParse(body);
     if (!parsed.success) {
-      return jsonError(422, "Validation error", {
+      return jsonError(400, "Validation error", {
         issues: parsed.error.issues,
       });
     }
 
     const data = parsed.data;
+    const { firstName, lastName } = deriveParentName(
+      data.name,
+      data.parentEmail
+    );
 
-    const parent = await prisma.parent.findFirst({
-      where: { id: data.parentId, tenantId },
-      select: { id: true },
-    });
-    if (!parent) {
-      return jsonError(404, "Parent not found");
-    }
+    const result = await prisma.$transaction(async (tx) => {
+      const existingParent = await tx.parent.findUnique({
+        where: { tenantId_email: { tenantId, email: data.parentEmail } },
+        select: parentSelect,
+      });
 
-    const link = await prisma.studentParent.create({
-      data: {
-        tenantId,
-        studentId,
-        parentId: data.parentId,
-        relationship: data.relationship,
-      },
-      select: {
-        id: true,
-        parentId: true,
-        relationship: true,
-        parent: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            phone: true,
+      const ensuredParent =
+        existingParent ??
+        (await tx.parent.create({
+          data: {
+            tenantId,
+            firstName,
+            lastName,
+            email: data.parentEmail,
+            phone: data.phone ?? undefined,
+          },
+          select: parentSelect,
+        }));
+
+      const existingLink = await tx.studentParent.findUnique({
+        where: {
+          tenantId_studentId_parentId: {
+            tenantId,
+            studentId,
+            parentId: ensuredParent.id,
           },
         },
-      },
+        select: linkSelect,
+      });
+
+      const ensuredLink =
+        existingLink ??
+        (await tx.studentParent.create({
+          data: {
+            tenantId,
+            studentId,
+            parentId: ensuredParent.id,
+          },
+          select: linkSelect,
+        }));
+
+      return { parent: ensuredParent, link: ensuredLink };
     });
 
-    return NextResponse.json({ link }, { status: 201 });
+    return NextResponse.json(
+      { link: { ...result.link, parent: result.parent } },
+      { status: 201 }
+    );
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&

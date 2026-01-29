@@ -4,8 +4,11 @@ import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import {
+  AttendanceStatus,
+  GroupType,
   ParentRelationship,
   PrismaClient,
+  SessionType,
   StudentStatus,
   type Role,
 } from "../src/generated/prisma/client";
@@ -265,6 +268,7 @@ async function main() {
     preferredName?: string;
     dateOfBirth?: Date;
     grade?: string;
+    levelId?: string;
     status?: StudentStatus;
     notes?: string;
   }) {
@@ -284,6 +288,7 @@ async function main() {
           preferredName: params.preferredName,
           dateOfBirth: params.dateOfBirth,
           grade: params.grade,
+          levelId: params.levelId,
           status: params.status,
           notes: params.notes,
         },
@@ -298,8 +303,130 @@ async function main() {
         preferredName: params.preferredName,
         dateOfBirth: params.dateOfBirth,
         grade: params.grade,
+        levelId: params.levelId,
         status: params.status ?? StudentStatus.ACTIVE,
         notes: params.notes,
+      },
+    });
+  }
+
+  async function upsertGroup(params: {
+    tenantId: string;
+    name: string;
+    type: GroupType;
+    centerId: string;
+    programId: string;
+    levelId?: string | null;
+    isActive?: boolean;
+    capacity?: number | null;
+    notes?: string | null;
+  }) {
+    // Groups do not have a unique name constraint, so upsert by name per tenant.
+    const existing = await prisma.group.findFirst({
+      where: { tenantId: params.tenantId, name: params.name },
+    });
+
+    if (existing) {
+      return prisma.group.update({
+        where: { id: existing.id },
+        data: {
+          type: params.type,
+          centerId: params.centerId,
+          programId: params.programId,
+          levelId: params.levelId ?? null,
+          isActive: params.isActive ?? true,
+          capacity: params.capacity ?? null,
+          notes: params.notes ?? null,
+        },
+      });
+    }
+
+    return prisma.group.create({
+      data: {
+        tenantId: params.tenantId,
+        name: params.name,
+        type: params.type,
+        centerId: params.centerId,
+        programId: params.programId,
+        levelId: params.levelId ?? null,
+        isActive: params.isActive ?? true,
+        capacity: params.capacity ?? null,
+        notes: params.notes ?? null,
+      },
+    });
+  }
+
+  async function upsertSession(params: {
+    tenantId: string;
+    centerId: string;
+    tutorId: string;
+    sessionType: SessionType;
+    groupId?: string | null;
+    startAt: Date;
+    endAt: Date;
+    timezone: string;
+  }) {
+    // Sessions have a compound unique key used for idempotent upserts.
+    return prisma.session.upsert({
+      where: {
+        tenantId_tutorId_centerId_startAt: {
+          tenantId: params.tenantId,
+          tutorId: params.tutorId,
+          centerId: params.centerId,
+          startAt: params.startAt,
+        },
+      },
+      update: {
+        sessionType: params.sessionType,
+        groupId: params.groupId ?? null,
+        endAt: params.endAt,
+        timezone: params.timezone,
+      },
+      create: {
+        tenantId: params.tenantId,
+        centerId: params.centerId,
+        tutorId: params.tutorId,
+        sessionType: params.sessionType,
+        groupId: params.groupId ?? null,
+        startAt: params.startAt,
+        endAt: params.endAt,
+        timezone: params.timezone,
+      },
+    });
+  }
+
+  async function upsertSessionNote(params: {
+    tenantId: string;
+    sessionId: string;
+    updatedByUserId: string;
+    internalNote?: string | null;
+    parentVisibleNote?: string | null;
+    homework?: string | null;
+    nextSteps?: string | null;
+  }) {
+    // Session notes are unique per tenant + session for idempotent seeding.
+    return prisma.sessionNote.upsert({
+      where: {
+        tenantId_sessionId: {
+          tenantId: params.tenantId,
+          sessionId: params.sessionId,
+        },
+      },
+      update: {
+        internalNote: params.internalNote ?? null,
+        parentVisibleNote: params.parentVisibleNote ?? null,
+        homework: params.homework ?? null,
+        nextSteps: params.nextSteps ?? null,
+        updatedByUserId: params.updatedByUserId,
+      },
+      create: {
+        tenantId: params.tenantId,
+        sessionId: params.sessionId,
+        updatedByUserId: params.updatedByUserId,
+        internalNote: params.internalNote ?? null,
+        parentVisibleNote: params.parentVisibleNote ?? null,
+        homework: params.homework ?? null,
+        nextSteps: params.nextSteps ?? null,
       },
     });
   }
@@ -369,7 +496,11 @@ async function main() {
     { tenantId: demoTenant.id, userId: demoOwner.id, role: "Owner" as const },
     { tenantId: demoTenant.id, userId: demoAdmin.id, role: "Admin" as const },
     { tenantId: demoTenant.id, userId: demoTutor.id, role: "Tutor" as const },
-    { tenantId: demoTenant.id, userId: demoTutorTwo.id, role: "Tutor" as const },
+    {
+      tenantId: demoTenant.id,
+      userId: demoTutorTwo.id,
+      role: "Tutor" as const,
+    },
     { tenantId: demoTenant.id, userId: demoParent.id, role: "Parent" as const },
     {
       tenantId: demoTenant.id,
@@ -477,6 +608,26 @@ async function main() {
       name: "English",
       isActive: true,
     }),
+    upsertSubject({
+      tenantId: demoTenant.id,
+      name: "Science",
+      isActive: true,
+    }),
+    upsertSubject({
+      tenantId: demoTenant.id,
+      name: "History",
+      isActive: true,
+    }),
+    upsertSubject({
+      tenantId: demoTenant.id,
+      name: "Coding",
+      isActive: true,
+    }),
+    upsertSubject({
+      tenantId: demoTenant.id,
+      name: "Arts",
+      isActive: true,
+    }),
   ]);
 
   const demoLevels = await Promise.all([
@@ -492,34 +643,154 @@ async function main() {
       sortOrder: 2,
       isActive: true,
     }),
+    upsertLevel({
+      tenantId: demoTenant.id,
+      name: "Level 3",
+      sortOrder: 3,
+      isActive: true,
+    }),
+    upsertLevel({
+      tenantId: demoTenant.id,
+      name: "Level 4",
+      sortOrder: 4,
+      isActive: true,
+    }),
+    upsertLevel({
+      tenantId: demoTenant.id,
+      name: "Level 5",
+      sortOrder: 5,
+      isActive: true,
+    }),
   ]);
 
   const demoMath = demoSubjects.find((subject) => subject.name === "Math");
-  const demoEnglish = demoSubjects.find((subject) => subject.name === "English");
+  const demoEnglish = demoSubjects.find(
+    (subject) => subject.name === "English",
+  );
+  const demoScience = demoSubjects.find(
+    (subject) => subject.name === "Science",
+  );
+  const demoHistory = demoSubjects.find(
+    (subject) => subject.name === "History",
+  );
+  const demoCoding = demoSubjects.find((subject) => subject.name === "Coding");
+  const demoArts = demoSubjects.find((subject) => subject.name === "Arts");
   const demoLevel1 = demoLevels.find((level) => level.name === "Level 1");
   const demoLevel2 = demoLevels.find((level) => level.name === "Level 2");
+  const demoLevel3 = demoLevels.find((level) => level.name === "Level 3");
+  const demoLevel4 = demoLevels.find((level) => level.name === "Level 4");
+  //const demoLevel5 = demoLevels.find((level) => level.name === "Level 5");
 
-  await Promise.all([
+  const demoPrograms = await Promise.all([
     upsertProgram({
       tenantId: demoTenant.id,
       name: "Algebra Basics",
-      subjectId: demoMath?.id ?? null,
-      levelId: demoLevel1?.id ?? null,
+      subjectId: demoMath?.id ?? undefined,
+      // Use undefined to omit optional levelId when a demo level is missing.
+      levelId: demoLevel1?.id ?? undefined,
       isActive: true,
     }),
     upsertProgram({
       tenantId: demoTenant.id,
       name: "English Foundations",
-      subjectId: demoEnglish?.id ?? null,
-      levelId: demoLevel1?.id ?? null,
+      subjectId: demoEnglish?.id ?? undefined,
+      levelId: demoLevel1?.id ?? undefined,
       isActive: true,
     }),
     upsertProgram({
       tenantId: demoTenant.id,
       name: "Advanced Writing",
-      subjectId: demoEnglish?.id ?? null,
-      levelId: demoLevel2?.id ?? null,
+      subjectId: demoEnglish?.id ?? undefined,
+      levelId: demoLevel2?.id ?? undefined,
       isActive: true,
+    }),
+    upsertProgram({
+      tenantId: demoTenant.id,
+      name: "STEM Explorers",
+      subjectId: demoScience?.id ?? undefined,
+      levelId: demoLevel2?.id ?? undefined,
+      isActive: true,
+    }),
+    upsertProgram({
+      tenantId: demoTenant.id,
+      name: "World History",
+      subjectId: demoHistory?.id ?? undefined,
+      levelId: demoLevel3?.id ?? undefined,
+      isActive: true,
+    }),
+    upsertProgram({
+      tenantId: demoTenant.id,
+      name: "Creative Coding",
+      subjectId: demoCoding?.id ?? undefined,
+      levelId: demoLevel4?.id ?? undefined,
+      isActive: true,
+    }),
+    upsertProgram({
+      tenantId: demoTenant.id,
+      name: "Art Studio",
+      subjectId: demoArts?.id ?? undefined,
+      levelId: demoLevel2?.id ?? undefined,
+      isActive: true,
+    }),
+  ]);
+
+  // Seed instructional groups for QA workflows (at least five per tenant).
+  const programByName = new Map(
+    demoPrograms.map((program) => [program.name, program]),
+  );
+  const demoCenterOptions = [defaultCenter, ...demoCenters];
+
+  const demoGroups = await Promise.all([
+    upsertGroup({
+      tenantId: demoTenant.id,
+      name: "Algebra Group A",
+      type: GroupType.GROUP,
+      centerId: demoCenterOptions[0].id,
+      programId: programByName.get("Algebra Basics")?.id ?? demoPrograms[0].id,
+      levelId: demoLevel1?.id ?? undefined,
+      capacity: 6,
+      notes: "Intro algebra practice group.",
+    }),
+    upsertGroup({
+      tenantId: demoTenant.id,
+      name: "Writing Lab",
+      type: GroupType.CLASS,
+      centerId: demoCenterOptions[1]?.id ?? demoCenterOptions[0].id,
+      programId:
+        programByName.get("English Foundations")?.id ?? demoPrograms[1].id,
+      levelId: demoLevel1?.id ?? undefined,
+      capacity: 8,
+      notes: "Foundational writing skills.",
+    }),
+    upsertGroup({
+      tenantId: demoTenant.id,
+      name: "STEM Club",
+      type: GroupType.GROUP,
+      centerId: demoCenterOptions[2]?.id ?? demoCenterOptions[0].id,
+      programId: programByName.get("STEM Explorers")?.id ?? demoPrograms[3].id,
+      levelId: demoLevel2?.id ?? undefined,
+      capacity: 10,
+      notes: "Hands-on STEM activities.",
+    }),
+    upsertGroup({
+      tenantId: demoTenant.id,
+      name: "History Circle",
+      type: GroupType.GROUP,
+      centerId: demoCenterOptions[3]?.id ?? demoCenterOptions[0].id,
+      programId: programByName.get("World History")?.id ?? demoPrograms[4].id,
+      levelId: demoLevel3?.id ?? undefined,
+      capacity: 7,
+      notes: "Discussion-based history group.",
+    }),
+    upsertGroup({
+      tenantId: demoTenant.id,
+      name: "Creative Coding",
+      type: GroupType.CLASS,
+      centerId: demoCenterOptions[4]?.id ?? demoCenterOptions[0].id,
+      programId: programByName.get("Creative Coding")?.id ?? demoPrograms[5].id,
+      levelId: demoLevel4?.id ?? undefined,
+      capacity: 9,
+      notes: "Project-based coding class.",
     }),
   ]);
 
@@ -534,12 +805,34 @@ async function main() {
 
   if (staffMemberships.length) {
     // Idempotent: link seeded staff users to the demo center when present.
-    await prisma.staffCenter.createMany({
-      data: staffMemberships.map((membership, index) => ({
+    const baseCenters = [defaultCenter, ...demoCenters];
+    const staffCenterRows = staffMemberships.map((membership, index) => ({
+      tenantId: membership.tenantId,
+      userId: membership.userId,
+      centerId: baseCenters[index % baseCenters.length].id,
+    }));
+    // Add extra links for the first two staff members to reach >= 5 rows.
+    const extraStaffRows = staffMemberships
+      .slice(0, 2)
+      .map((membership, index) => ({
         tenantId: membership.tenantId,
         userId: membership.userId,
-        centerId:
-          [defaultCenter, ...demoCenters][index % (demoCenters.length + 1)].id,
+        centerId: baseCenters[(index + 1) % baseCenters.length].id,
+      }));
+    await prisma.staffCenter.createMany({
+      data: [...staffCenterRows, ...extraStaffRows],
+      skipDuplicates: true,
+    });
+  }
+
+  if (demoGroups.length) {
+    // Seed group tutors across demo groups for roster assignment testing.
+    const tutorCandidates = [demoTutor, demoTutorTwo, demoOwner, demoAdmin];
+    await prisma.groupTutor.createMany({
+      data: demoGroups.map((group, index) => ({
+        tenantId: demoTenant.id,
+        groupId: group.id,
+        userId: tutorCandidates[index % tutorCandidates.length].id,
       })),
       skipDuplicates: true,
     });
@@ -555,6 +848,7 @@ async function main() {
       preferredName: "Ava",
       dateOfBirth: new Date("2014-03-12"),
       grade: "5",
+      levelId: demoLevel1?.id ?? undefined,
       status: StudentStatus.ACTIVE,
     }),
     upsertStudent({
@@ -564,6 +858,7 @@ async function main() {
       preferredName: "Liam",
       dateOfBirth: new Date("2013-11-02"),
       grade: "6",
+      levelId: demoLevel2?.id ?? undefined,
       status: StudentStatus.ACTIVE,
     }),
     upsertStudent({
@@ -573,6 +868,7 @@ async function main() {
       preferredName: "Mia",
       dateOfBirth: new Date("2015-06-21"),
       grade: "4",
+      levelId: demoLevel1?.id ?? undefined,
       status: StudentStatus.ACTIVE,
     }),
     upsertStudent({
@@ -582,6 +878,7 @@ async function main() {
       preferredName: "Noah",
       dateOfBirth: new Date("2012-09-14"),
       grade: "7",
+      levelId: demoLevel3?.id ?? undefined,
       status: StudentStatus.ACTIVE,
     }),
     upsertStudent({
@@ -591,6 +888,7 @@ async function main() {
       preferredName: "Sophie",
       dateOfBirth: new Date("2014-12-05"),
       grade: "5",
+      levelId: demoLevel1?.id ?? undefined,
       status: StudentStatus.ACTIVE,
     }),
     upsertStudent({
@@ -600,6 +898,7 @@ async function main() {
       preferredName: "Ethan",
       dateOfBirth: new Date("2013-02-18"),
       grade: "6",
+      levelId: demoLevel2?.id ?? undefined,
       status: StudentStatus.ACTIVE,
     }),
     upsertStudent({
@@ -762,7 +1061,7 @@ async function main() {
       preferredName: "Sebastian",
       dateOfBirth: new Date("2012-07-07"),
       grade: "7",
-      status: StudentStatus.ACTIVE,
+      status: StudentStatus.INACTIVE,
     }),
     upsertStudent({
       tenantId: demoTenant.id,
@@ -771,7 +1070,7 @@ async function main() {
       preferredName: "Grace",
       dateOfBirth: new Date("2015-10-10"),
       grade: "4",
-      status: StudentStatus.ACTIVE,
+      status: StudentStatus.ARCHIVED,
     }),
   ]);
 
@@ -825,6 +1124,226 @@ async function main() {
       })),
       skipDuplicates: true,
     });
+  }
+
+  if (demoGroups.length && demoStudents.length) {
+    // Seed group rosters for assignment workflows and detail screens.
+    const groupStudentRows = demoStudents
+      .slice(0, 15)
+      .map((student, index) => ({
+        tenantId: demoTenant.id,
+        groupId: demoGroups[index % demoGroups.length].id,
+        studentId: student.id,
+      }));
+    await prisma.groupStudent.createMany({
+      data: groupStudentRows,
+      skipDuplicates: true,
+    });
+  }
+
+  // Seed sessions for scheduling + reporting views.
+  // Create future-dated sessions so the Sessions list isn't empty.
+  const now = new Date();
+  const baseDay = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      16,
+      0,
+      0,
+    ),
+  );
+  const hourMs = 60 * 60 * 1000;
+  const dayMs = 24 * hourMs;
+
+  const futureSessions = await Promise.all([
+    // Default center gets a fuller dataset for testing.
+    upsertSession({
+      tenantId: demoTenant.id,
+      centerId: defaultCenter.id,
+      tutorId: demoTutor.id,
+      sessionType: SessionType.GROUP,
+      groupId: demoGroups[0]?.id ?? undefined,
+      startAt: new Date(baseDay.getTime() + dayMs * 1),
+      endAt: new Date(baseDay.getTime() + dayMs * 1 + hourMs),
+      timezone: "America/Edmonton",
+    }),
+    upsertSession({
+      tenantId: demoTenant.id,
+      centerId: defaultCenter.id,
+      tutorId: demoTutorTwo.id,
+      sessionType: SessionType.CLASS,
+      groupId: demoGroups[1]?.id ?? undefined,
+      startAt: new Date(baseDay.getTime() + dayMs * 2 + hourMs),
+      endAt: new Date(baseDay.getTime() + dayMs * 2 + hourMs * 2),
+      timezone: "America/Edmonton",
+    }),
+    upsertSession({
+      tenantId: demoTenant.id,
+      centerId: defaultCenter.id,
+      tutorId: demoTutor.id,
+      sessionType: SessionType.GROUP,
+      groupId: demoGroups[2]?.id ?? undefined,
+      startAt: new Date(baseDay.getTime() + dayMs * 3 + hourMs * 2),
+      endAt: new Date(baseDay.getTime() + dayMs * 3 + hourMs * 3),
+      timezone: "America/Edmonton",
+    }),
+    upsertSession({
+      tenantId: demoTenant.id,
+      centerId: defaultCenter.id,
+      tutorId: demoTutorTwo.id,
+      sessionType: SessionType.ONE_ON_ONE,
+      groupId: null,
+      startAt: new Date(baseDay.getTime() + dayMs * 4 + hourMs),
+      endAt: new Date(baseDay.getTime() + dayMs * 4 + hourMs * 2),
+      timezone: "America/Edmonton",
+    }),
+    upsertSession({
+      tenantId: demoTenant.id,
+      centerId: defaultCenter.id,
+      tutorId: demoTutor.id,
+      sessionType: SessionType.CLASS,
+      groupId: demoGroups[4]?.id ?? undefined,
+      startAt: new Date(baseDay.getTime() + dayMs * 5 + hourMs * 3),
+      endAt: new Date(baseDay.getTime() + dayMs * 5 + hourMs * 4),
+      timezone: "America/Edmonton",
+    }),
+    // Other centers get fewer sessions for lighter data density.
+    upsertSession({
+      tenantId: demoTenant.id,
+      centerId: demoCenters[1]?.id ?? defaultCenter.id,
+      tutorId: demoTutorTwo.id,
+      sessionType: SessionType.CLASS,
+      groupId: demoGroups[1]?.id ?? undefined,
+      startAt: new Date(baseDay.getTime() + dayMs * 6 + hourMs),
+      endAt: new Date(baseDay.getTime() + dayMs * 6 + hourMs * 2),
+      timezone: "America/Edmonton",
+    }),
+    upsertSession({
+      tenantId: demoTenant.id,
+      centerId: demoCenters[2]?.id ?? defaultCenter.id,
+      tutorId: demoTutor.id,
+      sessionType: SessionType.GROUP,
+      groupId: demoGroups[2]?.id ?? undefined,
+      startAt: new Date(baseDay.getTime() + dayMs * 7 + hourMs * 2),
+      endAt: new Date(baseDay.getTime() + dayMs * 7 + hourMs * 3),
+      timezone: "America/Edmonton",
+    }),
+  ]);
+
+  // Past sessions power student activity and attendance reports.
+  const pastSessions = await Promise.all([
+    upsertSession({
+      tenantId: demoTenant.id,
+      centerId: defaultCenter.id,
+      tutorId: demoTutor.id,
+      sessionType: SessionType.GROUP,
+      groupId: demoGroups[0]?.id ?? undefined,
+      startAt: new Date(baseDay.getTime() - dayMs * 7),
+      endAt: new Date(baseDay.getTime() - dayMs * 7 + hourMs),
+      timezone: "America/Edmonton",
+    }),
+    upsertSession({
+      tenantId: demoTenant.id,
+      centerId: defaultCenter.id,
+      tutorId: demoTutorTwo.id,
+      sessionType: SessionType.CLASS,
+      groupId: demoGroups[1]?.id ?? undefined,
+      startAt: new Date(baseDay.getTime() - dayMs * 10 + hourMs),
+      endAt: new Date(baseDay.getTime() - dayMs * 10 + hourMs * 2),
+      timezone: "America/Edmonton",
+    }),
+    upsertSession({
+      tenantId: demoTenant.id,
+      centerId: defaultCenter.id,
+      tutorId: demoTutor.id,
+      sessionType: SessionType.ONE_ON_ONE,
+      groupId: null,
+      startAt: new Date(baseDay.getTime() - dayMs * 14 + hourMs * 2),
+      endAt: new Date(baseDay.getTime() - dayMs * 14 + hourMs * 3),
+      timezone: "America/Edmonton",
+    }),
+    upsertSession({
+      tenantId: demoTenant.id,
+      centerId: demoCenters[1]?.id ?? defaultCenter.id,
+      tutorId: demoTutorTwo.id,
+      sessionType: SessionType.GROUP,
+      groupId: demoGroups[2]?.id ?? undefined,
+      startAt: new Date(baseDay.getTime() - dayMs * 5 + hourMs),
+      endAt: new Date(baseDay.getTime() - dayMs * 5 + hourMs * 2),
+      timezone: "America/Edmonton",
+    }),
+    upsertSession({
+      tenantId: demoTenant.id,
+      centerId: demoCenters[2]?.id ?? defaultCenter.id,
+      tutorId: demoTutor.id,
+      sessionType: SessionType.CLASS,
+      groupId: demoGroups[3]?.id ?? undefined,
+      startAt: new Date(baseDay.getTime() - dayMs * 3 + hourMs * 3),
+      endAt: new Date(baseDay.getTime() - dayMs * 3 + hourMs * 4),
+      timezone: "America/Edmonton",
+    }),
+  ]);
+
+  const demoSessions = [...futureSessions, ...pastSessions];
+
+  if (demoSessions.length && demoStudents.length) {
+    // Seed roster snapshots for each session using existing students.
+    const sessionStudentRows = demoSessions.flatMap((session, index) => {
+      const startIndex = index * 3;
+      return demoStudents.slice(startIndex, startIndex + 3).map((student) => ({
+        tenantId: demoTenant.id,
+        sessionId: session.id,
+        studentId: student.id,
+      }));
+    });
+    await prisma.sessionStudent.createMany({
+      data: sessionStudentRows,
+      skipDuplicates: true,
+    });
+
+    // Seed attendance marks for the first two students in each session.
+    const statuses = [
+      AttendanceStatus.PRESENT,
+      AttendanceStatus.ABSENT,
+      AttendanceStatus.LATE,
+      AttendanceStatus.EXCUSED,
+    ];
+    const attendanceRows = demoSessions.flatMap((session, index) => {
+      const startIndex = index * 3;
+      return demoStudents
+        .slice(startIndex, startIndex + 2)
+        .map((student, offset) => ({
+          tenantId: demoTenant.id,
+          sessionId: session.id,
+          studentId: student.id,
+          status: statuses[(index + offset) % statuses.length],
+          note: offset === 1 ? "Needs follow-up" : undefined,
+          markedByUserId: session.tutorId,
+        }));
+    });
+    await prisma.attendance.createMany({
+      data: attendanceRows,
+      skipDuplicates: true,
+    });
+  }
+
+  if (demoSessions.length) {
+    // Seed session notes so reporting screens have content to display.
+    await Promise.all(
+      demoSessions.map((session, index) =>
+        upsertSessionNote({
+          tenantId: demoTenant.id,
+          sessionId: session.id,
+          updatedByUserId: session.tutorId,
+          internalNote: `Session ${index + 1} internal recap.`,
+          parentVisibleNote: index % 2 === 0 ? "Great progress today." : null,
+          homework: index % 2 === 0 ? "Practice 10 minutes." : null,
+          nextSteps: "Review key concepts next session.",
+        }),
+      ),
+    );
   }
 
   console.log(
