@@ -1,0 +1,21 @@
+/*
+  Parent portal design tokens are scoped to this class so admin surfaces remain unchanged.
+  Components in the parent portal should consume these CSS variables via Tailwind arbitrary values.
+*/
+.parentPortal {
+  --background: #fff7ed;
+  --surface: #fffcf7;
+  --surface-2: #fff1e1;
+  --border: #f2d5b5;
+  --text: #3b2b1d;
+  --muted: #7c5f45;
+  --muted-2: #9c7b5f;
+  --primary: #f59e0b;
+  --primary-foreground: #2b1b10;
+  --success: #15803d;
+  --warning: #d97706;
+  --destructive: #dc2626;
+  --info: #0284c7;
+  /* Focus ring aligns with the warm primary for consistent keyboard affordances. */
+  --ring: var(--primary);
+}

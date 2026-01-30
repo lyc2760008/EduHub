@@ -1,5 +1,5 @@
 {
-  "_comment": "English UI strings for EduHub (cookie-selected locale, including admin users).",
+  "_comment": "English UI strings for EduHub (cookie-selected locale, including admin users + parent portal foundation).",
   "login": {
     "title": "Sign in",
     "emailLabel": "Email",
@@ -472,6 +472,40 @@
     "levelsDesc": "Maintain level labels and ordering.",
     "programs": "Programs",
     "programsDesc": "Curate program offerings for enrollment."
+  },
+  "parent": {
+    "nav": {
+      "dashboard": "Dashboard",
+      "children": "Children",
+      "logout": "Logout"
+    },
+    "actions": {
+      "language": "Language"
+    },
+    "sections": {
+      "upcoming": "Upcoming",
+      "attendance": "Attendance",
+      "notes": "Notes"
+    },
+    "empty": {
+      "upcoming": {
+        "title": "No upcoming sessions",
+        "body": "When sessions are scheduled, they’ll appear here."
+      },
+      "children": {
+        "title": "No children linked",
+        "body": "Please contact the center to link your account."
+      },
+      "notes": {
+        "title": "No notes yet",
+        "body": "Notes will show after your child’s sessions."
+      }
+    }
+  },
+  "generic": {
+    "viewAll": "View all",
+    "loading": "Loading…",
+    "dash": "—"
   },
   "common": {
     "loading": "Loading...",
