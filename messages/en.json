@@ -441,6 +441,22 @@
         "linkedSuccess": "Parent linked",
         "unlinkedSuccess": "Parent unlinked"
       }
+    },
+    "parents": {
+      "resetCode": {
+        "button": "Reset access code",
+        "title": "Reset access code",
+        "confirmBody": "This will generate a new access code and invalidate the previous one.",
+        "confirmButton": "Reset code",
+        "successTitle": "New access code generated",
+        "codeLabel": "Access code",
+        "copyButton": "Copy code",
+        "copiedToast": "Code copied",
+        "securityGuidance": "Share this code securely with the parent (avoid public channels). The old code no longer works.",
+        "error": {
+          "generic": "Unable to reset the code. Please try again."
+        }
+      }
     }
   },
   "nav": {
@@ -479,6 +495,27 @@
       "children": "Children",
       "logout": "Logout"
     },
+    "login": {
+      "title": "Parent login",
+      "subtitle": "Enter your email and access code provided by the center.",
+      "email": {
+        "label": "Email",
+        "placeholder": "you@example.com"
+      },
+      "code": {
+        "label": "Access code",
+        "placeholder": "Enter access code",
+        "help": "You can paste the code exactly as provided."
+      },
+      "submit": "Sign in",
+      "error": {
+        "emailRequired": "Email is required.",
+        "emailInvalid": "Enter a valid email address.",
+        "codeRequired": "Access code is required.",
+        "invalidCredentials": "We couldn’t sign you in. Please check your email and access code.",
+        "generic": "Something went wrong. Please try again."
+      }
+    },
     "actions": {
       "language": "Language"
     },
@@ -506,6 +543,10 @@
     "viewAll": "View all",
     "loading": "Loading…",
     "dash": "—"
+  },
+  "actions": {
+    "cancel": "Cancel",
+    "close": "Close"
   },
   "common": {
     "loading": "Loading...",

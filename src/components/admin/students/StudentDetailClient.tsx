@@ -1,11 +1,12 @@
 // Client-side student detail form with parents linking via tenant-scoped APIs.
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import AdminFormField from "@/components/admin/shared/AdminFormField";
+import AdminModalShell from "@/components/admin/shared/AdminModalShell";
 import AdminTable, {
   type AdminTableColumn,
 } from "@/components/admin/shared/AdminTable";
@@ -86,6 +87,12 @@ export default function StudentDetailClient({
   const [message, setMessage] = useState<string | null>(null);
   const [parentsError, setParentsError] = useState<string | null>(null);
   const [parentsMessage, setParentsMessage] = useState<string | null>(null);
+  const [resetTarget, setResetTarget] = useState<ParentLink | null>(null);
+  const [resetCode, setResetCode] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
+  const [hasCopiedCode, setHasCopiedCode] = useState(false);
+  const copyTimeoutRef = useRef<number | null>(null);
 
   const loadStudent = useCallback(async () => {
     setIsLoading(true);
@@ -172,6 +179,15 @@ export default function StudentDetailClient({
     void loadLevels();
     void loadParents();
   }, [loadStudent, loadLevels, loadParents]);
+
+  useEffect(() => {
+    return () => {
+      // Clean up the copy toast timeout to avoid state updates after unmount.
+      if (copyTimeoutRef.current) {
+        window.clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   async function handleSave() {
     if (isReadOnly) return;
@@ -310,6 +326,78 @@ export default function StudentDetailClient({
     [loadParents, studentId, t],
   );
 
+  const openResetModal = useCallback((link: ParentLink) => {
+    // Reset flow starts in confirm state with clean error/result messaging.
+    setResetTarget(link);
+    setResetCode(null);
+    setResetError(null);
+    setHasCopiedCode(false);
+  }, []);
+
+  const closeResetModal = useCallback(() => {
+    setResetTarget(null);
+    setResetCode(null);
+    setResetError(null);
+    setIsResetting(false);
+    setHasCopiedCode(false);
+  }, []);
+
+  const handleResetAccessCode = useCallback(async () => {
+    if (!resetTarget) return;
+    setIsResetting(true);
+    setResetError(null);
+
+    const result = await fetchJson<{
+      accessCode: string;
+    }>(`/api/parents/${resetTarget.parentId}/reset-access-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    if (!result.ok) {
+      setResetError(t("admin.parents.resetCode.error.generic"));
+      setIsResetting(false);
+      return;
+    }
+
+    setResetCode(result.data.accessCode);
+    setIsResetting(false);
+  }, [resetTarget, t]);
+
+  const handleCopyResetCode = useCallback(async () => {
+    if (!resetCode) return;
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(resetCode);
+      } else {
+        // Fallback for non-secure contexts or older browsers without Clipboard API.
+        const textarea = document.createElement("textarea");
+        textarea.value = resetCode;
+        textarea.setAttribute("readonly", "true");
+        textarea.style.position = "absolute";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand("copy");
+        document.body.removeChild(textarea);
+        if (!copied) {
+          throw new Error("Copy command was rejected");
+        }
+      }
+      setHasCopiedCode(true);
+      if (copyTimeoutRef.current) {
+        window.clearTimeout(copyTimeoutRef.current);
+      }
+      copyTimeoutRef.current = window.setTimeout(() => {
+        setHasCopiedCode(false);
+      }, 2000);
+    } catch (error) {
+      console.error("Failed to copy parent access code", error);
+    }
+  }, [resetCode]);
+
   const parentsColumns: AdminTableColumn<ParentLink>[] = useMemo(
     () => [
       {
@@ -336,21 +424,32 @@ export default function StudentDetailClient({
       {
         header: t("admin.students.table.actions"),
         cell: (link) => (
-          <button
-            className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
-            data-testid={`parent-unlink-${link.parentId}`}
-            disabled={isReadOnly}
-            onClick={() => handleUnlinkParent(link.parentId)}
-            type="button"
-          >
-            {t("admin.students.parents.unlink")}
-          </button>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              className="rounded border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              data-testid={`parent-reset-${link.parentId}`}
+              disabled={isReadOnly}
+              onClick={() => openResetModal(link)}
+              type="button"
+            >
+              {t("admin.parents.resetCode.button")}
+            </button>
+            <button
+              className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
+              data-testid={`parent-unlink-${link.parentId}`}
+              disabled={isReadOnly}
+              onClick={() => handleUnlinkParent(link.parentId)}
+              type="button"
+            >
+              {t("admin.students.parents.unlink")}
+            </button>
+          </div>
         ),
         headClassName: "px-4 py-3",
         cellClassName: "px-4 py-3",
       },
     ],
-    [handleUnlinkParent, isReadOnly, t],
+    [handleUnlinkParent, isReadOnly, openResetModal, t],
   );
 
   const loadingState = t("admin.students.messages.loading");
@@ -559,6 +658,112 @@ export default function StudentDetailClient({
         </div>
         </section>
       </div>
+
+      {resetTarget ? (
+        // Reuse the existing admin modal shell instead of shadcn Dialog for consistency.
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded border border-slate-200 bg-white p-6 shadow-xl">
+            <AdminModalShell
+              title={t("admin.parents.resetCode.title")}
+              footer={
+                resetCode ? (
+                  <>
+                    <button
+                      className="rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
+                      data-testid="parent-reset-close"
+                      onClick={closeResetModal}
+                      type="button"
+                    >
+                      {t("actions.close")}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      className="rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
+                      data-testid="parent-reset-cancel"
+                      disabled={isResetting}
+                      onClick={closeResetModal}
+                      type="button"
+                    >
+                      {t("actions.cancel")}
+                    </button>
+                    <button
+                      className="flex items-center gap-2 rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                      data-testid="parent-reset-confirm"
+                      disabled={isResetting}
+                      onClick={handleResetAccessCode}
+                      type="button"
+                    >
+                      {isResetting ? (
+                        <>
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                          {t("generic.loading")}
+                        </>
+                      ) : (
+                        t("admin.parents.resetCode.confirmButton")
+                      )}
+                    </button>
+                  </>
+                )
+              }
+              testId="parent-reset-code-modal"
+            >
+              {resetError ? (
+                <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {resetError}
+                </div>
+              ) : null}
+
+              {resetCode ? (
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-slate-900">
+                    {t("admin.parents.resetCode.successTitle")}
+                  </p>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-600">
+                      {t("admin.parents.resetCode.codeLabel")}
+                    </p>
+                    <div className="mt-2 rounded border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-sm text-slate-900">
+                      {/* data-testid lets E2E read the generated code without parsing labels. */}
+                      <span data-testid="parent-reset-code-value">
+                      {resetCode}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      className="rounded border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                      disabled={!resetCode}
+                      onClick={handleCopyResetCode}
+                      type="button"
+                    >
+                      {t("admin.parents.resetCode.copyButton")}
+                    </button>
+                    {hasCopiedCode ? (
+                      <span className="text-xs text-green-600">
+                        {t("admin.parents.resetCode.copiedToast")}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="text-xs text-slate-600">
+                    {t("admin.parents.resetCode.securityGuidance")}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm text-slate-700">
+                    {t("admin.parents.resetCode.confirmBody")}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {resetTarget.parent.email}
+                  </p>
+                </div>
+              )}
+            </AdminModalShell>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

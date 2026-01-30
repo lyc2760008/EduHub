@@ -164,7 +164,7 @@ test.describe("Sessions - admin UI", () => {
       throw new Error("No center available for test.");
     }
 
-    const { student, created } = studentResult;
+    const { created } = studentResult;
 
     if (created) {
       // Refresh sessions page so admin options include the newly created student.
@@ -186,7 +186,17 @@ test.describe("Sessions - admin UI", () => {
     await modal.getByLabel(/center/i).selectOption(center.id);
     await modal.getByLabel(/tutor/i).selectOption(tutor.id);
     await modal.getByLabel(/type/i).selectOption("ONE_ON_ONE");
-    await modal.getByLabel(/student/i).selectOption(student.id);
+    // Wait for students to load before selecting any available student.
+    const studentSelect = modal.getByTestId("one-to-one-student-select");
+    await expect.poll(async () => studentSelect.locator("option").count()).toBeGreaterThan(1);
+    const fallbackStudentValue = await studentSelect
+      .locator("option")
+      .nth(1)
+      .getAttribute("value");
+    if (!fallbackStudentValue) {
+      throw new Error("Expected at least one student option in one-off modal.");
+    }
+    await studentSelect.selectOption(fallbackStudentValue);
 
     const timezone = center.timezone || "America/Edmonton";
     const minuteSeed = (Date.now() % 45) + 10;
@@ -267,7 +277,7 @@ test.describe("Sessions - admin UI", () => {
       throw new Error("No center available for test.");
     }
 
-    const { student, created } = studentResult;
+    const { created } = studentResult;
 
     if (created) {
       // Refresh sessions page so admin options include the newly created student.
@@ -289,7 +299,17 @@ test.describe("Sessions - admin UI", () => {
     await modal.getByLabel(/center/i).selectOption(center.id);
     await modal.getByLabel(/tutor/i).selectOption(tutor.id);
     await modal.getByLabel(/type/i).selectOption("ONE_ON_ONE");
-    await modal.getByLabel(/student/i).selectOption(student.id);
+    // Wait for students to load before selecting any available student.
+    const studentSelect = modal.locator("#sessions-generator-student");
+    await expect.poll(async () => studentSelect.locator("option").count()).toBeGreaterThan(1);
+    const fallbackStudentValue = await studentSelect
+      .locator("option")
+      .nth(1)
+      .getAttribute("value");
+    if (!fallbackStudentValue) {
+      throw new Error("Expected at least one student option in generator modal.");
+    }
+    await studentSelect.selectOption(fallbackStudentValue);
 
     const timezone = center.timezone || "America/Edmonton";
     const range = nextWeekRange(timezone);

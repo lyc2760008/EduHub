@@ -441,6 +441,22 @@
         "linkedSuccess": "家长已关联",
         "unlinkedSuccess": "家长已解除关联"
       }
+    },
+    "parents": {
+      "resetCode": {
+        "button": "重置访问码",
+        "title": "重置访问码",
+        "confirmBody": "将生成新的访问码，旧访问码将失效。",
+        "confirmButton": "确认重置",
+        "successTitle": "已生成新的访问码",
+        "codeLabel": "访问码",
+        "copyButton": "复制访问码",
+        "copiedToast": "已复制",
+        "securityGuidance": "请通过安全方式发送给家长（避免公开渠道）。旧访问码已失效。",
+        "error": {
+          "generic": "重置失败，请稍后重试。"
+        }
+      }
     }
   },
   "nav": {
@@ -479,6 +495,27 @@
       "children": "??",
       "logout": "????"
     },
+    "login": {
+      "title": "家长登录",
+      "subtitle": "请输入邮箱和校区提供的访问码。",
+      "email": {
+        "label": "邮箱",
+        "placeholder": "you@example.com"
+      },
+      "code": {
+        "label": "访问码",
+        "placeholder": "输入访问码",
+        "help": "可直接粘贴校区提供的访问码。"
+      },
+      "submit": "登录",
+      "error": {
+        "emailRequired": "请输入邮箱。",
+        "emailInvalid": "请输入有效的邮箱地址。",
+        "codeRequired": "请输入访问码。",
+        "invalidCredentials": "登录失败，请检查邮箱和访问码是否正确。",
+        "generic": "出现问题，请稍后重试。"
+      }
+    },
     "actions": {
       "language": "??"
     },
@@ -504,8 +541,12 @@
   },
   "generic": {
     "viewAll": "????",
-    "loading": "????",
+    "loading": "加载中…",
     "dash": "?"
+  },
+  "actions": {
+    "cancel": "取消",
+    "close": "关闭"
   },
   "common": {
     "loading": "加载中...",

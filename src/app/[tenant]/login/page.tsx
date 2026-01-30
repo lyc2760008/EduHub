@@ -2,6 +2,7 @@
 "use client";
 import { use, useState } from "react";
 import { signIn } from "next-auth/react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 
@@ -86,6 +87,15 @@ export default function LoginPage({ params }: PageProps) {
         >
           {t("login.submit")}
         </button>
+        {/* Parent login link gives QA a direct path to the portal auth screen. */}
+        <div className="pt-1 text-sm text-slate-600">
+          <Link
+            className="text-slate-700 underline decoration-slate-300 underline-offset-4"
+            href={`/${tenant}/parent/login`}
+          >
+            {t("parent.login.title")}
+          </Link>
+        </div>
       </form>
     </div>
   );

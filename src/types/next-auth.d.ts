@@ -9,12 +9,16 @@ declare module "next-auth" {
       id: string;
       tenantId: string;
       role: Role;
+      // Optional parentId for parent portal sessions.
+      parentId?: string;
     } & DefaultSession["user"];
   }
 
   interface User {
     tenantId: string;
     role: Role;
+    // Parent auth returns parentId to preserve tenant-aware routing.
+    parentId?: string;
   }
 }
 
@@ -24,5 +28,7 @@ declare module "next-auth/jwt" {
     userId?: string;
     tenantId?: string;
     role?: Role;
+    // Parent sessions persist parentId separately from userId.
+    parentId?: string;
   }
 }

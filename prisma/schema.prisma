@@ -166,6 +166,10 @@ model Parent {
   email     String
   phone     String?
   notes     String?
+  // Hashed parent portal access code (set/reset by admins; never store plaintext).
+  accessCodeHash String?
+  // Timestamp of the last access-code rotation for auditing.
+  accessCodeUpdatedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -13,6 +13,8 @@ type AuthUser = {
   name?: string | null;
   tenantId: string;
   role: Role;
+  // Parent sessions store parentId explicitly for portal route guards.
+  parentId?: string;
 };
 
 // Minimal shape we return from authorize so callbacks can enrich JWT/session.
@@ -106,6 +108,67 @@ export const authConfig: NextAuthConfig = {
         } satisfies AuthResult;
       },
     }),
+    Credentials({
+      id: "parent-credentials",
+      name: "Parent Credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        accessCode: { label: "Access code", type: "password" },
+        tenantSlug: { label: "Tenant", type: "text" },
+      },
+      async authorize(credentials, req) {
+        const email = credentials?.email?.toString().trim().toLowerCase();
+        const accessCode = credentials?.accessCode
+          ?.toString()
+          .trim()
+          .toUpperCase();
+        const tenantSlug = credentials?.tenantSlug?.toString().trim().toLowerCase();
+
+        if (!email || !accessCode) return null;
+
+        // Resolve tenant from headers/host and validate access code within that tenant.
+        const tenantRequest = buildTenantRequest(req, tenantSlug);
+        if (!tenantRequest) return null;
+
+        const tenantResult = await resolveTenant(tenantRequest);
+        if (!("tenantId" in tenantResult)) return null;
+
+        const parent = await prisma.parent.findFirst({
+          where: {
+            tenantId: tenantResult.tenantId,
+            email: { equals: email, mode: "insensitive" },
+          },
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            accessCodeHash: true,
+          },
+        });
+
+        if (!parent?.accessCodeHash) return null;
+
+        const accessCodeOk = await bcrypt.compare(
+          accessCode,
+          parent.accessCodeHash,
+        );
+        if (!accessCodeOk) return null;
+
+        const displayName = [parent.firstName, parent.lastName]
+          .filter(Boolean)
+          .join(" ");
+
+        return {
+          id: parent.id,
+          parentId: parent.id,
+          email: parent.email,
+          name: displayName || null,
+          tenantId: tenantResult.tenantId,
+          role: "Parent",
+        } satisfies AuthResult;
+      },
+    }),
   ],
   callbacks: {
     async jwt({ token, user }) {
@@ -115,6 +178,8 @@ export const authConfig: NextAuthConfig = {
         token.userId = authUser.id;
         token.tenantId = authUser.tenantId;
         token.role = authUser.role;
+        // Parent sessions include parentId for route guards and APIs.
+        token.parentId = authUser.parentId;
       }
       return token;
     },
@@ -124,6 +189,8 @@ export const authConfig: NextAuthConfig = {
         session.user.id = token.userId as string;
         session.user.tenantId = token.tenantId as string;
         session.user.role = token.role as Role;
+        // Parent ID is optional and only set for parent credentials.
+        session.user.parentId = token.parentId as string | undefined;
       }
       return session;
     },

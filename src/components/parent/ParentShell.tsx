@@ -12,6 +12,7 @@ type ParentShellProps = {
   activeNavKey?: "dashboard" | "children" | "logout";
   showBack?: boolean;
   headerActions?: ReactNode;
+  showNav?: boolean;
 };
 
 type NavItem = {
@@ -25,6 +26,7 @@ export default function ParentShell({
   activeNavKey,
   showBack,
   headerActions,
+  showNav = true,
 }: ParentShellProps) {
   const t = useTranslations();
   const pathname = usePathname();
@@ -63,45 +65,50 @@ export default function ParentShell({
       {/* Parent header is scoped so admin styles remain untouched. */}
       <header className="border-b border-[var(--border)]">
         <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-4 md:px-8">
-          <nav
-            className="flex flex-wrap items-center gap-2 text-sm"
-            data-testid="parent-nav"
-          >
-            {navItems.map((item) => {
-              const isActive = resolvedActiveKey === item.key;
-              const baseClassName =
-                "flex h-11 items-center rounded-xl px-3 transition focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]";
-              const toneClassName = isActive
-                ? "bg-[var(--surface-2)] text-[var(--text)]"
-                : "text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]";
-              const className = `${baseClassName} ${toneClassName}`;
+          {showNav ? (
+            <nav
+              className="flex flex-wrap items-center gap-2 text-sm"
+              data-testid="parent-nav"
+            >
+              {navItems.map((item) => {
+                const isActive = resolvedActiveKey === item.key;
+                const baseClassName =
+                  "flex h-11 items-center rounded-xl px-3 transition focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]";
+                const toneClassName = isActive
+                  ? "bg-[var(--surface-2)] text-[var(--text)]"
+                  : "text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]";
+                const className = `${baseClassName} ${toneClassName}`;
 
-              if (item.href) {
+                if (item.href) {
+                  return (
+                    <Link
+                      key={item.key}
+                      className={className}
+                      href={item.href}
+                      aria-current={isActive ? "page" : undefined}
+                    >
+                      {t(item.labelKey)}
+                    </Link>
+                  );
+                }
+
                 return (
-                  <Link
+                  <button
                     key={item.key}
+                    type="button"
                     className={className}
-                    href={item.href}
-                    aria-current={isActive ? "page" : undefined}
+                    aria-disabled="true"
+                    onClick={(event) => event.preventDefault()}
                   >
                     {t(item.labelKey)}
-                  </Link>
+                  </button>
                 );
-              }
-
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  className={className}
-                  aria-disabled="true"
-                  onClick={(event) => event.preventDefault()}
-                >
-                  {t(item.labelKey)}
-                </button>
-              );
-            })}
-          </nav>
+              })}
+            </nav>
+          ) : (
+            // Hide the nav for parent auth screens while keeping header spacing stable.
+            <div aria-hidden="true" className="h-11" />
+          )}
           <div className="flex items-center gap-2">
             <button
               type="button"

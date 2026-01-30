@@ -1,11 +1,35 @@
 // Parent portal shell smoke checks to ensure the foundation renders reliably.
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
+import { loginAsAdmin } from "./helpers/auth";
+import {
+  loginAsParentWithAccessCode,
+  prepareParentAccessCode,
+} from "./helpers/parent-auth";
 import { buildTenantPath } from "./helpers/tenant";
+
+async function loginParentForShell(page: Page, tenantSlug?: string) {
+  // Reuse the admin session to provision a parent before logging in as that parent.
+  const { tenantSlug: resolvedTenant } = await loginAsAdmin(page, tenantSlug);
+  const { parentEmail, accessCode } = await prepareParentAccessCode(
+    page,
+    resolvedTenant,
+  );
+
+  await page.context().clearCookies();
+  await loginAsParentWithAccessCode(
+    page,
+    resolvedTenant,
+    parentEmail,
+    accessCode,
+  );
+
+  return resolvedTenant;
+}
 
 test.describe("Parent shell smoke", () => {
   test("Parent shell renders and locale toggle updates lang", async ({ page }) => {
-    const tenantSlug = process.env.E2E_TENANT_SLUG || "demo";
+    const tenantSlug = await loginParentForShell(page);
     const parentPath = buildTenantPath(tenantSlug, "/parent");
 
     await page.goto(parentPath);
@@ -25,7 +49,7 @@ test.describe("Parent shell smoke", () => {
   });
 
   test("Parent shell stays usable on narrow viewports", async ({ page }) => {
-    const tenantSlug = process.env.E2E_TENANT_SLUG || "demo";
+    const tenantSlug = await loginParentForShell(page);
     const parentPath = buildTenantPath(tenantSlug, "/parent");
 
     await page.setViewportSize({ width: 320, height: 700 });

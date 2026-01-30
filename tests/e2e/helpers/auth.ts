@@ -61,6 +61,21 @@ function resolveTutorCredentials() {
   return { email, password };
 }
 
+function resolveParentCredentials() {
+  // Prefer explicit E2E parent creds, then fall back to seed defaults.
+  const email = process.env.E2E_PARENT_EMAIL || process.env.SEED_PARENT_EMAIL;
+  const password =
+    process.env.E2E_PARENT_PASSWORD || process.env.SEED_PARENT_PASSWORD;
+
+  if (!email || !password) {
+    throw new Error(
+      "Missing E2E_PARENT_EMAIL/E2E_PARENT_PASSWORD (or SEED_PARENT_EMAIL/SEED_PARENT_PASSWORD) env vars.",
+    );
+  }
+
+  return { email, password };
+}
+
 // Admin login wrapper keeps env resolution and tenant defaults consistent.
 export async function loginAsAdmin(page: Page, tenantSlug?: string) {
   const email = requireEnv("E2E_ADMIN_EMAIL");
@@ -73,6 +88,14 @@ export async function loginAsAdmin(page: Page, tenantSlug?: string) {
 // Tutor login wrapper mirrors admin login for RBAC coverage.
 export async function loginAsTutor(page: Page, tenantSlug?: string) {
   const { email, password } = resolveTutorCredentials();
+  const resolvedTenant = resolveTenantSlug(tenantSlug);
+  await loginViaUI(page, { email, password, tenantSlug: resolvedTenant });
+  return { email, tenantSlug: resolvedTenant };
+}
+
+// Parent login wrapper mirrors admin/tutor helpers for RBAC coverage.
+export async function loginAsParent(page: Page, tenantSlug?: string) {
+  const { email, password } = resolveParentCredentials();
   const resolvedTenant = resolveTenantSlug(tenantSlug);
   await loginViaUI(page, { email, password, tenantSlug: resolvedTenant });
   return { email, tenantSlug: resolvedTenant };
