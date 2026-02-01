@@ -31,11 +31,13 @@ function resolveBaseOrigin() {
 }
 
 function resolveOtherTenantSlug(primarySlug: string) {
+  // Use an e2e-prefixed secondary slug when running against the e2e tenant.
   const configured =
     process.env.E2E_SECOND_TENANT_SLUG ||
-    process.env.SEED_SECOND_TENANT_SLUG ||
-    "acme";
-  return configured === primarySlug ? "acme" : configured;
+    (primarySlug.toLowerCase().startsWith("e2e")
+      ? `${primarySlug}-secondary`
+      : process.env.SEED_SECOND_TENANT_SLUG || "acme");
+  return configured === primarySlug ? `${primarySlug}-secondary` : configured;
 }
 
 let db: Client;
@@ -52,16 +54,36 @@ test.afterAll(async () => {
 });
 
 async function ensureTenant(slug: string) {
-  // Tests expect demo + secondary tenants to be seeded by prisma/seed.
+  // Tests expect demo + secondary tenants to be seeded, but create e2e tenants if missing.
   const result = await db.query<{
     id: string;
     slug: string;
   }>(`SELECT "id", "slug" FROM "Tenant" WHERE "slug" = $1`, [slug]);
   const tenant = result.rows[0];
-  if (!tenant) {
+  if (tenant) {
+    return tenant;
+  }
+  if (!slug.toLowerCase().startsWith("e2e")) {
     throw new Error(`Missing tenant seed for slug ${slug}.`);
   }
-  return tenant;
+  const insert = await db.query<{
+    id: string;
+    slug: string;
+  }>(
+    `
+    INSERT INTO "Tenant" ("id", "slug", "name", "createdAt", "updatedAt")
+    VALUES ($1, $2, $3, NOW(), NOW())
+    ON CONFLICT ("slug")
+    DO UPDATE SET "name" = EXCLUDED."name", "updatedAt" = NOW()
+    RETURNING "id", "slug"
+    `,
+    [randomUUID(), slug, "E2E Secondary"],
+  );
+  const created = insert.rows[0];
+  if (!created) {
+    throw new Error(`Unable to create tenant for slug ${slug}.`);
+  }
+  return created;
 }
 
 async function upsertParent(tenantId: string, email: string): Promise<ParentRow> {

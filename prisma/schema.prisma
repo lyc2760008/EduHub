@@ -425,6 +425,10 @@ model Attendance {
   status         AttendanceStatus
   // Optional per-student note for this session.
   note           String?
+  // Parent-facing note visible in the parent portal only (never expose staff-only notes).
+  parentVisibleNote String?
+  // Track parent-visible note edits for audit and portal freshness hints.
+  parentVisibleNoteUpdatedAt DateTime?
   markedByUserId String
   markedAt       DateTime         @default(now())
   createdAt      DateTime         @default(now())

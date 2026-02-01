@@ -33,6 +33,7 @@ type AttendancePayload = {
     attendance: {
       status: AttendanceStatus;
       note: string | null;
+      parentVisibleNote: string | null;
       markedAt: string;
       markedByUserId: string;
     } | null;
@@ -43,6 +44,7 @@ type AttendanceRow = {
   student: StudentSummary;
   status: AttendanceStatus | null;
   note: string;
+  parentVisibleNote: string;
 };
 
 type SessionAttendanceSectionProps = {
@@ -104,6 +106,7 @@ export default function SessionAttendanceSection({
       student: entry.student,
       status: entry.attendance?.status ?? null,
       note: entry.attendance?.note ?? "",
+      parentVisibleNote: entry.attendance?.parentVisibleNote ?? "",
     }));
     setRows(nextRows);
     setIsLoading(false);
@@ -136,6 +139,8 @@ export default function SessionAttendanceSection({
                 status,
                 // Clearing notes when status is unset avoids storing orphaned notes.
                 note: status ? row.note : "",
+                // Keep parent-visible notes in sync with attendance status.
+                parentVisibleNote: status ? row.parentVisibleNote : "",
               }
             : row,
         ),
@@ -153,6 +158,18 @@ export default function SessionAttendanceSection({
     );
   }, []);
 
+  const handleParentNoteChange = useCallback(
+    (studentId: string, parentVisibleNote: string) => {
+      setMessage(null);
+      setRows((current) =>
+        current.map((row) =>
+          row.student.id === studentId ? { ...row, parentVisibleNote } : row,
+        ),
+      );
+    },
+    [],
+  );
+
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     setError(null);
@@ -163,6 +180,9 @@ export default function SessionAttendanceSection({
         studentId: row.student.id,
         status: row.status,
         note: row.status ? row.note.trim() || null : null,
+        parentVisibleNote: row.status
+          ? row.parentVisibleNote.trim() || null
+          : null,
       })),
     };
 
@@ -236,23 +256,60 @@ export default function SessionAttendanceSection({
       cellClassName: "px-4 py-3",
     },
     {
-      header: t("admin.sessions.attendance.noteLabel"),
+      header: t("admin.sessions.attendance.note.internal.label"),
       cell: (row) => {
         const inputId = `attendance-note-${row.student.id}`;
         return (
-          <input
-            id={inputId}
-            className={inputBase}
-            data-testid={`attendance-note-${row.student.id}`}
-            value={row.note}
-            disabled={isLoading || isSaving}
-            aria-label={`${t("admin.sessions.attendance.noteLabel")} - ${formatStudentName(
-              row.student,
-            )}`}
-            onChange={(event) =>
-              handleNoteChange(row.student.id, event.target.value)
-            }
-          />
+          <div className="flex flex-col gap-1">
+            <input
+              id={inputId}
+              className={inputBase}
+              data-testid={`attendance-note-${row.student.id}`}
+              value={row.note}
+              disabled={isLoading || isSaving}
+              aria-label={`${t("admin.sessions.attendance.note.internal.label")} - ${formatStudentName(
+                row.student,
+              )}`}
+              onChange={(event) =>
+                handleNoteChange(row.student.id, event.target.value)
+              }
+            />
+            <p className="text-xs text-slate-500">
+              {t("admin.sessions.attendance.note.internal.helper")}
+            </p>
+          </div>
+        );
+      },
+      headClassName: "px-4 py-3",
+      cellClassName: "px-4 py-3",
+    },
+    {
+      header: t("admin.sessions.attendance.note.parentVisible.label"),
+      cell: (row) => {
+        const inputId = `attendance-parent-note-${row.student.id}`;
+        return (
+          <div className="flex flex-col gap-1">
+            <textarea
+              id={inputId}
+              rows={3}
+              className={`${inputBase} min-h-[88px] resize-y`}
+              data-testid={`attendance-parent-note-${row.student.id}`}
+              value={row.parentVisibleNote}
+              disabled={isLoading || isSaving}
+              aria-label={`${t("admin.sessions.attendance.note.parentVisible.label")} - ${formatStudentName(
+                row.student,
+              )}`}
+              onChange={(event) =>
+                handleParentNoteChange(row.student.id, event.target.value)
+              }
+            />
+            <p className="text-xs text-slate-500">
+              {t("admin.sessions.attendance.note.parentVisible.helper")}
+            </p>
+            <p className="text-xs text-slate-500">
+              {t("admin.sessions.attendance.note.parentVisible.guidance")}
+            </p>
+          </div>
         );
       },
       headClassName: "px-4 py-3",

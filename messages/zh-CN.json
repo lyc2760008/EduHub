@@ -685,6 +685,9 @@
     },
     "attendance": {
       "title": "出勤",
+      "notePreview": {
+        "label": "留言："
+      },
       "range": {
         "30": "最近30天",
         "60": "最近60天",
@@ -701,6 +704,36 @@
         "late": "迟到",
         "excused": "请假",
         "canceled": "已取消"
+      }
+    },
+    "sessionDetail": {
+      "_comment": "家长端课程详情字符串（Step 20.3）。",
+      "title": "课程详情",
+      "section": {
+        "details": "信息",
+        "attendance": "出勤",
+        "parentNote": "家长可见留言"
+      },
+      "field": {
+        "dateTime": "日期与时间",
+        "duration": "时长",
+        "students": "孩子",
+        "tutor": "老师",
+        "location": "地点",
+        "center": "校区"
+      },
+      "attendance": {
+        "pending": "出勤信息会在课程结束后显示。"
+      },
+      "parentNote": {
+        "helper": "此留言由老师/校区填写，并会显示给家长。"
+      },
+      "error": {
+        "notFound": {
+          "title": "课程不可用",
+          "body": "无法打开该课程，可能已被移除或您没有权限查看。",
+          "cta": "返回课程列表"
+        }
       }
     }
   }

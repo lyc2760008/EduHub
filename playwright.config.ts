@@ -8,7 +8,8 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 10_000 },
   use: {
-    baseURL: process.env.E2E_BASE_URL || "http://demo.lvh.me:3000",
+    // Default to the dedicated e2e tenant host to keep dev data isolated.
+    baseURL: process.env.E2E_BASE_URL || "http://e2e-testing.lvh.me:3000",
     headless: true,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",

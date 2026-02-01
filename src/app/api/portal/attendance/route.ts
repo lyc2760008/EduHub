@@ -85,10 +85,12 @@ export async function GET(req: NextRequest) {
         skip,
         take,
         select: {
+          // Portal-safe attendance fields only (exclude staff-only notes).
           id: true,
           studentId: true,
           sessionId: true,
           status: true,
+          parentVisibleNote: true,
           session: {
             select: {
               startAt: true,
@@ -121,6 +123,7 @@ export async function GET(req: NextRequest) {
       sessionId: row.sessionId,
       dateTime: row.session.startAt,
       status: row.status,
+      parentVisibleNote: row.parentVisibleNote ?? null,
       sessionType: row.session.sessionType,
       sessionEndAt: row.session.endAt,
       groupId: row.session.groupId,

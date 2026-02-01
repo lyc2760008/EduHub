@@ -16,15 +16,18 @@ type ResetAccessCodeResponse = {
   accessCode?: string;
 };
 
-const DEFAULT_BASE_URL = "http://demo.lvh.me:3000";
+// Default base URL targets the dedicated e2e tenant host.
+const DEFAULT_BASE_URL = "http://e2e-testing.lvh.me:3000";
 
 export function resolveOtherTenantSlug(primarySlug: string) {
   // Prefer configured secondary tenant slug when available; fall back to seed default.
   const configured =
     process.env.E2E_SECOND_TENANT_SLUG ||
-    process.env.SEED_SECOND_TENANT_SLUG ||
-    "acme";
-  return configured === primarySlug ? "acme" : configured;
+    (primarySlug.toLowerCase().startsWith("e2e")
+      ? `${primarySlug}-secondary`
+      : process.env.SEED_SECOND_TENANT_SLUG || "acme");
+  // Keep a deterministic non-primary slug for cross-tenant checks.
+  return configured === primarySlug ? `${primarySlug}-secondary` : configured;
 }
 
 function resolveBaseUrl() {

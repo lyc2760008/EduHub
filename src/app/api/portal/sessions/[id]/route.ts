@@ -1,0 +1,140 @@
+// Parent portal session detail endpoint scoped by tenant + linked students.
+import { NextRequest, NextResponse } from "next/server";
+
+import { StudentStatus } from "@/generated/prisma/client";
+import { prisma } from "@/lib/db/prisma";
+import {
+  buildPortalError,
+  getLinkedStudentIds,
+  requirePortalParent,
+} from "@/lib/portal/parent";
+
+export const runtime = "nodejs";
+
+type Params = {
+  params: Promise<{ id: string }>;
+};
+
+export async function GET(req: NextRequest, context: Params) {
+  try {
+    const { id } = await context.params;
+    const sessionId = id?.trim();
+
+    if (!sessionId) {
+      return buildPortalError(400, "ValidationError", "Invalid session id", {
+        field: "id",
+      });
+    }
+
+    // Parent RBAC + tenant resolution must happen before any data access.
+    const ctx = await requirePortalParent(req);
+    if (ctx instanceof Response) return ctx;
+    const tenantId = ctx.tenant.tenantId;
+
+    const linkedStudentIds = await getLinkedStudentIds(tenantId, ctx.parentId);
+    if (!linkedStudentIds.length) {
+      return buildPortalError(404, "NotFound", "Session not found");
+    }
+
+    // Only fetch roster rows for linked students to prevent group-session leakage.
+    const rosterRows = await prisma.sessionStudent.findMany({
+      where: {
+        tenantId,
+        sessionId,
+        studentId: { in: linkedStudentIds },
+      },
+      select: {
+        studentId: true,
+        student: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            status: true,
+            level: { select: { id: true, name: true } },
+          },
+        },
+        session: {
+          select: {
+            id: true,
+            sessionType: true,
+            startAt: true,
+            endAt: true,
+            timezone: true,
+            groupId: true,
+            group: { select: { name: true } },
+            centerId: true,
+            center: { select: { name: true } },
+            tutor: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+
+    if (!rosterRows.length) {
+      return buildPortalError(404, "NotFound", "Session not found");
+    }
+
+    const rosterStudentIds = rosterRows.map((row) => row.studentId);
+    const attendanceRows = await prisma.attendance.findMany({
+      where: {
+        tenantId,
+        sessionId,
+        studentId: { in: rosterStudentIds },
+      },
+      select: {
+        id: true,
+        studentId: true,
+        status: true,
+        parentVisibleNote: true,
+        markedAt: true,
+      },
+    });
+
+    const attendanceByStudentId = new Map(
+      attendanceRows.map((row) => [
+        row.studentId,
+        {
+          id: row.id,
+          status: row.status,
+          parentVisibleNote: row.parentVisibleNote ?? null,
+          markedAt: row.markedAt,
+        },
+      ]),
+    );
+
+    const session = rosterRows[0].session;
+
+    return NextResponse.json({
+      session: {
+        id: session.id,
+        sessionType: session.sessionType,
+        startAt: session.startAt,
+        endAt: session.endAt,
+        timezone: session.timezone,
+        groupId: session.groupId,
+        groupName: session.group?.name ?? null,
+        centerId: session.centerId,
+        centerName: session.center?.name ?? null,
+        tutor: session.tutor
+          ? { id: session.tutor.id, name: session.tutor.name ?? null }
+          : null,
+      },
+      students: rosterRows.map((row) => ({
+        student: {
+          id: row.student.id,
+          firstName: row.student.firstName,
+          lastName: row.student.lastName,
+          isActive: row.student.status === StudentStatus.ACTIVE,
+          level: row.student.level
+            ? { id: row.student.level.id, name: row.student.level.name }
+            : null,
+        },
+        attendance: attendanceByStudentId.get(row.studentId) ?? null,
+      })),
+    });
+  } catch (error) {
+    console.error("GET /api/portal/sessions/[id] failed", error);
+    return buildPortalError(500, "InternalError", "Internal server error");
+  }
+}

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
 import { requireRole } from "@/lib/rbac";
+import { parseParentVisibleNote } from "@/lib/validation/attendance";
 import {
   AttendanceStatus,
   type Prisma,
@@ -32,6 +33,7 @@ const AttendanceItemSchema = z
     studentId: z.string().trim().min(1),
     status: z.nativeEnum(AttendanceStatus).nullable(),
     note: z.string().trim().max(1000).optional().nullable(),
+    parentVisibleNote: z.string().trim().optional().nullable(),
   })
   .strict();
 
@@ -153,6 +155,8 @@ export async function GET(req: NextRequest, context: Params) {
             studentId: true,
             status: true,
             note: true,
+            // Parent-visible notes are editable by staff and safe to show in staff UI.
+            parentVisibleNote: true,
             markedAt: true,
             markedByUserId: true,
           },
@@ -165,6 +169,7 @@ export async function GET(req: NextRequest, context: Params) {
         {
           status: row.status,
           note: row.note,
+          parentVisibleNote: row.parentVisibleNote,
           markedAt: row.markedAt,
           markedByUserId: row.markedByUserId,
         },
@@ -227,11 +232,32 @@ export async function PUT(req: NextRequest, context: Params) {
     }
 
     if (ctx.membership.role === "Tutor" && session.tutorId !== ctx.user.id) {
+      // Tutors can only update attendance for sessions they own.
       return buildErrorResponse(
         403,
         "Forbidden",
         "Tutor cannot mark attendance for this session",
       );
+    }
+
+    const normalizedItems = [];
+    for (const item of parsed.data.items) {
+      const parentVisibleNoteResult = parseParentVisibleNote(
+        item.parentVisibleNote,
+      );
+      if (!parentVisibleNoteResult.ok) {
+        return buildErrorResponse(
+          400,
+          parentVisibleNoteResult.error.code,
+          parentVisibleNoteResult.error.message,
+          parentVisibleNoteResult.error.details,
+        );
+      }
+      normalizedItems.push({
+        ...item,
+        parentVisibleNote: parentVisibleNoteResult.value,
+        parentVisibleNoteProvided: parentVisibleNoteResult.provided,
+      });
     }
 
     const rosterEntries = await prisma.sessionStudent.findMany({
@@ -255,14 +281,16 @@ export async function PUT(req: NextRequest, context: Params) {
     }
 
     const now = new Date();
-    const upsertItems = parsed.data.items
+    const upsertItems = normalizedItems
       .filter((item) => item.status !== null)
       .map((item) => ({
         studentId: item.studentId,
         status: item.status as AttendanceStatus,
         note: item.note?.trim() ? item.note.trim() : null,
+        parentVisibleNote: item.parentVisibleNote,
+        parentVisibleNoteProvided: item.parentVisibleNoteProvided,
       }));
-    const deleteStudentIds = parsed.data.items
+    const deleteStudentIds = normalizedItems
       .filter((item) => item.status === null)
       .map((item) => item.studentId);
 
@@ -286,12 +314,24 @@ export async function PUT(req: NextRequest, context: Params) {
                 note: item.note,
                 markedByUserId: ctx.user.id,
                 markedAt: now,
+                ...(item.parentVisibleNoteProvided
+                  ? {
+                      parentVisibleNote: item.parentVisibleNote,
+                      parentVisibleNoteUpdatedAt: now,
+                    }
+                  : {}),
               },
               update: {
                 status: item.status,
                 note: item.note,
                 markedByUserId: ctx.user.id,
                 markedAt: now,
+                ...(item.parentVisibleNoteProvided
+                  ? {
+                      parentVisibleNote: item.parentVisibleNote,
+                      parentVisibleNoteUpdatedAt: now,
+                    }
+                  : {}),
               },
             }),
           ),

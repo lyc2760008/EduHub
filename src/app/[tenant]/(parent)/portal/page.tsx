@@ -265,17 +265,27 @@ export default function PortalDashboardPage() {
               {t("portal.dashboard.cards.nextSession.title")}
             </p>
             {nextSession ? (
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-[var(--text)]">
-                  {formatPortalDateTime(nextSession.startAt, locale)}
-                </p>
-                <p className="text-sm text-[var(--muted)]">{nextSessionTitle}</p>
-                {nextSessionStudentName ? (
-                  <p className="text-xs text-[var(--muted-2)]">
-                    {nextSessionStudentName}
+              <Link
+                href={
+                  tenant
+                    ? `/${tenant}/portal/sessions/${nextSession.id}`
+                    : `/portal/sessions/${nextSession.id}`
+                }
+                // Next-session preview links to the session detail view.
+                className="block rounded-xl focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+              >
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-[var(--text)]">
+                    {formatPortalDateTime(nextSession.startAt, locale)}
                   </p>
-                ) : null}
-              </div>
+                  <p className="text-sm text-[var(--muted)]">{nextSessionTitle}</p>
+                  {nextSessionStudentName ? (
+                    <p className="text-xs text-[var(--muted-2)]">
+                      {nextSessionStudentName}
+                    </p>
+                  ) : null}
+                </div>
+              </Link>
             ) : (
               <p className="text-sm text-[var(--muted)]">
                 {t("portal.empty.noUpcomingSessions.short")}

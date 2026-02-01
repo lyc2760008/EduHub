@@ -15,7 +15,8 @@ type LoginOptions = {
  */
 export async function loginViaUI(page: Page, opts: LoginOptions) {
   const tenantSlug =
-    opts.tenantSlug || process.env.E2E_TENANT_SLUG || "demo";
+    // Default to the dedicated e2e tenant to avoid polluting demo data.
+    opts.tenantSlug || process.env.E2E_TENANT_SLUG || "e2e-testing";
 
   const loginPath = buildTenantPath(tenantSlug, "/login");
   // Use tenant-aware paths so tests work with subdomain or /t/<slug> base URLs.
@@ -44,7 +45,8 @@ export function requireEnv(name: string): string {
 }
 
 function resolveTenantSlug(override?: string) {
-  return override || process.env.E2E_TENANT_SLUG || "demo";
+  // Keep helper defaults aligned with the dedicated e2e tenant.
+  return override || process.env.E2E_TENANT_SLUG || "e2e-testing";
 }
 
 function resolveTutorCredentials() {

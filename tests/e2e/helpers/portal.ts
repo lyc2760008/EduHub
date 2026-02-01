@@ -40,7 +40,8 @@ let portalSeedPromise: Promise<PortalSeedData> | null = null;
 let portalSessionSeed = 0;
 
 export function resolvePortalTenantSlug() {
-  return process.env.E2E_TENANT_SLUG || "demo";
+  // Default to the dedicated e2e tenant to avoid polluting demo data.
+  return process.env.E2E_TENANT_SLUG || "e2e-testing";
 }
 
 export function buildPortalPath(tenantSlug: string, suffix = "") {

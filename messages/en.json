@@ -202,6 +202,18 @@
         "sectionTitle": "Attendance",
         "statusLabel": "Status",
         "noteLabel": "Note",
+        "note": {
+          "_comment": "Staff attendance notes for internal and parent-visible fields.",
+          "internal": {
+            "label": "Internal note",
+            "helper": "Only visible to staff."
+          },
+          "parentVisible": {
+            "label": "Note shared with parents",
+            "helper": "This note is visible to the parent in the Parent Portal.",
+            "guidance": "Optional. Recommended: 300 characters max."
+          }
+        },
         "save": "Save attendance",
         "saving": "Saving...",
         "saved": "Attendance saved",
@@ -612,6 +624,9 @@
     },
     "attendance": {
       "title": "Attendance",
+      "notePreview": {
+        "label": "Note:"
+      },
       "range": {
         "30": "Last 30 days",
         "60": "Last 60 days",
@@ -628,6 +643,36 @@
         "late": "Late",
         "excused": "Excused",
         "canceled": "Canceled"
+      }
+    },
+    "sessionDetail": {
+      "_comment": "Parent portal session detail strings (Step 20.3).",
+      "title": "Session details",
+      "section": {
+        "details": "Details",
+        "attendance": "Attendance",
+        "parentNote": "Note shared with parents"
+      },
+      "field": {
+        "dateTime": "Date & time",
+        "duration": "Duration",
+        "students": "Student(s)",
+        "tutor": "Tutor",
+        "location": "Location",
+        "center": "Center"
+      },
+      "attendance": {
+        "pending": "Attendance will appear after the session."
+      },
+      "parentNote": {
+        "helper": "This note is written by your tutor/center and is visible to parents."
+      },
+      "error": {
+        "notFound": {
+          "title": "Session not available",
+          "body": "We couldn't open this session. It may have been removed or you may not have access.",
+          "cta": "Back to Upcoming Sessions"
+        }
       }
     }
   },

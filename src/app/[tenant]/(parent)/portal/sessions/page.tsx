@@ -223,7 +223,8 @@ export default function PortalSessionsPage() {
         <div className="grid gap-3" data-testid="portal-sessions-list">
           {sessions.map((session) => (
             <SessionRow
-              key={session.id}
+              // Include studentId in the key because sessions can repeat per linked student.
+              key={`${session.id}-${session.studentId}`}
               session={{
                 id: session.id,
                 startAt: session.startAt,
@@ -231,7 +232,12 @@ export default function PortalSessionsPage() {
                 groupName: session.groupName ?? null,
                 studentName: studentNameById.get(session.studentId) ?? null,
               }}
-              href={tenant ? `/${tenant}/portal/students/${session.studentId}` : `/portal/students/${session.studentId}`}
+              // Route session rows to the new session detail view.
+              href={
+                tenant
+                  ? `/${tenant}/portal/sessions/${session.id}`
+                  : `/portal/sessions/${session.id}`
+              }
               showStudentName
             />
           ))}

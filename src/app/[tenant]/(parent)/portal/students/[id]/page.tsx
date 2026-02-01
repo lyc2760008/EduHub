@@ -39,10 +39,14 @@ type PortalSessionsResponse = {
 
 type PortalAttendanceItem = {
   id: string;
+  // Session id is used to link attendance rows to the session detail view.
+  sessionId: string;
   dateTime: string;
   status: string;
   sessionType: string;
   groupName?: string | null;
+  // Parent-visible note preview is rendered inline in attendance rows.
+  parentVisibleNote?: string | null;
 };
 
 type PortalAttendanceResponse = {
@@ -403,7 +407,7 @@ export default function PortalStudentDetailPage() {
           {isAttendanceLoading ? (
             <div className="grid gap-3" data-testid="portal-attendance-loading">
               {Array.from({ length: 6 }).map((_, index) => (
-                <PortalSkeletonBlock key={index} className="h-16" />
+                <PortalSkeletonBlock key={index} className="h-20" />
               ))}
             </div>
           ) : attendanceError ? (
@@ -438,7 +442,15 @@ export default function PortalStudentDetailPage() {
           ) : (
             <div className="grid gap-3" data-testid="portal-attendance-list">
               {attendanceItems.map((item) => (
-                <AttendanceRow key={item.id} attendance={item} />
+                <AttendanceRow
+                  key={item.id}
+                  attendance={item}
+                  href={
+                    tenant
+                      ? `/${tenant}/portal/sessions/${item.sessionId}`
+                      : `/portal/sessions/${item.sessionId}`
+                  }
+                />
               ))}
             </div>
           )}
