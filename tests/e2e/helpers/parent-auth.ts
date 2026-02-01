@@ -147,8 +147,9 @@ export async function loginAsParentWithAccessCode(
   await page.getByTestId("parent-login-submit").click();
   await authResponsePromise;
 
-  const parentPath = buildTenantPath(tenantSlug, "/parent");
-  await page.waitForURL((url) => url.pathname.startsWith(parentPath));
+  // Parent portal entry route now lives under /portal.
+  const portalPath = buildTenantPath(tenantSlug, "/portal");
+  await page.waitForURL((url) => url.pathname.startsWith(portalPath));
   await expect(page.getByTestId("parent-shell")).toBeVisible();
 }
 

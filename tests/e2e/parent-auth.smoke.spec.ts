@@ -58,8 +58,9 @@ test("Parent access-code login works and blocks admin routes", async ({
   await page.getByTestId("parent-login-access-code").fill(accessCode);
   await page.getByTestId("parent-login-submit").click();
 
-  const parentPath = buildTenantPath(tenantSlug, "/parent");
-  await page.waitForURL((url) => url.pathname.startsWith(parentPath));
+  // Parent portal entry point now lives under /portal.
+  const portalPath = buildTenantPath(tenantSlug, "/portal");
+  await page.waitForURL((url) => url.pathname.startsWith(portalPath));
   await expect(page.getByTestId("parent-shell")).toBeVisible();
 
   // Parent sessions should not access admin routes.

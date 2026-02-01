@@ -561,5 +561,147 @@
       "active": "启用",
       "inactive": "停用"
     }
+  },
+  "portal": {
+    "nav": {
+      "dashboard": "首页",
+      "students": "我的孩子",
+      "sessions": "即将到来的课程",
+      "signOut": "退出登录",
+      "language": "语言"
+    },
+    "common": {
+      "viewAll": "查看全部",
+      "open": "打开",
+      "back": "返回",
+      "tryAgain": "重试",
+      "allStudents": "全部孩子",
+      "range": "范围",
+      "student": "孩子",
+      "status": "状态",
+      "backToStudents": "返回我的孩子"
+    },
+    "error": {
+      "generic": {
+        "title": "出现了一点问题",
+        "body": "页面加载失败，请稍后重试。"
+      },
+      "notFound": {
+        "title": "未找到页面",
+        "body": "该页面不可用。"
+      },
+      "students": {
+        "title": "无法加载孩子信息",
+        "body": "无法加载您的孩子信息，请稍后重试。"
+      },
+      "sessions": {
+        "title": "无法加载课程",
+        "body": "无法加载即将到来的课程，请稍后重试。"
+      },
+      "studentDetail": {
+        "title": "无法加载孩子详情",
+        "body": "无法加载该孩子信息，请稍后重试。"
+      }
+    },
+    "empty": {
+      "noStudents": {
+        "title": "暂未关联孩子",
+        "body": "当校区将孩子关联到您的账号后，您会在这里看到相关信息。",
+        "hint": "如果您认为这是错误，请联系校区管理员。",
+        "cta": "前往我的孩子"
+      },
+      "noUpcomingSessions": {
+        "title": "暂无即将到来的课程",
+        "body": "在所选范围内没有已安排的课程。",
+        "short": "暂无已安排课程。"
+      },
+      "noAttendance": {
+        "title": "暂无出勤记录",
+        "body": "在课程被记录出勤后，出勤记录会显示在这里。",
+        "short": "暂无出勤记录。"
+      }
+    },
+    "dashboard": {
+      "title": "首页",
+      "greeting": "欢迎回来",
+      "greetingWithName": "欢迎回来，{name}",
+      "cards": {
+        "students": {
+          "title": "孩子"
+        },
+        "nextSession": {
+          "title": "下一节课"
+        },
+        "attendance": {
+          "title": "出勤（最近30天）",
+          "cta": "查看出勤"
+        }
+      },
+      "section": {
+        "myStudents": "我的孩子"
+      }
+    },
+    "students": {
+      "title": "我的孩子",
+      "helper": "选择一个孩子查看即将到来的课程和出勤记录。"
+    },
+    "student": {
+      "level": {
+        "label": "等级"
+      },
+      "status": {
+        "active": "在读",
+        "inactive": "已停用"
+      },
+      "detail": {
+        "title": "孩子"
+      },
+      "tabs": {
+        "overview": "概览",
+        "attendance": "出勤"
+      },
+      "overview": {
+        "upcoming": {
+          "title": "即将到来的课程",
+          "cta": "在课程页查看"
+        },
+        "attendance": {
+          "title": "出勤概览"
+        }
+      }
+    },
+    "sessions": {
+      "title": "即将到来的课程",
+      "helper": "查看已关联孩子的课程安排。",
+      "filter": {
+        "student": "孩子",
+        "range": "范围"
+      },
+      "range": {
+        "7": "未来7天",
+        "14": "未来14天",
+        "30": "未来30天"
+      }
+    },
+    "attendance": {
+      "title": "出勤",
+      "range": {
+        "30": "最近30天",
+        "60": "最近60天",
+        "90": "最近90天"
+      },
+      "field": {
+        "dateTime": "日期与时间",
+        "session": "课程",
+        "status": "状态"
+      },
+      "status": {
+        "present": "出席",
+        "absent": "缺席",
+        "late": "迟到",
+        "excused": "请假",
+        "canceled": "已取消"
+      }
+    }
   }
 }

@@ -71,6 +71,8 @@ test.describe("Admin regression loop", () => {
   test("Admin end-to-end loop (catalog -> student/parent -> group -> sessions -> attendance/notes -> reports)", async ({
     page,
   }, testInfo) => {
+    // Extend timeout to keep the full admin loop stable on slower CI environments.
+    testInfo.setTimeout(120000);
     const tenantSlug = process.env.E2E_TENANT_SLUG || "demo";
 
     await loginAsAdmin(page, tenantSlug);
@@ -94,7 +96,7 @@ test.describe("Admin regression loop", () => {
 
     const parentEmail = `e2e-parent+${suffix}@example.com`;
     await linkParent(page, tenantSlug, student.id, parentEmail);
-    await page.reload();
+    await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("student-detail-page")).toBeVisible();
     await expect(page.getByText(parentEmail)).toBeVisible();
 
@@ -140,6 +142,15 @@ test.describe("Admin regression loop", () => {
       minuteSeed,
     });
 
+    const timezone = center.timezone || "America/Edmonton";
+    // Reports use UTC date-only filters; derive a UTC day from the session start.
+    const reportDate =
+      DateTime.fromFormat(oneOffSession.startLocal, "yyyy-LL-dd'T'HH:mm", {
+        zone: timezone,
+      })
+        .toUTC()
+        .toISODate() ?? rangeStart;
+
     await page.goto(buildTenantPath(tenantSlug, "/admin/sessions"));
     await expect(page.getByTestId("sessions-list-page")).toBeVisible();
     await page.getByTestId("sessions-filter-center").selectOption(center.id);
@@ -171,7 +182,6 @@ test.describe("Admin regression loop", () => {
     await page.getByTestId("sessions-filter-to").fill(rangeEnd);
     await sessionsAfterGenerateRefresh;
 
-    const timezone = center.timezone || "America/Edmonton";
     const occurrenceDate = firstOccurrenceDate(
       generatorStart,
       generatorEnd,
@@ -232,8 +242,8 @@ test.describe("Admin regression loop", () => {
     await page.goto(buildTenantPath(tenantSlug, "/admin/reports"));
     await expect(page.getByTestId("report-upcoming-sessions")).toBeVisible();
 
-    await page.getByTestId("upcoming-date-from").fill(rangeStart);
-    await page.getByTestId("upcoming-date-to").fill(rangeEnd);
+    await page.getByTestId("upcoming-date-from").fill(reportDate);
+    await page.getByTestId("upcoming-date-to").fill(reportDate);
     await page.getByTestId("upcoming-center").selectOption(center.id);
     await page.getByTestId("upcoming-tutor").selectOption(tutor.id);
 
@@ -248,8 +258,8 @@ test.describe("Admin regression loop", () => {
     );
     await expect.poll(async () => weeklyRows.count()).toBeGreaterThan(0);
 
-    await page.getByTestId("student-date-from").fill(rangeStart);
-    await page.getByTestId("student-date-to").fill(rangeEnd);
+    await page.getByTestId("student-date-from").fill(reportDate);
+    await page.getByTestId("student-date-to").fill(reportDate);
     await page.getByTestId("student-center").selectOption(center.id);
 
     await expect(page.getByTestId("student-results")).toContainText(

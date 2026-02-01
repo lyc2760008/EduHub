@@ -79,7 +79,8 @@ export default function ParentLoginPage({ params }: PageProps) {
       return;
     }
 
-    router.push(`/${tenant}/parent`);
+    // Route parents into the portal entry point after successful login.
+    router.push(`/${tenant}/portal`);
   }
 
   return (

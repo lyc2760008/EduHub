@@ -30,9 +30,10 @@ async function loginParentForShell(page: Page, tenantSlug?: string) {
 test.describe("Parent shell smoke", () => {
   test("Parent shell renders and locale toggle updates lang", async ({ page }) => {
     const tenantSlug = await loginParentForShell(page);
-    const parentPath = buildTenantPath(tenantSlug, "/parent");
+    // Parent portal entry point now lives under /portal.
+    const portalPath = buildTenantPath(tenantSlug, "/portal");
 
-    await page.goto(parentPath);
+    await page.goto(portalPath);
 
     await expect(page.getByTestId("parent-shell")).toBeVisible();
     await expect(page.getByTestId("parent-nav")).toBeVisible();
@@ -50,10 +51,11 @@ test.describe("Parent shell smoke", () => {
 
   test("Parent shell stays usable on narrow viewports", async ({ page }) => {
     const tenantSlug = await loginParentForShell(page);
-    const parentPath = buildTenantPath(tenantSlug, "/parent");
+    // Parent portal entry point now lives under /portal.
+    const portalPath = buildTenantPath(tenantSlug, "/portal");
 
     await page.setViewportSize({ width: 320, height: 700 });
-    await page.goto(parentPath);
+    await page.goto(portalPath);
 
     await expect(page.getByTestId("parent-shell")).toBeVisible();
 

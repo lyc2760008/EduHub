@@ -50,11 +50,13 @@ test.describe("Reports - filters", () => {
       1,
     );
 
-    const sessionDate = DateTime.fromISO(session.startAt).toISODate();
+    // Reports API uses UTC date-only boundaries, so normalize to UTC for stable filters.
+    const sessionDate = DateTime.fromISO(session.startAt).toUTC().toISODate();
     if (!sessionDate) {
       throw new Error("Unable to derive session date for report filters.");
     }
     const excludeDate = DateTime.fromISO(session.startAt)
+      .toUTC()
       .plus({ days: 1 })
       .toISODate();
     if (!excludeDate) {

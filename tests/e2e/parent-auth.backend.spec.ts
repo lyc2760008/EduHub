@@ -276,8 +276,9 @@ test("Parent credentials enforce tenant scope and return session claims", async 
     );
   }
 
-  const parentPath = buildTenantPath(tenantSlug, "/parent");
-  await page.waitForURL((url) => url.pathname.startsWith(parentPath));
+  // Parent portal entry point now lives under /portal.
+  const portalPath = buildTenantPath(tenantSlug, "/portal");
+  await page.waitForURL((url) => url.pathname.startsWith(portalPath));
 
   const session = (await page.evaluate(async () => {
     const response = await fetch("/api/auth/session");
@@ -317,7 +318,8 @@ test("Unauthenticated parent routes redirect to parent login", async ({
 }) => {
   const tenantSlug = process.env.E2E_TENANT_SLUG || "demo";
 
-  await page.goto(buildTenantPath(tenantSlug, "/parent"));
+  // Unauthenticated access should redirect to the parent login from /portal.
+  await page.goto(buildTenantPath(tenantSlug, "/portal"));
   await page.waitForURL((url) =>
     url.pathname.endsWith(`/${tenantSlug}/parent/login`),
   );
