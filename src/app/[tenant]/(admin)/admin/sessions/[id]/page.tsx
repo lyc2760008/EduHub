@@ -32,6 +32,9 @@ export default async function SessionDetailPage({ params }: PageProps) {
       {async (access) => {
         const tenantId = access.tenant.tenantId;
         const isTutor = access.membership.role === "Tutor";
+        // Pass viewer identity to client sections that resolve absence requests.
+        const viewerName = access.user.name ?? null;
+        const viewerEmail = access.user.email ?? "";
 
         const session = await prisma.session.findFirst({
           where: {
@@ -88,7 +91,24 @@ export default async function SessionDetailPage({ params }: PageProps) {
           );
         }
 
-        const roster = session.sessionStudents.map((entry) => entry.student);
+        let roster = session.sessionStudents.map((entry) => entry.student);
+        if (!roster.length && session.groupId) {
+          // If session roster is missing, fall back to the current group roster.
+          const groupRoster = await prisma.groupStudent.findMany({
+            where: { tenantId, groupId: session.groupId },
+            select: {
+              student: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  preferredName: true,
+                },
+              },
+            },
+          });
+          roster = groupRoster.map((entry) => entry.student);
+        }
         const tutorLabel = session.tutor.name ?? session.tutor.email;
         const formatDateTime = (date: Date) =>
           new Intl.DateTimeFormat(locale, {
@@ -175,7 +195,13 @@ export default async function SessionDetailPage({ params }: PageProps) {
             </section>
 
             {/* Attendance section uses client-side fetch to keep page load minimal. */}
-            <SessionAttendanceSection sessionId={session.id} tenant={tenant} />
+            <SessionAttendanceSection
+              sessionId={session.id}
+              tenant={tenant}
+              viewerRole={access.membership.role}
+              viewerName={viewerName}
+              viewerEmail={viewerEmail}
+            />
 
             {/* Notes section stays client-side to fetch and save session notes. */}
             <SessionNotesSection sessionId={session.id} tenant={tenant} />

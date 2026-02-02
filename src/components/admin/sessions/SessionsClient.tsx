@@ -63,6 +63,7 @@ type SessionListItem = {
   startAt: string;
   endAt: string;
   timezone: string;
+  pendingAbsenceCount: number;
 };
 
 type SessionsClientProps = {
@@ -442,9 +443,21 @@ export default function SessionsClient({
     {
       header: t("admin.sessions.fields.startAt"),
       cell: (session) => (
-        <span className="text-sm text-slate-700">
-          {formatSessionDateTime(session.startAt, session.timezone, locale)}
-        </span>
+        <div className="flex flex-col gap-1">
+          <span className="text-sm text-slate-700">
+            {formatSessionDateTime(session.startAt, session.timezone, locale)}
+          </span>
+          {/* Badge stays minimal and text-only to avoid implying schedule changes. */}
+          {session.pendingAbsenceCount > 0 ? (
+            <span
+              className="inline-flex w-fit items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
+              // Data-testid anchors pending absence badge for staff E2E coverage.
+              data-testid={`absence-badge-${session.id}`}
+            >
+              {t("staff.absence.badge.pending")}
+            </span>
+          ) : null}
+        </div>
       ),
       headClassName: "px-4 py-3",
       cellClassName: "px-4 py-3",

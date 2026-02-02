@@ -510,6 +510,71 @@
       }
     }
   },
+  "staff": {
+    "_comment": "Staff-facing absence request UI (Step 20.5B).",
+    "absence": {
+      "badge": {
+        "pending": "请假待处理"
+      },
+      "panel": {
+        "title": "请假申请",
+        "disclaimer": "提示：批准或拒绝该申请不会取消或改期课程。"
+      },
+      "field": {
+        "status": "状态",
+        "student": "孩子",
+        "submittedAt": "提交时间",
+        "reason": "原因",
+        "message": "说明",
+        "resolvedBy": "处理人",
+        "resolvedAt": "处理时间",
+        "internalNote": "内部备注"
+      },
+      "status": {
+        "pending": "待处理",
+        "approved": "已批准",
+        "declined": "已拒绝"
+      },
+      "action": {
+        "approve": "批准",
+        "decline": "拒绝"
+      },
+      "confirm": {
+        "approve": "确认批准该请假申请？",
+        "decline": "确认拒绝该请假申请？"
+      },
+      "toast": {
+        "resolved": "申请已更新。"
+      },
+      "error": {
+        "title": "无法更新申请",
+        "body": "请稍后重试。"
+      },
+      "banner": {
+        "approved": {
+          "title": "请假已批准",
+          "body": "该孩子的请假申请已获批准。此操作不会取消或改期课程。"
+        },
+        "pending": {
+          "title": "请假待处理",
+          "body": "家长已为该孩子提交请假申请，尚未被批准或拒绝。"
+        },
+        "declined": {
+          "title": "请假已拒绝",
+          "body": "该申请已被拒绝。"
+        },
+        "error": "无法加载请假信息，但仍可正常记录出勤。"
+      },
+      "autoAssist": {
+        "overrideHelper": "系统已根据已批准的请假申请预填出勤状态，如有需要可自行修改。"
+      }
+    },
+    "attendance": {
+      "status": {
+        "excusedAbsent": "请假缺席"
+      }
+    }
+  },
   "nav": {
     "_comment": "管理后台导航标题（快速入口与顶部导航）。",
     "dashboard": "管理面板",

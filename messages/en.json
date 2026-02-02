@@ -522,6 +522,71 @@
       }
     }
   },
+  "staff": {
+    "_comment": "Staff-facing absence request UI (Step 20.5B).",
+    "absence": {
+      "badge": {
+        "pending": "Absence request pending"
+      },
+      "panel": {
+        "title": "Absence request",
+        "disclaimer": "Note: Approving or declining this request does not cancel or reschedule the session."
+      },
+      "field": {
+        "status": "Status",
+        "student": "Student",
+        "submittedAt": "Submitted",
+        "reason": "Reason",
+        "message": "Message",
+        "resolvedBy": "Resolved by",
+        "resolvedAt": "Resolved at",
+        "internalNote": "Internal note"
+      },
+      "status": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "declined": "Declined"
+      },
+      "action": {
+        "approve": "Approve",
+        "decline": "Decline"
+      },
+      "confirm": {
+        "approve": "Approve this absence request?",
+        "decline": "Decline this absence request?"
+      },
+      "toast": {
+        "resolved": "Request updated."
+      },
+      "error": {
+        "title": "Couldn't update request",
+        "body": "Please try again."
+      },
+      "banner": {
+        "approved": {
+          "title": "Absence approved",
+          "body": "An absence request was approved for this student. This does not cancel or reschedule the session."
+        },
+        "pending": {
+          "title": "Absence request pending",
+          "body": "A parent has submitted an absence request for this student. It hasn't been approved or declined yet."
+        },
+        "declined": {
+          "title": "Absence request declined",
+          "body": "This request was declined."
+        },
+        "error": "Absence request info couldn't be loaded. Attendance marking is still available."
+      },
+      "autoAssist": {
+        "overrideHelper": "Attendance was pre-filled based on the approved request. You can change it if needed."
+      }
+    },
+    "attendance": {
+      "status": {
+        "excusedAbsent": "Excused absent"
+      }
+    }
+  },
   "nav": {
     "_comment": "Navigation labels for admin quick links and the global admin bar.",
     "dashboard": "Dashboard",

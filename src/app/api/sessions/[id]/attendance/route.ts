@@ -8,6 +8,7 @@ import { requireRole } from "@/lib/rbac";
 import { parseParentVisibleNote } from "@/lib/validation/attendance";
 import {
   AttendanceStatus,
+  RequestType,
   type Prisma,
   type Role,
 } from "@/generated/prisma/client";
@@ -122,6 +123,7 @@ export async function GET(req: NextRequest, context: Params) {
         startAt: true,
         endAt: true,
         sessionType: true,
+        groupId: true,
         sessionStudents: {
           select: {
             student: {
@@ -141,7 +143,24 @@ export async function GET(req: NextRequest, context: Params) {
       return buildErrorResponse(404, "NotFound", "Session not found");
     }
 
-    const roster = session.sessionStudents.map((entry) => entry.student);
+    let roster = session.sessionStudents.map((entry) => entry.student);
+    if (!roster.length && session.groupId) {
+      // Fallback to the current group roster when session students are missing.
+      const groupRoster = await prisma.groupStudent.findMany({
+        where: { tenantId, groupId: session.groupId },
+        select: {
+          student: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              preferredName: true,
+            },
+          },
+        },
+      });
+      roster = groupRoster.map((entry) => entry.student);
+    }
     const rosterStudentIds = roster.map((student) => student.id);
 
     const attendanceRows = rosterStudentIds.length
@@ -176,6 +195,35 @@ export async function GET(req: NextRequest, context: Params) {
       ]),
     );
 
+    const requestRows = rosterStudentIds.length
+      ? await prisma.parentRequest.findMany({
+          where: {
+            tenantId,
+            sessionId: session.id,
+            studentId: { in: rosterStudentIds },
+            type: RequestType.ABSENCE,
+          },
+          select: {
+            id: true,
+            studentId: true,
+            type: true,
+            status: true,
+            reasonCode: true,
+            message: true,
+            createdAt: true,
+            resolvedAt: true,
+            resolvedByUser: {
+              select: { id: true, name: true, email: true },
+            },
+          },
+        })
+      : [];
+
+    // Map absence requests once to avoid per-student lookups in the response.
+    const requestByStudentId = new Map(
+      requestRows.map((row) => [row.studentId, row]),
+    );
+
     // Response shape: session summary + roster rows with optional attendance.
     return NextResponse.json({
       session: {
@@ -186,10 +234,32 @@ export async function GET(req: NextRequest, context: Params) {
         endAt: session.endAt,
         sessionType: session.sessionType,
       },
-      roster: roster.map((student) => ({
-        student,
-        attendance: attendanceByStudentId.get(student.id) ?? null,
-      })),
+      roster: roster.map((student) => {
+        const request = requestByStudentId.get(student.id);
+        return {
+          student,
+          attendance: attendanceByStudentId.get(student.id) ?? null,
+          // Absence request summary is staff-safe and avoids exposing parent-only data.
+          absenceRequest: request
+            ? {
+                id: request.id,
+                type: request.type,
+                status: request.status,
+                reasonCode: request.reasonCode,
+                message: request.message ?? null,
+                createdAt: request.createdAt,
+                resolvedAt: request.resolvedAt,
+                resolvedBy: request.resolvedByUser
+                  ? {
+                      id: request.resolvedByUser.id,
+                      name: request.resolvedByUser.name ?? null,
+                      email: request.resolvedByUser.email,
+                    }
+                  : null,
+              }
+            : null,
+        };
+      }),
     });
   } catch (error) {
     console.error("GET /api/sessions/[id]/attendance failed", error);
@@ -224,7 +294,7 @@ export async function PUT(req: NextRequest, context: Params) {
 
     const session = await prisma.session.findFirst({
       where: { id, tenantId },
-      select: { id: true, tutorId: true },
+      select: { id: true, tutorId: true, groupId: true },
     });
 
     if (!session) {
@@ -264,9 +334,22 @@ export async function PUT(req: NextRequest, context: Params) {
       where: { tenantId, sessionId: session.id },
       select: { studentId: true },
     });
-    const rosterStudentIds = new Set(
+    let rosterStudentIds = new Set(
       rosterEntries.map((entry) => entry.studentId),
     );
+    let shouldBackfillRoster = false;
+
+    if (rosterStudentIds.size === 0 && session.groupId) {
+      // If session roster is empty, fall back to the current group roster.
+      const groupStudents = await prisma.groupStudent.findMany({
+        where: { tenantId, groupId: session.groupId },
+        select: { studentId: true },
+      });
+      rosterStudentIds = new Set(
+        groupStudents.map((entry) => entry.studentId),
+      );
+      shouldBackfillRoster = groupStudents.length > 0;
+    }
 
     const invalidItem = parsed.data.items.find(
       (item) => !rosterStudentIds.has(item.studentId),
@@ -295,6 +378,18 @@ export async function PUT(req: NextRequest, context: Params) {
       .map((item) => item.studentId);
 
     await prisma.$transaction(async (tx) => {
+      if (shouldBackfillRoster) {
+        // Backfill missing session roster so future reads stay consistent.
+        await tx.sessionStudent.createMany({
+          data: Array.from(rosterStudentIds).map((studentId) => ({
+            tenantId,
+            sessionId: session.id,
+            studentId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
       if (upsertItems.length) {
         await Promise.all(
           upsertItems.map((item) =>

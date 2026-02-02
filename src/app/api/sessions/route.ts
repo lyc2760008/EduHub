@@ -5,7 +5,13 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
 import { requireRole } from "@/lib/rbac";
-import { Prisma, SessionType, type Role } from "@/generated/prisma/client";
+import {
+  Prisma,
+  RequestStatus,
+  RequestType,
+  SessionType,
+  type Role,
+} from "@/generated/prisma/client";
 
 export const runtime = "nodejs";
 
@@ -110,6 +116,24 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    // Aggregate pending absence requests once to avoid per-session lookups.
+    const sessionIds = sessions.map((session) => session.id);
+    const pendingCounts = sessionIds.length
+      ? await prisma.parentRequest.groupBy({
+          by: ["sessionId"],
+          where: {
+            tenantId,
+            sessionId: { in: sessionIds },
+            status: RequestStatus.PENDING,
+            type: RequestType.ABSENCE,
+          },
+          _count: { _all: true },
+        })
+      : [];
+    const pendingCountBySessionId = new Map(
+      pendingCounts.map((row) => [row.sessionId, row._count._all]),
+    );
+
     const payload = sessions.map((session) => ({
       id: session.id,
       centerId: session.centerId,
@@ -123,6 +147,7 @@ export async function GET(req: NextRequest) {
       startAt: session.startAt,
       endAt: session.endAt,
       timezone: session.timezone,
+      pendingAbsenceCount: pendingCountBySessionId.get(session.id) ?? 0,
       createdAt: session.createdAt,
       updatedAt: session.updatedAt,
     }));

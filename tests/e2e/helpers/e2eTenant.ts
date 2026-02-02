@@ -207,6 +207,12 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
     `e2e-${tenant.slug}-${runId}-session-absence-resolve`;
   const absenceResolvedSessionId =
     `e2e-${tenant.slug}-${runId}-session-absence-resolved`;
+  const absenceStaffApprovedSessionId =
+    `e2e-${tenant.slug}-${runId}-session-absence-staff-approved`;
+  const absenceStaffPendingSessionId =
+    `e2e-${tenant.slug}-${runId}-session-absence-staff-pending`;
+  const absenceStaffDeclinedSessionId =
+    `e2e-${tenant.slug}-${runId}-session-absence-staff-declined`;
 
   const centerName = "E2E Center";
   const tutorName = "E2E Tutor";
@@ -264,6 +270,24 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
   const absenceResolvedStart = nowLocal.plus({ days: 7 }).set({
     hour: 16,
     minute: 0,
+    second: 0,
+    millisecond: 0,
+  });
+  const absenceStaffApprovedStart = nowLocal.plus({ days: 8 }).set({
+    hour: 9,
+    minute: 30,
+    second: 0,
+    millisecond: 0,
+  });
+  const absenceStaffPendingStart = nowLocal.plus({ days: 9 }).set({
+    hour: 10,
+    minute: 30,
+    second: 0,
+    millisecond: 0,
+  });
+  const absenceStaffDeclinedStart = nowLocal.plus({ days: 10 }).set({
+    hour: 11,
+    minute: 30,
     second: 0,
     millisecond: 0,
   });
@@ -762,6 +786,79 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
       select: { id: true },
     });
 
+    // Step 20.5 staff auto-assist sessions cover approved/pending/declined flows.
+    const absenceStaffApprovedSession = await tx.session.upsert({
+      where: { id: absenceStaffApprovedSessionId },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceStaffApprovedStart.toJSDate(),
+        endAt: absenceStaffApprovedStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: absenceStaffApprovedSessionId,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceStaffApprovedStart.toJSDate(),
+        endAt: absenceStaffApprovedStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
+    const absenceStaffPendingSession = await tx.session.upsert({
+      where: { id: absenceStaffPendingSessionId },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceStaffPendingStart.toJSDate(),
+        endAt: absenceStaffPendingStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: absenceStaffPendingSessionId,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceStaffPendingStart.toJSDate(),
+        endAt: absenceStaffPendingStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
+    const absenceStaffDeclinedSession = await tx.session.upsert({
+      where: { id: absenceStaffDeclinedSessionId },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceStaffDeclinedStart.toJSDate(),
+        endAt: absenceStaffDeclinedStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: absenceStaffDeclinedSessionId,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceStaffDeclinedStart.toJSDate(),
+        endAt: absenceStaffDeclinedStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
     await tx.sessionStudent.upsert({
       where: {
         tenantId_sessionId_studentId: {
@@ -878,6 +975,54 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
       where: {
         tenantId_sessionId_studentId: {
           tenantId: tenant.id,
+          sessionId: absenceStaffApprovedSession.id,
+          studentId: student.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: absenceStaffApprovedSession.id,
+        studentId: student.id,
+      },
+    });
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: absenceStaffPendingSession.id,
+          studentId: student.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: absenceStaffPendingSession.id,
+        studentId: student.id,
+      },
+    });
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: absenceStaffDeclinedSession.id,
+          studentId: student.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: absenceStaffDeclinedSession.id,
+        studentId: student.id,
+      },
+    });
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
           sessionId: unlinkedSession.id,
           studentId: unlinkedStudent.id,
         },
@@ -900,6 +1045,9 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
             absenceDuplicateSession.id,
             absenceResolveSession.id,
             absenceResolvedSession.id,
+            absenceStaffApprovedSession.id,
+            absenceStaffPendingSession.id,
+            absenceStaffDeclinedSession.id,
           ],
         },
       },
@@ -951,6 +1099,9 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
     absenceDuplicateSessionId,
     absenceResolveSessionId,
     absenceResolvedSessionId,
+    absenceStaffApprovedSessionId,
+    absenceStaffPendingSessionId,
+    absenceStaffDeclinedSessionId,
   };
 }
 
