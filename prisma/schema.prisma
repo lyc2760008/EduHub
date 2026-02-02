@@ -47,6 +47,8 @@ model Tenant {
   attendances     Attendance[]
   // Session-level notes scoped to this tenant.
   sessionNotes    SessionNote[]
+  // Parent-initiated requests scoped to this tenant.
+  parentRequests  ParentRequest[]
 }
 
 // User is a credentials-auth entity (email + passwordHash required).
@@ -70,6 +72,8 @@ model User {
   markedAttendances   Attendance[]       @relation("AttendanceMarkedBy")
   // Session notes last updated by this staff user.
   sessionNotesUpdated SessionNote[]      @relation("SessionNoteUpdatedBy")
+  // Requests resolved by this staff user for audit trails.
+  resolvedParentRequests ParentRequest[] @relation("ParentRequestResolvedBy")
 }
 
 // Join table linking users to tenants with a single role per tenant.
@@ -122,6 +126,18 @@ enum AttendanceStatus {
   EXCUSED
 }
 
+// RequestType captures parent-initiated request categories (extensible later).
+enum RequestType {
+  ABSENCE
+}
+
+// RequestStatus tracks the admin resolution lifecycle for parent requests.
+enum RequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+}
+
 // Role values for tenant membership and future RBAC.
 enum Role {
   Owner
@@ -153,6 +169,8 @@ model Student {
   sessionStudents SessionStudent[]
   // Attendance markings for this student.
   attendances     Attendance[]
+  // Parent-initiated requests for this student.
+  parentRequests  ParentRequest[]
 
   @@index([tenantId, lastName])
   @@index([tenantId, createdAt])
@@ -175,6 +193,8 @@ model Parent {
 
   tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   students StudentParent[]
+  // Parent-initiated requests tied to this parent.
+  parentRequests ParentRequest[]
 
   // A parent email should be unique per tenant when provided
   @@unique([tenantId, email])
@@ -390,6 +410,8 @@ model Session {
   attendances     Attendance[]
   // Staff-authored session notes for this session (one per session enforced by unique constraint).
   sessionNotes    SessionNote[]
+  // Parent-initiated requests tied to this session.
+  parentRequests  ParentRequest[]
 
   @@unique([tenantId, tutorId, centerId, startAt])
   @@index([tenantId, startAt])
@@ -471,4 +493,34 @@ model SessionNote {
 
   @@unique([tenantId, sessionId])
   @@index([tenantId, sessionId])
+}
+
+// ParentRequest stores parent-submitted requests (currently absence only).
+// Requests are write-lite: they do NOT cancel or reschedule sessions.
+// Portal exposure must remain tenant- and parent-scoped, returning only safe fields.
+model ParentRequest {
+  id               String        @id @default(cuid())
+  tenantId         String
+  parentId         String
+  studentId        String
+  sessionId        String
+  type             RequestType
+  status           RequestStatus @default(PENDING)
+  reasonCode       String
+  message          String?       @db.Text
+  resolvedByUserId String?
+  resolvedAt       DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  tenant         Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent         Parent  @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  student        Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  session        Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  resolvedByUser User?   @relation("ParentRequestResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+
+  // Enforce one request per student + session + type across the tenant (regardless of parent) to prevent duplicates.
+  @@unique([tenantId, studentId, sessionId, type])
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, parentId, createdAt])
 }

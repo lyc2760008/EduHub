@@ -199,6 +199,14 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
   const pastSessionId = `e2e-${tenant.slug}-${runId}-session-past`;
   const tutorBSessionId = `e2e-${tenant.slug}-${runId}-session-tutor-b`;
   const unlinkedSessionId = `e2e-${tenant.slug}-${runId}-session-unlinked`;
+  const absenceHappySessionId =
+    `e2e-${tenant.slug}-${runId}-session-absence-happy`;
+  const absenceDuplicateSessionId =
+    `e2e-${tenant.slug}-${runId}-session-absence-duplicate`;
+  const absenceResolveSessionId =
+    `e2e-${tenant.slug}-${runId}-session-absence-resolve`;
+  const absenceResolvedSessionId =
+    `e2e-${tenant.slug}-${runId}-session-absence-resolved`;
 
   const centerName = "E2E Center";
   const tutorName = "E2E Tutor";
@@ -232,6 +240,30 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
   const unlinkedStart = nowLocal.plus({ days: 4 }).set({
     hour: 14,
     minute: 30,
+    second: 0,
+    millisecond: 0,
+  });
+  const absenceHappyStart = nowLocal.plus({ days: 3 }).set({
+    hour: 12,
+    minute: 0,
+    second: 0,
+    millisecond: 0,
+  });
+  const absenceDuplicateStart = nowLocal.plus({ days: 5 }).set({
+    hour: 13,
+    minute: 0,
+    second: 0,
+    millisecond: 0,
+  });
+  const absenceResolveStart = nowLocal.plus({ days: 6 }).set({
+    hour: 15,
+    minute: 0,
+    second: 0,
+    millisecond: 0,
+  });
+  const absenceResolvedStart = nowLocal.plus({ days: 7 }).set({
+    hour: 16,
+    minute: 0,
     second: 0,
     millisecond: 0,
   });
@@ -633,6 +665,103 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
       select: { id: true },
     });
 
+    // Absence-request sessions keep write-lite tests isolated from core fixtures.
+    const absenceHappySession = await tx.session.upsert({
+      where: { id: absenceHappySessionId },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceHappyStart.toJSDate(),
+        endAt: absenceHappyStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: absenceHappySessionId,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceHappyStart.toJSDate(),
+        endAt: absenceHappyStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
+    const absenceDuplicateSession = await tx.session.upsert({
+      where: { id: absenceDuplicateSessionId },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceDuplicateStart.toJSDate(),
+        endAt: absenceDuplicateStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: absenceDuplicateSessionId,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceDuplicateStart.toJSDate(),
+        endAt: absenceDuplicateStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
+    const absenceResolveSession = await tx.session.upsert({
+      where: { id: absenceResolveSessionId },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceResolveStart.toJSDate(),
+        endAt: absenceResolveStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: absenceResolveSessionId,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceResolveStart.toJSDate(),
+        endAt: absenceResolveStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
+    const absenceResolvedSession = await tx.session.upsert({
+      where: { id: absenceResolvedSessionId },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceResolvedStart.toJSDate(),
+        endAt: absenceResolvedStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: absenceResolvedSessionId,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceResolvedStart.toJSDate(),
+        endAt: absenceResolvedStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
     await tx.sessionStudent.upsert({
       where: {
         tenantId_sessionId_studentId: {
@@ -685,6 +814,70 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
       where: {
         tenantId_sessionId_studentId: {
           tenantId: tenant.id,
+          sessionId: absenceHappySession.id,
+          studentId: student.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: absenceHappySession.id,
+        studentId: student.id,
+      },
+    });
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: absenceDuplicateSession.id,
+          studentId: student.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: absenceDuplicateSession.id,
+        studentId: student.id,
+      },
+    });
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: absenceResolveSession.id,
+          studentId: student.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: absenceResolveSession.id,
+        studentId: student.id,
+      },
+    });
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: absenceResolvedSession.id,
+          studentId: student.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: absenceResolvedSession.id,
+        studentId: student.id,
+      },
+    });
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
           sessionId: unlinkedSession.id,
           studentId: unlinkedStudent.id,
         },
@@ -694,6 +887,21 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
         tenantId: tenant.id,
         sessionId: unlinkedSession.id,
         studentId: unlinkedStudent.id,
+      },
+    });
+
+    // Clear parent requests tied to absence sessions so tests start from a clean slate.
+    await tx.parentRequest.deleteMany({
+      where: {
+        tenantId: tenant.id,
+        sessionId: {
+          in: [
+            absenceHappySession.id,
+            absenceDuplicateSession.id,
+            absenceResolveSession.id,
+            absenceResolvedSession.id,
+          ],
+        },
       },
     });
 
@@ -739,6 +947,10 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
     pastSessionId,
     tutorBSessionId,
     unlinkedSessionId,
+    absenceHappySessionId,
+    absenceDuplicateSessionId,
+    absenceResolveSessionId,
+    absenceResolvedSessionId,
   };
 }
 
@@ -749,6 +961,8 @@ export async function cleanupE2ETenantData(prisma: PrismaClient) {
   const tenant = await getE2ETenant(prisma);
 
   await prisma.$transaction(async (tx) => {
+    // Parent requests must be cleared before sessions/students to satisfy FK constraints.
+    await tx.parentRequest.deleteMany({ where: { tenantId: tenant.id } });
     await tx.sessionNote.deleteMany({ where: { tenantId: tenant.id } });
     await tx.attendance.deleteMany({ where: { tenantId: tenant.id } });
     await tx.sessionStudent.deleteMany({ where: { tenantId: tenant.id } });

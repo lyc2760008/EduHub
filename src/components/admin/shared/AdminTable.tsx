@@ -19,6 +19,7 @@ export type AdminTableProps<T> = {
   emptyState?: ReactNode;
   loadingState?: ReactNode;
   isLoading?: boolean;
+  onRowClick?: (row: T) => void;
 };
 
 export default function AdminTable<T>({
@@ -29,11 +30,14 @@ export default function AdminTable<T>({
   emptyState,
   loadingState,
   isLoading = false,
+  onRowClick,
 }: AdminTableProps<T>) {
   const showRows = rows.length > 0;
   const colSpan = columns.length || 1;
   const showLoading = isLoading && !showRows;
   const showEmpty = !isLoading && !showRows;
+  // Optional row click enables drawer-style interactions without changing table markup.
+  const rowInteractiveClassName = onRowClick ? "cursor-pointer" : "";
 
   // i18n: callers supply localized empty/loading content to avoid hardcoded copy.
   const loadingContent = loadingState ?? (
@@ -65,11 +69,25 @@ export default function AdminTable<T>({
           {showRows
             ? rows.map((row) => {
                 const key = rowKey(row);
+                const isInteractive = Boolean(onRowClick);
                 return (
                   <tr
                     key={key}
-                    className="transition-colors hover:bg-slate-50"
+                    className={`transition-colors hover:bg-slate-50 ${rowInteractiveClassName}`}
                     data-testid={key}
+                    onClick={isInteractive ? () => onRowClick?.(row) : undefined}
+                    onKeyDown={
+                      isInteractive
+                        ? (event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              onRowClick?.(row);
+                            }
+                          }
+                        : undefined
+                    }
+                    role={isInteractive ? "button" : undefined}
+                    tabIndex={isInteractive ? 0 : undefined}
                   >
                     {columns.map((column, index) => (
                       <td

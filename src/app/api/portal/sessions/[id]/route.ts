@@ -1,7 +1,7 @@
 // Parent portal session detail endpoint scoped by tenant + linked students.
 import { NextRequest, NextResponse } from "next/server";
 
-import { StudentStatus } from "@/generated/prisma/client";
+import { RequestType, StudentStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import {
   buildPortalError,
@@ -103,6 +103,32 @@ export async function GET(req: NextRequest, context: Params) {
       ]),
     );
 
+    const requestRows = await prisma.parentRequest.findMany({
+      where: {
+        tenantId,
+        sessionId,
+        studentId: { in: rosterStudentIds },
+        type: RequestType.ABSENCE,
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        studentId: true,
+        type: true,
+        status: true,
+        createdAt: true,
+        resolvedAt: true,
+      },
+    });
+
+    const requestByStudentId = new Map<string, (typeof requestRows)[number]>();
+    // Keep the most recent request per student by respecting the DESC ordering.
+    for (const row of requestRows) {
+      if (!requestByStudentId.has(row.studentId)) {
+        requestByStudentId.set(row.studentId, row);
+      }
+    }
+
     const session = rosterRows[0].session;
 
     return NextResponse.json({
@@ -120,18 +146,31 @@ export async function GET(req: NextRequest, context: Params) {
           ? { id: session.tutor.id, name: session.tutor.name ?? null }
           : null,
       },
-      students: rosterRows.map((row) => ({
-        student: {
-          id: row.student.id,
-          firstName: row.student.firstName,
-          lastName: row.student.lastName,
-          isActive: row.student.status === StudentStatus.ACTIVE,
-          level: row.student.level
-            ? { id: row.student.level.id, name: row.student.level.name }
+      students: rosterRows.map((row) => {
+        const request = requestByStudentId.get(row.studentId);
+        return {
+          student: {
+            id: row.student.id,
+            firstName: row.student.firstName,
+            lastName: row.student.lastName,
+            isActive: row.student.status === StudentStatus.ACTIVE,
+            level: row.student.level
+              ? { id: row.student.level.id, name: row.student.level.name }
+              : null,
+          },
+          attendance: attendanceByStudentId.get(row.studentId) ?? null,
+          // Per-student request status is safe to expose for linked roster entries only.
+          request: request
+            ? {
+                id: request.id,
+                type: request.type,
+                status: request.status,
+                createdAt: request.createdAt,
+                resolvedAt: request.resolvedAt,
+              }
             : null,
-        },
-        attendance: attendanceByStudentId.get(row.studentId) ?? null,
-      })),
+        };
+      }),
     });
   } catch (error) {
     console.error("GET /api/portal/sessions/[id] failed", error);

@@ -15,6 +15,11 @@ export type Step203Fixtures = {
   unlinkedSessionId: string;
 };
 
+function sanitizeRunId(value: string) {
+  // Keep run id formatting consistent with seed helpers that sanitize IDs/emails.
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
+}
+
 function requireAccessCode() {
   const accessCode =
     process.env.E2E_PARENT_ACCESS_CODE || process.env.SEED_DEFAULT_PASSWORD;
@@ -29,7 +34,7 @@ function requireAccessCode() {
 
 export function resolveStep203Fixtures(): Step203Fixtures {
   const tenantSlug = process.env.E2E_TENANT_SLUG || "e2e-testing";
-  const runId = process.env.E2E_RUN_ID || "local";
+  const runId = sanitizeRunId(process.env.E2E_RUN_ID || "local");
   const emailSuffix = runId ? `+${runId}` : "";
 
   return {

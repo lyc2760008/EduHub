@@ -173,6 +173,40 @@ export async function assertParentLinkedToStudent(
   return null;
 }
 
+// Enforce session ownership + roster membership + upcoming window for parent requests.
+export async function assertSessionUpcomingAndMatchesStudent(
+  tenantId: string,
+  sessionId: string,
+  studentId: string,
+): Promise<Response | { sessionId: string; startAt: Date }> {
+  const match = await prisma.sessionStudent.findFirst({
+    where: { tenantId, sessionId, studentId },
+    select: {
+      session: {
+        select: {
+          id: true,
+          startAt: true,
+        },
+      },
+    },
+  });
+
+  if (!match?.session) {
+    // Return 404 to avoid leaking sessions or roster details across tenants.
+    return buildPortalError(404, "NotFound", "Session not found");
+  }
+
+  const now = new Date();
+  if (match.session.startAt <= now) {
+    return buildPortalError(403, "Forbidden", "Session is not upcoming", {
+      reason: "PORTAL_REQUEST_NOT_ALLOWED",
+      rule: "SESSION_NOT_UPCOMING",
+    });
+  }
+
+  return { sessionId: match.session.id, startAt: match.session.startAt };
+}
+
 // Parse numeric take/skip with defaults and max limits for portal lists.
 export function parsePortalPagination(
   request: NextRequest,

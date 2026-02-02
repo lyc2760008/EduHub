@@ -54,6 +54,12 @@ export default function AdminNav({ tenant }: AdminNavProps) {
       href: `/${tenant}/admin/sessions`,
       labelKey: "nav.sessions",
     },
+    // Requests inbox lives alongside other operational modules.
+    {
+      id: "requests",
+      href: `/${tenant}/admin/requests`,
+      labelKey: "nav.requests",
+    },
   ];
 
   return (

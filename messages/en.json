@@ -316,6 +316,57 @@
         "forbidden": "You do not have permission to view sessions"
       }
     },
+    "requests": {
+      "_comment": "Admin requests inbox copy (Step 20.4B).",
+      "title": "Absence requests",
+      "filter": {
+        "status": "Status",
+        "range": "Date range"
+      },
+      "status": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "declined": "Declined",
+        "all": "All"
+      },
+      "detail": {
+        "title": "Request details"
+      },
+      "section": {
+        "request": "Request",
+        "context": "Linked session"
+      },
+      "field": {
+        "reason": "Reason",
+        "message": "Message",
+        "submittedAt": "Submitted",
+        "status": "Status",
+        "session": "Session",
+        "student": "Student",
+        "parent": "Parent",
+        "center": "Center",
+        "internalNote": {
+          "label": "Internal note (optional)",
+          "helper": "Staff only. Not visible to parents."
+        }
+      },
+      "action": {
+        "approve": "Approve",
+        "decline": "Decline"
+      },
+      "confirm": {
+        "approve": "Approve this request?",
+        "decline": "Decline this request?"
+      },
+      "state": {
+        "resolvedToast": "Request resolved."
+      },
+      "error": {
+        "title": "Couldn't update request",
+        "body": "Please try again."
+      },
+      "empty": "No requests found."
+    },
     "reports": {
       "_comment": "Admin reports labels, filters, and table headers.",
       "title": "Reports",
@@ -481,6 +532,7 @@
     "groups": "Groups",
     "reports": "Reports",
     "sessions": "Sessions",
+    "requests": "Requests",
     "admin": {
       "centers": "Centers",
       "subjects": "Subjects",
@@ -506,6 +558,7 @@
       "dashboard": "Dashboard",
       "students": "My Students",
       "sessions": "Upcoming Sessions",
+      "requests": "My Requests",
       "signOut": "Sign out",
       "language": "Language"
     },
@@ -513,6 +566,7 @@
       "viewAll": "View all",
       "open": "Open",
       "back": "Back",
+      "cancel": "Cancel",
       "tryAgain": "Try again",
       "allStudents": "All students",
       "range": "Range",
@@ -643,6 +697,74 @@
         "late": "Late",
         "excused": "Excused",
         "canceled": "Canceled"
+      }
+    },
+    "absence": {
+      "_comment": "Parent absence request copy (Step 20.4B).",
+      "cta": {
+        "report": "Report absence"
+      },
+      "modal": {
+        "title": "Report an absence",
+        "helper": "This lets your tutor/center know you may miss this session. It does not cancel or reschedule the session."
+      },
+      "field": {
+        "reason": {
+          "label": "Reason",
+          "placeholder": "Select a reason"
+        },
+        "message": {
+          "label": "Optional message",
+          "helper": "Optional. Recommended: 300 characters max."
+        }
+      },
+      "reason": {
+        "illness": "Illness",
+        "travel": "Travel",
+        "family": "Family",
+        "schoolConflict": "School conflict",
+        "other": "Other"
+      },
+      "action": {
+        "submit": "Submit request",
+        "view": "View request"
+      },
+      "state": {
+        "submitting": "Submitting…",
+        "submittedToast": "Absence request submitted."
+      },
+      "error": {
+        "title": "Couldn't submit request",
+        "body": "Please try again. If the problem continues, contact your center."
+      },
+      "ineligible": {
+        "past": "This session has already started or ended. You can’t report an absence here."
+      },
+      "status": {
+        "label": "Absence request",
+        "pending": "Pending",
+        "approved": "Approved",
+        "declined": "Declined",
+        "upcoming": "Upcoming",
+        "submittedAt": "Submitted",
+        "updatedAt": "Updated",
+        "pendingHelper": "Your request is waiting for staff review.",
+        "approvedHelper": "Your request has been approved.",
+        "declinedHelper": "Your request was declined."
+      }
+    },
+    "requests": {
+      "_comment": "Parent portal requests list (Step 20.4B).",
+      "title": "My requests",
+      "helper": "Track the status of absence requests you’ve submitted.",
+      "empty": {
+        "title": "No requests yet",
+        "body": "Absence requests you submit will appear here.",
+        "cta": "Go to Upcoming Sessions"
+      },
+      "error": {
+        "title": "Couldn't load requests",
+        "body": "Please try again."
       }
     },
     "sessionDetail": {
