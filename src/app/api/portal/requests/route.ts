@@ -64,6 +64,22 @@ export async function GET(req: NextRequest) {
         createdAt: true,
         updatedAt: true,
         resolvedAt: true,
+        // Include portal-safe summaries so the requests list can render without extra calls.
+        session: {
+          select: {
+            id: true,
+            startAt: true,
+            sessionType: true,
+            group: { select: { name: true } },
+          },
+        },
+        student: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
       },
     });
 

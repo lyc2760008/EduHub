@@ -213,6 +213,21 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
     `e2e-${tenant.slug}-${runId}-session-absence-staff-pending`;
   const absenceStaffDeclinedSessionId =
     `e2e-${tenant.slug}-${runId}-session-absence-staff-declined`;
+  // Step 20.6 sessions isolate withdraw/resubmit/auto-assist coverage from prior fixtures.
+  const absenceWithdrawFutureSessionId =
+    `e2e-${tenant.slug}-${runId}-session-absence-withdraw-future`;
+  const absenceResubmitSessionId =
+    `e2e-${tenant.slug}-${runId}-session-absence-resubmit`;
+  const absenceApproveLockSessionId =
+    `e2e-${tenant.slug}-${runId}-session-absence-approve-lock`;
+  const absenceDeclineLockSessionId =
+    `e2e-${tenant.slug}-${runId}-session-absence-decline-lock`;
+  const absenceWithdrawPastSessionId =
+    `e2e-${tenant.slug}-${runId}-session-absence-withdraw-past`;
+  const absenceAutoAssistWithdrawnSessionId =
+    `e2e-${tenant.slug}-${runId}-session-absence-autoassist-withdrawn`;
+  const absenceAutoAssistApprovedSessionId =
+    `e2e-${tenant.slug}-${runId}-session-absence-autoassist-approved`;
 
   const centerName = "E2E Center";
   const tutorName = "E2E Tutor";
@@ -288,6 +303,46 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
   const absenceStaffDeclinedStart = nowLocal.plus({ days: 10 }).set({
     hour: 11,
     minute: 30,
+    second: 0,
+    millisecond: 0,
+  });
+  const absenceWithdrawFutureStart = nowLocal.plus({ days: 2 }).set({
+    hour: 14,
+    minute: 0,
+    second: 0,
+    millisecond: 0,
+  });
+  const absenceResubmitStart = nowLocal.plus({ days: 2 }).set({
+    hour: 15,
+    minute: 0,
+    second: 0,
+    millisecond: 0,
+  });
+  const absenceApproveLockStart = nowLocal.plus({ days: 2 }).set({
+    hour: 16,
+    minute: 0,
+    second: 0,
+    millisecond: 0,
+  });
+  const absenceDeclineLockStart = nowLocal.plus({ days: 2 }).set({
+    hour: 17,
+    minute: 0,
+    second: 0,
+    millisecond: 0,
+  });
+  const absenceWithdrawPastStart = nowLocal.minus({ minutes: 5 }).set({
+    second: 0,
+    millisecond: 0,
+  });
+  const absenceAutoAssistWithdrawnStart = nowLocal.plus({ days: 3 }).set({
+    hour: 9,
+    minute: 45,
+    second: 0,
+    millisecond: 0,
+  });
+  const absenceAutoAssistApprovedStart = nowLocal.plus({ days: 3 }).set({
+    hour: 10,
+    minute: 45,
     second: 0,
     millisecond: 0,
   });
@@ -859,6 +914,175 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
       select: { id: true },
     });
 
+    // Step 20.6 sessions are dedicated to withdraw/resubmit and auto-assist hardening tests.
+    const absenceWithdrawFutureSession = await tx.session.upsert({
+      where: { id: absenceWithdrawFutureSessionId },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceWithdrawFutureStart.toJSDate(),
+        endAt: absenceWithdrawFutureStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: absenceWithdrawFutureSessionId,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceWithdrawFutureStart.toJSDate(),
+        endAt: absenceWithdrawFutureStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
+    const absenceResubmitSession = await tx.session.upsert({
+      where: { id: absenceResubmitSessionId },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceResubmitStart.toJSDate(),
+        endAt: absenceResubmitStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: absenceResubmitSessionId,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceResubmitStart.toJSDate(),
+        endAt: absenceResubmitStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
+    const absenceApproveLockSession = await tx.session.upsert({
+      where: { id: absenceApproveLockSessionId },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceApproveLockStart.toJSDate(),
+        endAt: absenceApproveLockStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: absenceApproveLockSessionId,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceApproveLockStart.toJSDate(),
+        endAt: absenceApproveLockStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
+    const absenceDeclineLockSession = await tx.session.upsert({
+      where: { id: absenceDeclineLockSessionId },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceDeclineLockStart.toJSDate(),
+        endAt: absenceDeclineLockStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: absenceDeclineLockSessionId,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceDeclineLockStart.toJSDate(),
+        endAt: absenceDeclineLockStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
+    const absenceWithdrawPastSession = await tx.session.upsert({
+      where: { id: absenceWithdrawPastSessionId },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceWithdrawPastStart.toJSDate(),
+        endAt: absenceWithdrawPastStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: absenceWithdrawPastSessionId,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceWithdrawPastStart.toJSDate(),
+        endAt: absenceWithdrawPastStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
+    const absenceAutoAssistWithdrawnSession = await tx.session.upsert({
+      where: { id: absenceAutoAssistWithdrawnSessionId },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceAutoAssistWithdrawnStart.toJSDate(),
+        endAt: absenceAutoAssistWithdrawnStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: absenceAutoAssistWithdrawnSessionId,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceAutoAssistWithdrawnStart.toJSDate(),
+        endAt: absenceAutoAssistWithdrawnStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
+    const absenceAutoAssistApprovedSession = await tx.session.upsert({
+      where: { id: absenceAutoAssistApprovedSessionId },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceAutoAssistApprovedStart.toJSDate(),
+        endAt: absenceAutoAssistApprovedStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: absenceAutoAssistApprovedSessionId,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: absenceAutoAssistApprovedStart.toJSDate(),
+        endAt: absenceAutoAssistApprovedStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
     await tx.sessionStudent.upsert({
       where: {
         tenantId_sessionId_studentId: {
@@ -1023,6 +1247,118 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
       where: {
         tenantId_sessionId_studentId: {
           tenantId: tenant.id,
+          sessionId: absenceWithdrawFutureSession.id,
+          studentId: student.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: absenceWithdrawFutureSession.id,
+        studentId: student.id,
+      },
+    });
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: absenceResubmitSession.id,
+          studentId: student.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: absenceResubmitSession.id,
+        studentId: student.id,
+      },
+    });
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: absenceApproveLockSession.id,
+          studentId: student.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: absenceApproveLockSession.id,
+        studentId: student.id,
+      },
+    });
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: absenceDeclineLockSession.id,
+          studentId: student.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: absenceDeclineLockSession.id,
+        studentId: student.id,
+      },
+    });
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: absenceWithdrawPastSession.id,
+          studentId: student.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: absenceWithdrawPastSession.id,
+        studentId: student.id,
+      },
+    });
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: absenceAutoAssistWithdrawnSession.id,
+          studentId: student.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: absenceAutoAssistWithdrawnSession.id,
+        studentId: student.id,
+      },
+    });
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: absenceAutoAssistApprovedSession.id,
+          studentId: student.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: absenceAutoAssistApprovedSession.id,
+        studentId: student.id,
+      },
+    });
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
           sessionId: unlinkedSession.id,
           studentId: unlinkedStudent.id,
         },
@@ -1048,8 +1384,48 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
             absenceStaffApprovedSession.id,
             absenceStaffPendingSession.id,
             absenceStaffDeclinedSession.id,
+            absenceWithdrawFutureSession.id,
+            absenceResubmitSession.id,
+            absenceApproveLockSession.id,
+            absenceDeclineLockSession.id,
+            absenceWithdrawPastSession.id,
+            absenceAutoAssistWithdrawnSession.id,
+            absenceAutoAssistApprovedSession.id,
           ],
         },
+      },
+    });
+
+    // Seed a pending request on a started session to validate withdraw restriction logic.
+    await tx.parentRequest.upsert({
+      where: {
+        tenantId_studentId_sessionId_type: {
+          tenantId: tenant.id,
+          studentId: student.id,
+          sessionId: absenceWithdrawPastSession.id,
+          type: "ABSENCE",
+        },
+      },
+      update: {
+        parentId: parentA1.id,
+        status: "PENDING",
+        reasonCode: "OTHER",
+        message: "Request created before session start.",
+        withdrawnAt: null,
+        withdrawnByParentId: null,
+        resubmittedAt: null,
+        resolvedAt: null,
+        resolvedByUserId: null,
+      },
+      create: {
+        tenantId: tenant.id,
+        parentId: parentA1.id,
+        studentId: student.id,
+        sessionId: absenceWithdrawPastSession.id,
+        type: "ABSENCE",
+        status: "PENDING",
+        reasonCode: "OTHER",
+        message: "Request created before session start.",
       },
     });
 

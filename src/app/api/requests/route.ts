@@ -77,9 +77,8 @@ async function normalizeAuthResponse(response: Response) {
 
 function parseStatus(value: string | null): RequestStatus | "ALL" | Response {
   if (!value || !value.trim()) {
-    return buildErrorResponse(400, "ValidationError", "status is required", {
-      field: "status",
-    });
+    // Default to pending to preserve the existing admin inbox UX.
+    return RequestStatus.PENDING;
   }
 
   const trimmed = value.trim();
@@ -131,6 +130,9 @@ export async function GET(req: NextRequest) {
           parentId: true,
           createdAt: true,
           updatedAt: true,
+          // Withdraw/resubmit timestamps support admin detail context.
+          withdrawnAt: true,
+          resubmittedAt: true,
           resolvedAt: true,
           resolvedByUserId: true,
           parent: {

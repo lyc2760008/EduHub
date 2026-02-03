@@ -117,6 +117,8 @@ export async function GET(req: NextRequest, context: Params) {
         type: true,
         status: true,
         createdAt: true,
+        // Include updatedAt so portal UI can show last-updated timestamps.
+        updatedAt: true,
         resolvedAt: true,
       },
     });
@@ -166,6 +168,7 @@ export async function GET(req: NextRequest, context: Params) {
                 type: request.type,
                 status: request.status,
                 createdAt: request.createdAt,
+                updatedAt: request.updatedAt,
                 resolvedAt: request.resolvedAt,
               }
             : null,

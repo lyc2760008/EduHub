@@ -136,6 +136,7 @@ enum RequestStatus {
   PENDING
   APPROVED
   DECLINED
+  WITHDRAWN
 }
 
 // Role values for tenant membership and future RBAC.
@@ -508,6 +509,12 @@ model ParentRequest {
   status           RequestStatus @default(PENDING)
   reasonCode       String
   message          String?       @db.Text
+  // Timestamp for parent-initiated withdraw action (optional audit trail).
+  withdrawnAt      DateTime?
+  // Parent id captured at withdraw time to preserve the actor for audit.
+  withdrawnByParentId String?
+  // Timestamp for parent-initiated resubmission of a withdrawn request.
+  resubmittedAt    DateTime?
   resolvedByUserId String?
   resolvedAt       DateTime?
   createdAt        DateTime      @default(now())
@@ -520,6 +527,7 @@ model ParentRequest {
   resolvedByUser User?   @relation("ParentRequestResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
 
   // Enforce one request per student + session + type across the tenant (regardless of parent) to prevent duplicates.
+  // Resubmissions must update this same record rather than creating new rows.
   @@unique([tenantId, studentId, sessionId, type])
   @@index([tenantId, status, createdAt])
   @@index([tenantId, parentId, createdAt])

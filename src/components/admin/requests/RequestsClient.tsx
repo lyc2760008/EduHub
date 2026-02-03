@@ -11,7 +11,7 @@ import { inputBase, primaryButton, secondaryButton } from "@/components/admin/sh
 import { fetchJson } from "@/lib/api/fetchJson";
 import { getSessionTypeLabelKey } from "@/lib/portal/format";
 
-type RequestStatus = "PENDING" | "APPROVED" | "DECLINED";
+type RequestStatus = "PENDING" | "APPROVED" | "DECLINED" | "WITHDRAWN";
 
 type RequestParent = {
   id: string;
@@ -47,6 +47,8 @@ type RequestRecord = {
   updatedAt: string;
   resolvedAt?: string | null;
   resolvedByUserId?: string | null;
+  withdrawnAt?: string | null;
+  resubmittedAt?: string | null;
   parent: RequestParent;
   student: RequestStudent;
   session: RequestSession;
@@ -63,6 +65,7 @@ const STATUS_OPTIONS: Array<{ value: RequestStatus | "ALL"; labelKey: string }> 
   { value: "PENDING", labelKey: "admin.requests.status.pending" },
   { value: "APPROVED", labelKey: "admin.requests.status.approved" },
   { value: "DECLINED", labelKey: "admin.requests.status.declined" },
+  { value: "WITHDRAWN", labelKey: "admin.requests.status.withdrawn" },
   { value: "ALL", labelKey: "admin.requests.status.all" },
 ];
 
@@ -82,6 +85,8 @@ function getRequestStatusLabelKey(status: RequestStatus) {
       return "admin.requests.status.approved";
     case "DECLINED":
       return "admin.requests.status.declined";
+    case "WITHDRAWN":
+      return "admin.requests.status.withdrawn";
     default:
       return "generic.dash";
   }
@@ -95,6 +100,8 @@ function getRequestStatusTone(status: RequestStatus) {
       return "border-red-600 text-red-600";
     case "PENDING":
       return "border-amber-600 text-amber-700";
+    case "WITHDRAWN":
+      return "border-slate-300 text-slate-600";
     default:
       return "border-slate-300 text-slate-600";
   }
@@ -122,6 +129,18 @@ export default function RequestsClient() {
   const [selected, setSelected] = useState<RequestRecord | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isResolving, setIsResolving] = useState(false);
+  // Surface the latest status change (withdraw/resubmit/resolve) in the detail panel.
+  const selectedUpdatedLabel = selected
+    ? formatDateTime(
+        selected.resubmittedAt ??
+          selected.withdrawnAt ??
+          selected.updatedAt ??
+          selected.resolvedAt ??
+          selected.createdAt,
+        locale,
+      ) || t("generic.dash")
+    : "";
+  const selectedIsWithdrawn = selected?.status === "WITHDRAWN";
 
   const loadRequests = useCallback(async () => {
     setIsLoading(true);
@@ -164,6 +183,8 @@ export default function RequestsClient() {
   const handleResolve = useCallback(
     async (nextStatus: RequestStatus) => {
       if (!selected) return;
+      // Guard the resolve action to pending requests only (backend enforces too).
+      if (selected.status !== "PENDING") return;
 
       const confirmKey =
         nextStatus === "APPROVED"
@@ -269,6 +290,8 @@ export default function RequestsClient() {
             onChange={(event) =>
               setStatusFilter(event.target.value as RequestStatus | "ALL")
             }
+            // Data-testid keeps the status filter stable for E2E coverage.
+            data-testid="admin-requests-status-filter"
           >
             {STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -365,10 +388,21 @@ export default function RequestsClient() {
                   </div>
                   <div className="grid gap-1 text-sm text-slate-700">
                     <span className="text-xs font-semibold text-slate-500">
+                      {t("admin.requests.field.updatedAt")}
+                    </span>
+                    <span>{selectedUpdatedLabel}</span>
+                  </div>
+                  <div className="grid gap-1 text-sm text-slate-700">
+                    <span className="text-xs font-semibold text-slate-500">
                       {t("admin.requests.field.status")}
                     </span>
                     <span>{t(getRequestStatusLabelKey(selected.status))}</span>
                   </div>
+                  {selectedIsWithdrawn ? (
+                    <p className="text-xs text-slate-600">
+                      {t("admin.requests.withdrawn.noAction")}
+                    </p>
+                  ) : null}
                 </section>
 
                 <section className="space-y-2">
@@ -401,24 +435,28 @@ export default function RequestsClient() {
                 </section>
 
                 <div className="mt-auto flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className={primaryButton}
-                    disabled={isResolving}
-                    onClick={() => void handleResolve("APPROVED")}
-                    data-testid="requests-approve-button"
-                  >
-                    {t("admin.requests.action.approve")}
-                  </button>
-                  <button
-                    type="button"
-                    className={secondaryButton}
-                    disabled={isResolving}
-                    onClick={() => void handleResolve("DECLINED")}
-                    data-testid="requests-decline-button"
-                  >
-                    {t("admin.requests.action.decline")}
-                  </button>
+                  {selected.status === "PENDING" ? (
+                    <>
+                      <button
+                        type="button"
+                        className={primaryButton}
+                        disabled={isResolving}
+                        onClick={() => void handleResolve("APPROVED")}
+                        data-testid="requests-approve-button"
+                      >
+                        {t("admin.requests.action.approve")}
+                      </button>
+                      <button
+                        type="button"
+                        className={secondaryButton}
+                        disabled={isResolving}
+                        onClick={() => void handleResolve("DECLINED")}
+                        data-testid="requests-decline-button"
+                      >
+                        {t("admin.requests.action.decline")}
+                      </button>
+                    </>
+                  ) : null}
                   <button
                     type="button"
                     className={secondaryButton}

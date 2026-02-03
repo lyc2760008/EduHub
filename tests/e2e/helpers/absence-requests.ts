@@ -9,6 +9,8 @@ export type PortalRequestItem = {
   sessionId: string;
   studentId: string;
   status: string;
+  reasonCode?: string;
+  message?: string | null;
 };
 
 type PortalRequestsResponse = {
@@ -85,6 +87,41 @@ export async function ensurePortalAbsenceRequest(
   throw new Error(
     `Unexpected create status ${createResponse.status()} for absence request.`,
   );
+}
+
+export async function withdrawPortalAbsenceRequest(
+  page: Page,
+  tenantSlug: string,
+  requestId: string,
+) {
+  // Withdraw uses the portal endpoint to preserve parent-scoped behavior.
+  const response = await page.request.post(
+    buildPortalApiPath(tenantSlug, `/requests/${requestId}/withdraw`),
+    { data: {} },
+  );
+  return response;
+}
+
+export async function resubmitPortalAbsenceRequest(
+  page: Page,
+  input: {
+    tenantSlug: string;
+    requestId: string;
+    reasonCode: string;
+    message: string;
+  },
+) {
+  // Resubmit uses the portal endpoint so the request stays linked to the parent.
+  const response = await page.request.post(
+    buildPortalApiPath(input.tenantSlug, `/requests/${input.requestId}/resubmit`),
+    {
+      data: {
+        reasonCode: input.reasonCode,
+        message: input.message,
+      },
+    },
+  );
+  return response;
 }
 
 export async function resolveAbsenceRequest(

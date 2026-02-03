@@ -128,6 +128,12 @@ export async function POST(req: NextRequest, context: Params) {
       if (!existing) {
         return buildErrorResponse(404, "NotFound", "Request not found");
       }
+      // Withdrawn requests are parent-controlled and must not be resolved by staff.
+      if (existing.status === RequestStatus.WITHDRAWN) {
+        return buildErrorResponse(409, "Conflict", "Request is withdrawn", {
+          reason: "REQUEST_WITHDRAWN_NOT_RESOLVABLE",
+        });
+      }
       return buildErrorResponse(409, "Conflict", "Request already resolved", {
         status: existing.status,
       });

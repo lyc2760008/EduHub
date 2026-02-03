@@ -176,37 +176,45 @@ export async function GET(req: NextRequest) {
     let explanation: { code: string; message: string } | undefined;
 
     if (request) {
-      const message = request.message?.trim();
-      reason = {
-        code: request.reasonCode,
-        ...(message ? { message } : {}),
-      };
-      basedOnRequest = {
-        id: request.id,
-        status: request.status,
-        reasonCode: request.reasonCode,
-        createdAt: request.createdAt,
-        resolvedAt: request.resolvedAt ?? null,
-      };
-
-      if (request.status === RequestStatus.APPROVED) {
-        // Use the existing EXCUSED attendance status to represent approved absences.
-        suggestedStatus = AttendanceStatus.EXCUSED;
-        suggestedExcused = true;
+      if (request.status === RequestStatus.WITHDRAWN) {
+        // Withdrawn requests must not trigger auto-assist suggestions or banners.
         explanation = {
-          code: "REQUEST_APPROVED",
-          message: "Approved absence request",
-        };
-      } else if (request.status === RequestStatus.PENDING) {
-        explanation = {
-          code: "REQUEST_PENDING",
-          message: "Absence request is pending",
+          code: "REQUEST_WITHDRAWN",
+          message: "Absence request was withdrawn",
         };
       } else {
-        explanation = {
-          code: "REQUEST_DECLINED",
-          message: "Absence request was declined",
+        const message = request.message?.trim();
+        reason = {
+          code: request.reasonCode,
+          ...(message ? { message } : {}),
         };
+        basedOnRequest = {
+          id: request.id,
+          status: request.status,
+          reasonCode: request.reasonCode,
+          createdAt: request.createdAt,
+          resolvedAt: request.resolvedAt ?? null,
+        };
+
+        if (request.status === RequestStatus.APPROVED) {
+          // Use the existing EXCUSED attendance status to represent approved absences.
+          suggestedStatus = AttendanceStatus.EXCUSED;
+          suggestedExcused = true;
+          explanation = {
+            code: "REQUEST_APPROVED",
+            message: "Approved absence request",
+          };
+        } else if (request.status === RequestStatus.PENDING) {
+          explanation = {
+            code: "REQUEST_PENDING",
+            message: "Absence request is pending",
+          };
+        } else {
+          explanation = {
+            code: "REQUEST_DECLINED",
+            message: "Absence request was declined",
+          };
+        }
       }
     }
 

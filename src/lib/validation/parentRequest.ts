@@ -15,14 +15,23 @@ const messageOptional = z.preprocess((val) => {
   return val;
 }, z.string().max(REQUEST_MESSAGE_MAX_LENGTH).optional());
 
-export const createParentRequestSchema = z
+// Shared schema for request reason updates (used on create + resubmit).
+const requestReasonSchema = z
   .object({
-    sessionId: z.string().trim().min(1),
-    studentId: z.string().trim().min(1),
     reasonCode: z.string().trim().min(1).max(REQUEST_REASON_CODE_MAX_LENGTH),
     message: messageOptional,
   })
   .strict();
+
+export const createParentRequestSchema = requestReasonSchema
+  .extend({
+    sessionId: z.string().trim().min(1),
+    studentId: z.string().trim().min(1),
+  })
+  .strict();
+
+// Resubmissions can update reason/message on the existing request.
+export const resubmitParentRequestSchema = requestReasonSchema;
 
 export type CreateParentRequestInput = z.infer<
   typeof createParentRequestSchema

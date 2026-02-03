@@ -49,6 +49,7 @@ type PortalRequestSummary = {
   type: string;
   status: string;
   createdAt?: string | null;
+  updatedAt?: string | null;
   resolvedAt?: string | null;
 } | null;
 
@@ -130,11 +131,14 @@ function formatSessionDuration(startAt: string, endAt: string) {
 function getRequestStatusLabelKey(status: string | null | undefined) {
   switch (status) {
     case "PENDING":
-      return "portal.absence.status.pending";
+      // Parent-facing pending label uses the friendly "Pending review" copy.
+      return "portal.absence.status.pendingFriendly";
     case "APPROVED":
       return "portal.absence.status.approved";
     case "DECLINED":
       return "portal.absence.status.declined";
+    case "WITHDRAWN":
+      return "portal.absence.status.withdrawn";
     default:
       return "generic.dash";
   }
@@ -148,6 +152,8 @@ function getRequestStatusHelperKey(status: string | null | undefined) {
       return "portal.absence.status.approvedHelper";
     case "DECLINED":
       return "portal.absence.status.declinedHelper";
+    case "WITHDRAWN":
+      return "portal.absence.status.withdrawnHelper";
     default:
       return null;
   }
@@ -161,6 +167,8 @@ function getRequestStatusTone(status: string | null | undefined) {
       return "border-[var(--destructive)] text-[var(--destructive)]";
     case "PENDING":
       return "border-[var(--warning)] text-[var(--warning)]";
+    case "WITHDRAWN":
+      return "border-[var(--border)] text-[var(--muted)]";
     default:
       return "border-[var(--border)] text-[var(--muted)]";
   }
@@ -185,13 +193,21 @@ export default function PortalSessionDetailPage() {
   const [sessionDetail, setSessionDetail] = useState<PortalSessionDetailResponse | null>(null);
   const [activeStudentId, setActiveStudentId] = useState<string | null>(null);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
-  const [requestMode, setRequestMode] = useState<"create" | "view">("create");
+  const [requestMode, setRequestMode] = useState<"create" | "view" | "resubmit">(
+    "create",
+  );
   const [requestReason, setRequestReason] = useState("");
   const [requestMessage, setRequestMessage] = useState("");
   const [requestError, setRequestError] = useState<string | null>(null);
   const [requestToast, setRequestToast] = useState<string | null>(null);
   const [requestDetail, setRequestDetail] = useState<PortalRequestDetail | null>(null);
+  // Track the request id for resubmits to avoid races before details load.
+  const [resubmitTargetId, setResubmitTargetId] = useState<string | null>(null);
   const [isRequestSubmitting, setIsRequestSubmitting] = useState(false);
+  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+  const [withdrawTargetId, setWithdrawTargetId] = useState<string | null>(null);
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
+  const [isWithdrawSubmitting, setIsWithdrawSubmitting] = useState(false);
   const [isUpcomingSession, setIsUpcomingSession] = useState(false);
 
   const loadSession = useCallback(async () => {
@@ -224,7 +240,11 @@ export default function PortalSessionDetailPage() {
   }, [sessionId, tenant]);
 
   const loadRequestDetail = useCallback(
-    async (sessionTarget: string, studentTarget: string) => {
+    async (
+      sessionTarget: string,
+      studentTarget: string,
+      mode: "view" | "resubmit",
+    ) => {
       if (!tenant) return;
       const params = new URLSearchParams({ take: "100", skip: "0" });
       const result = await fetchJson<PortalRequestsResponse>(
@@ -238,6 +258,11 @@ export default function PortalSessionDetailPage() {
         (item) => item.sessionId === sessionTarget && item.studentId === studentTarget,
       );
       setRequestDetail(match ?? null);
+      if (mode === "resubmit" && match) {
+        // Prefill the resubmit form with the last saved reason/message.
+        setRequestReason(match.reasonCode);
+        setRequestMessage(match.message ?? "");
+      }
     },
     [tenant],
   );
@@ -246,20 +271,44 @@ export default function PortalSessionDetailPage() {
     setIsRequestModalOpen(false);
     setRequestError(null);
     setRequestMode("create");
+    setResubmitTargetId(null);
+  }, []);
+
+  const openWithdrawModal = useCallback((requestId: string) => {
+    // Withdraw requires a confirm dialog before calling the API.
+    setWithdrawTargetId(requestId);
+    setIsWithdrawModalOpen(true);
+    setWithdrawError(null);
+  }, []);
+
+  const closeWithdrawModal = useCallback(() => {
+    setIsWithdrawModalOpen(false);
+    setWithdrawTargetId(null);
+    setWithdrawError(null);
+    setIsWithdrawSubmitting(false);
   }, []);
 
   const openRequestModal = useCallback(
-    (mode: "create" | "view", sessionTarget: string, studentTarget: string) => {
+    (
+      mode: "create" | "view" | "resubmit",
+      sessionTarget: string,
+      studentTarget: string,
+      requestId?: string,
+    ) => {
       setRequestMode(mode);
       setIsRequestModalOpen(true);
       setRequestError(null);
+      if (mode === "resubmit" && requestId) {
+        // Store the target id so resubmits work even if detail loading lags.
+        setResubmitTargetId(requestId);
+      }
       if (mode === "create") {
         setRequestReason("");
         setRequestMessage("");
         return;
       }
       // Load request details on demand to keep initial payloads small.
-      void loadRequestDetail(sessionTarget, studentTarget);
+      void loadRequestDetail(sessionTarget, studentTarget, mode);
     },
     [loadRequestDetail],
   );
@@ -311,6 +360,87 @@ export default function PortalSessionDetailPage() {
     tenant,
   ]);
 
+  // Withdraw/resubmit actions update the existing request record (no duplicates).
+  const handleWithdrawRequest = useCallback(async () => {
+    if (!tenant || !withdrawTargetId) return;
+
+    setIsWithdrawSubmitting(true);
+    setWithdrawError(null);
+
+    const result = await fetchJson<{ request: PortalRequestDetail }>(
+      buildPortalApiUrl(tenant, `/requests/${withdrawTargetId}/withdraw`),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      },
+    );
+
+    if (!result.ok) {
+      setWithdrawError("withdraw");
+      setIsWithdrawSubmitting(false);
+      return;
+    }
+
+    setIsWithdrawSubmitting(false);
+    setIsWithdrawModalOpen(false);
+    setWithdrawTargetId(null);
+    setRequestToast(t("portal.absence.toast.withdrawn"));
+    setRequestDetail(result.data.request);
+    void loadSession();
+  }, [loadSession, t, tenant, withdrawTargetId]);
+
+  const handleResubmitRequest = useCallback(async () => {
+    const targetId = requestDetail?.id ?? resubmitTargetId;
+    if (!tenant || !targetId) {
+      setRequestError("submit");
+      return;
+    }
+    if (!requestReason) {
+      setRequestError("validation");
+      return;
+    }
+
+    setIsRequestSubmitting(true);
+    setRequestError(null);
+
+    const payload = {
+      reasonCode: requestReason,
+      message: requestMessage.trim() ? requestMessage.trim() : undefined,
+    };
+
+    const result = await fetchJson<{ request: PortalRequestDetail }>(
+      buildPortalApiUrl(tenant, `/requests/${targetId}/resubmit`),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    );
+
+    if (!result.ok) {
+      setRequestError("submit");
+      setIsRequestSubmitting(false);
+      return;
+    }
+
+    setIsRequestSubmitting(false);
+    setIsRequestModalOpen(false);
+    setRequestToast(t("portal.absence.toast.resubmitted"));
+    setRequestDetail(result.data.request);
+    setRequestMode("view");
+    setResubmitTargetId(null);
+    void loadSession();
+  }, [
+    loadSession,
+    requestDetail,
+    requestMessage,
+    requestReason,
+    resubmitTargetId,
+    t,
+    tenant,
+  ]);
+
   useEffect(() => {
     const handle = setTimeout(() => {
       void loadSession();
@@ -323,6 +453,10 @@ export default function PortalSessionDetailPage() {
     const handle = setTimeout(() => {
       setRequestDetail(null);
       setRequestError(null);
+      setIsWithdrawModalOpen(false);
+      setWithdrawTargetId(null);
+      setWithdrawError(null);
+      setResubmitTargetId(null);
     }, 0);
     return () => clearTimeout(handle);
   }, [activeStudentId, sessionId]);
@@ -368,6 +502,35 @@ export default function PortalSessionDetailPage() {
   const requestStatusToneClassName = getRequestStatusTone(requestSummary?.status);
   const requestHelperKey = getRequestStatusHelperKey(requestSummary?.status);
   const requestHelperLabel = requestHelperKey ? t(requestHelperKey) : "";
+  const requestUpdatedAt =
+    requestSummary?.updatedAt ??
+    requestSummary?.resolvedAt ??
+    requestSummary?.createdAt ??
+    null;
+  // Modal copy changes for resubmit vs initial submission.
+  const requestModalTitleKey =
+    requestMode === "resubmit"
+      ? "portal.absence.resubmit.modal.title"
+      : "portal.absence.modal.title";
+  const requestModalBodyKey =
+    requestMode === "resubmit"
+      ? "portal.absence.resubmit.modal.body"
+      : "portal.absence.modal.helper";
+  const requestModalConfirmKey =
+    requestMode === "resubmit"
+      ? "portal.absence.resubmit.modal.confirm"
+      : "portal.absence.action.submit";
+  const canWithdraw = Boolean(
+    isUpcomingSession && requestSummary?.status === "PENDING",
+  );
+  const canResubmit = Boolean(
+    isUpcomingSession && requestSummary?.status === "WITHDRAWN",
+  );
+  const showPastActionNotice = Boolean(
+    !isUpcomingSession &&
+      (requestSummary?.status === "PENDING" ||
+        requestSummary?.status === "WITHDRAWN"),
+  );
   const attendanceActionLabel = attendanceStatusKey
     ? attendanceLabel
     : isUpcomingSession
@@ -548,11 +711,13 @@ export default function PortalSessionDetailPage() {
         </div>
       ) : null}
 
-      <Card>
-        <div className="space-y-4">
-          <h2 className="text-base font-semibold text-[var(--text)]">
-            {t("portal.sessionDetail.section.attendance")}
-          </h2>
+      <div id="absence-request">
+        {/* Anchor enables My Requests deep-linking into the absence request section. */}
+        <Card>
+          <div className="space-y-4">
+            <h2 className="text-base font-semibold text-[var(--text)]">
+              {t("portal.sessionDetail.section.attendance")}
+            </h2>
 
           {requestToast ? (
             <div
@@ -630,33 +795,70 @@ export default function PortalSessionDetailPage() {
                       : t("generic.dash")}
                   </span>
                 </div>
-                {requestSummary.resolvedAt ? (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold text-[var(--muted)]">
-                      {t("portal.absence.status.updatedAt")}
-                    </span>
-                    <span>
-                      {formatPortalDateTime(requestSummary.resolvedAt, locale) ||
-                        t("generic.dash")}
-                    </span>
-                  </div>
-                ) : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold text-[var(--muted)]">
+                    {t("portal.absence.status.updatedAt")}
+                  </span>
+                  <span>
+                    {requestUpdatedAt
+                      ? formatPortalDateTime(requestUpdatedAt, locale) ||
+                        t("generic.dash")
+                      : t("generic.dash")}
+                  </span>
+                </div>
               </div>
               {requestHelperLabel ? (
                 <p className="mt-2 text-sm text-[var(--muted)]">
                   {requestHelperLabel}
                 </p>
               ) : null}
+              {showPastActionNotice ? (
+                <p className="mt-2 text-xs text-[var(--muted)]">
+                  {t("portal.absence.past.noActions")}
+                </p>
+              ) : null}
+              {canWithdraw || canResubmit ? (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {canWithdraw && activeEntry ? (
+                    <button
+                      type="button"
+                      onClick={() => openWithdrawModal(requestSummary.id)}
+                      className="inline-flex h-9 items-center rounded-xl border border-[var(--border)] px-3 text-xs font-semibold text-[var(--text)]"
+                      data-testid="portal-absence-withdraw"
+                    >
+                      {t("portal.absence.action.withdraw")}
+                    </button>
+                  ) : null}
+                  {canResubmit && activeEntry ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openRequestModal(
+                          "resubmit",
+                          session.id,
+                          activeEntry.student.id,
+                          requestSummary.id,
+                        )
+                      }
+                      className="inline-flex h-9 items-center rounded-xl bg-[var(--primary)] px-3 text-xs font-semibold text-[var(--primary-foreground)]"
+                      data-testid="portal-absence-resubmit"
+                    >
+                      {t("portal.absence.action.resubmit")}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
-          {!attendance ? (
-            <p className="text-sm text-[var(--muted)]">
-              {t("portal.sessionDetail.attendance.pending")}
-            </p>
-          ) : null}
-        </div>
-      </Card>
+            {!attendance ? (
+              <p className="text-sm text-[var(--muted)]">
+                {t("portal.sessionDetail.attendance.pending")}
+              </p>
+            ) : null}
+          </div>
+        </Card>
+      </div>
 
       {parentNote ? (
         <Card>
@@ -695,10 +897,10 @@ export default function PortalSessionDetailPage() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-[var(--text)]">
-                  {t("portal.absence.modal.title")}
+                  {t(requestModalTitleKey)}
                 </h2>
                 <p className="mt-1 text-sm text-[var(--muted)]">
-                  {t("portal.absence.modal.helper")}
+                  {t(requestModalBodyKey)}
                 </p>
               </div>
               <button
@@ -772,17 +974,19 @@ export default function PortalSessionDetailPage() {
                             t("generic.dash")}
                         </span>
                       </div>
-                      {requestDetail.resolvedAt ? (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-semibold text-[var(--muted)]">
-                            {t("portal.absence.status.updatedAt")}
-                          </span>
-                          <span>
-                            {formatPortalDateTime(requestDetail.resolvedAt, locale) ||
-                              t("generic.dash")}
-                          </span>
-                        </div>
-                      ) : null}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-[var(--muted)]">
+                          {t("portal.absence.status.updatedAt")}
+                        </span>
+                        <span>
+                          {formatPortalDateTime(
+                            requestDetail.updatedAt ??
+                              requestDetail.resolvedAt ??
+                              requestDetail.createdAt,
+                            locale,
+                          ) || t("generic.dash")}
+                        </span>
+                      </div>
                     </div>
                   </>
                 )}
@@ -792,6 +996,10 @@ export default function PortalSessionDetailPage() {
                 className="mt-4 space-y-4"
                 onSubmit={(event) => {
                   event.preventDefault();
+                  if (requestMode === "resubmit") {
+                    void handleResubmitRequest();
+                    return;
+                  }
                   void handleSubmitRequest();
                 }}
               >
@@ -848,7 +1056,7 @@ export default function PortalSessionDetailPage() {
                         {t("portal.absence.state.submitting")}
                       </span>
                     ) : (
-                      t("portal.absence.action.submit")
+                      t(requestModalConfirmKey)
                     )}
                   </button>
                   <button
@@ -862,6 +1070,69 @@ export default function PortalSessionDetailPage() {
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      ) : null}
+
+      {isWithdrawModalOpen ? (
+        // Withdraw modal is separate from the request form to keep the confirm UX clear.
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          data-testid="portal-absence-withdraw-modal"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xl">
+            <div className="space-y-2">
+              <h2 className="text-lg font-semibold text-[var(--text)]">
+                {t("portal.absence.withdraw.modal.title")}
+              </h2>
+              <p className="text-sm text-[var(--muted)]">
+                {t("portal.absence.withdraw.modal.body")}
+              </p>
+              <p className="text-xs text-[var(--muted)]">
+                {t("portal.absence.withdraw.modal.note")}
+              </p>
+            </div>
+
+            {withdrawError ? (
+              <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+                <p className="text-sm font-semibold text-[var(--text)]">
+                  {t("portal.absence.error.title")}
+                </p>
+                <p className="text-xs text-[var(--muted)]">
+                  {t("portal.absence.error.body")}
+                </p>
+              </div>
+            ) : null}
+
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={closeWithdrawModal}
+                className="inline-flex h-11 items-center rounded-xl border border-[var(--border)] px-4 text-sm font-semibold text-[var(--text)]"
+                disabled={isWithdrawSubmitting}
+              >
+                {t("portal.common.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleWithdrawRequest()}
+                className="inline-flex h-11 items-center rounded-xl bg-[var(--primary)] px-4 text-sm font-semibold text-[var(--primary-foreground)] disabled:opacity-60"
+                disabled={isWithdrawSubmitting}
+                // Data-testid keeps the withdraw confirm action stable for E2E.
+                data-testid="portal-absence-withdraw-confirm"
+              >
+                {isWithdrawSubmitting ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--primary-foreground)] border-t-transparent" />
+                    {t("portal.absence.state.submitting")}
+                  </span>
+                ) : (
+                  t("portal.absence.withdraw.modal.confirm")
+                )}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

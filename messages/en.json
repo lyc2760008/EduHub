@@ -317,7 +317,7 @@
       }
     },
     "requests": {
-      "_comment": "Admin requests inbox copy (Step 20.4B).",
+      "_comment": "Admin requests inbox copy (Step 20.4B) with withdrawn status support.",
       "title": "Absence requests",
       "filter": {
         "status": "Status",
@@ -327,6 +327,7 @@
         "pending": "Pending",
         "approved": "Approved",
         "declined": "Declined",
+        "withdrawn": "Withdrawn",
         "all": "All"
       },
       "detail": {
@@ -340,6 +341,7 @@
         "reason": "Reason",
         "message": "Message",
         "submittedAt": "Submitted",
+        "updatedAt": "Updated",
         "status": "Status",
         "session": "Session",
         "student": "Student",
@@ -364,6 +366,9 @@
       "error": {
         "title": "Couldn't update request",
         "body": "Please try again."
+      },
+      "withdrawn": {
+        "noAction": "This request was withdrawn by the parent and cannot be resolved."
       },
       "empty": "No requests found."
     },
@@ -523,10 +528,11 @@
     }
   },
   "staff": {
-    "_comment": "Staff-facing absence request UI (Step 20.5B).",
+    "_comment": "Staff-facing absence request UI (Step 20.5B), including withdrawn status.",
     "absence": {
       "badge": {
-        "pending": "Absence request pending"
+        "pending": "Absence request pending",
+        "withdrawn": "Request withdrawn"
       },
       "panel": {
         "title": "Absence request",
@@ -545,7 +551,9 @@
       "status": {
         "pending": "Pending",
         "approved": "Approved",
-        "declined": "Declined"
+        "declined": "Declined",
+        "withdrawn": "Withdrawn",
+        "withdrawnByParent": "Withdrawn by parent"
       },
       "action": {
         "approve": "Approve",
@@ -574,6 +582,9 @@
         "declined": {
           "title": "Absence request declined",
           "body": "This request was declined."
+        },
+        "withdrawn": {
+          "subtle": "Absence request was withdrawn by parent."
         },
         "error": "Absence request info couldn't be loaded. Attendance marking is still available."
       },
@@ -623,7 +634,7 @@
       "dashboard": "Dashboard",
       "students": "My Students",
       "sessions": "Upcoming Sessions",
-      "requests": "My Requests",
+      "requests": "My requests",
       "signOut": "Sign out",
       "language": "Language"
     },
@@ -765,7 +776,7 @@
       }
     },
     "absence": {
-      "_comment": "Parent absence request copy (Step 20.4B).",
+      "_comment": "Parent absence request copy (Step 20.4B + 20.6) with withdraw/resubmit flows.",
       "cta": {
         "report": "Report absence"
       },
@@ -792,11 +803,36 @@
       },
       "action": {
         "submit": "Submit request",
-        "view": "View request"
+        "view": "View request",
+        "withdraw": "Withdraw request",
+        "resubmit": "Re-submit request"
+      },
+      "withdraw": {
+        "_comment": "Portal withdraw confirmation modal copy (Step 20.6).",
+        "modal": {
+          "title": "Withdraw this request?",
+          "body": "Withdrawing removes this absence request. It does not cancel or reschedule the session.",
+          "note": "You can re-submit before the session starts.",
+          "confirm": "Withdraw"
+        }
+      },
+      "resubmit": {
+        "_comment": "Portal resubmit confirmation modal copy (Step 20.6).",
+        "modal": {
+          "title": "Re-submit this request?",
+          "body": "Re-submitting sends a new absence request for staff review. It does not cancel or reschedule the session.",
+          "confirm": "Re-submit"
+        }
       },
       "state": {
         "submitting": "Submitting…",
-        "submittedToast": "Absence request submitted."
+        "submittedToast": "Absence request submitted.",
+        "withdrawnToast": "Absence request withdrawn.",
+        "resubmittedToast": "Absence request resubmitted."
+      },
+      "toast": {
+        "withdrawn": "Request withdrawn.",
+        "resubmitted": "Request re-submitted."
       },
       "error": {
         "title": "Couldn't submit request",
@@ -805,23 +841,40 @@
       "ineligible": {
         "past": "This session has already started or ended. You can’t report an absence here."
       },
+      "past": {
+        "noActions": "This session has started or ended. Requests can no longer be changed."
+      },
       "status": {
         "label": "Absence request",
         "pending": "Pending",
+        "pendingFriendly": "Pending review",
         "approved": "Approved",
         "declined": "Declined",
+        "withdrawn": "Withdrawn",
         "upcoming": "Upcoming",
         "submittedAt": "Submitted",
         "updatedAt": "Updated",
         "pendingHelper": "Your request is waiting for staff review.",
         "approvedHelper": "Your request has been approved.",
-        "declinedHelper": "Your request was declined."
+        "declinedHelper": "Your request was declined.",
+        "withdrawnHelper": "This request was withdrawn. You can re-submit before the session starts."
       }
     },
     "requests": {
-      "_comment": "Parent portal requests list (Step 20.4B).",
+      "_comment": "Parent portal requests list (Step 20.4B + 20.6).",
       "title": "My requests",
       "helper": "Track the status of absence requests you’ve submitted.",
+      "filter": {
+        "_comment": "Status filter labels for the parent requests list.",
+        "status": {
+          "label": "Status",
+          "all": "All",
+          "pending": "Pending review",
+          "approved": "Approved",
+          "declined": "Declined",
+          "withdrawn": "Withdrawn"
+        }
+      },
       "empty": {
         "title": "No requests yet",
         "body": "Absence requests you submit will appear here.",
@@ -937,3 +990,4 @@
     }
   }
 }
+

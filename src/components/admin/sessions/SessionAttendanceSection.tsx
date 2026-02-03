@@ -17,7 +17,7 @@ import type { Role } from "@/generated/prisma/client";
 
 type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
 
-type AbsenceRequestStatus = "PENDING" | "APPROVED" | "DECLINED";
+type AbsenceRequestStatus = "PENDING" | "APPROVED" | "DECLINED" | "WITHDRAWN";
 
 type StudentSummary = {
   id: string;
@@ -113,6 +113,9 @@ function getAbsenceStatusLabelKey(status: AbsenceRequestStatus) {
       return "staff.absence.status.approved";
     case "DECLINED":
       return "staff.absence.status.declined";
+    case "WITHDRAWN":
+      // Withdrawn uses the subtle badge label from the UI contract.
+      return "staff.absence.badge.withdrawn";
   }
 }
 
@@ -124,12 +127,13 @@ function getAbsenceStatusTone(status: AbsenceRequestStatus) {
       return "border-slate-300 text-slate-600";
     case "PENDING":
       return "border-amber-600 text-amber-700";
+    case "WITHDRAWN":
+      return "border-slate-300 text-slate-600";
   }
 }
 
-const ABSENCE_BANNER_CONFIG: Record<
-  AbsenceRequestStatus,
-  { toneClassName: string; titleKey: string; bodyKey: string }
+const ABSENCE_BANNER_CONFIG: Partial<
+  Record<AbsenceRequestStatus, { toneClassName: string; titleKey: string; bodyKey: string }>
 > = {
   APPROVED: {
     toneClassName: "border-green-200 bg-green-50 text-green-900",
@@ -431,7 +435,9 @@ export default function SessionAttendanceSection({
       : request.resolvedBy?.email;
     const resolveError = resolveErrorById[request.id];
     const isResolving = resolvingRequestId === request.id;
-    const isResolved = request.status !== "PENDING";
+    // Only approved/declined requests are considered staff-resolved.
+    const isResolved =
+      request.status === "APPROVED" || request.status === "DECLINED";
 
     return (
       <div className="flex flex-col gap-4">
@@ -460,6 +466,11 @@ export default function SessionAttendanceSection({
             >
               {statusLabelKey ? t(statusLabelKey) : t("generic.dash")}
             </span>
+            {request.status === "WITHDRAWN" ? (
+              <span className="text-xs text-slate-500">
+                {t("staff.absence.status.withdrawnByParent")}
+              </span>
+            ) : null}
           </div>
           <div className="space-y-1">
             <span className="text-xs font-semibold text-slate-500">
@@ -580,8 +591,9 @@ export default function SessionAttendanceSection({
         const selectId = `attendance-status-${row.student.id}`;
         const currentValue = row.status ?? "unset";
         const absenceRequest = row.absenceRequest;
+        // Withdrawn requests should not trigger auto-assist banners.
         const bannerConfig = absenceRequest
-          ? ABSENCE_BANNER_CONFIG[absenceRequest.status]
+          ? ABSENCE_BANNER_CONFIG[absenceRequest.status] ?? null
           : null;
         return (
           <div className="flex flex-col gap-2">
