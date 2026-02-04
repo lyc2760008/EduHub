@@ -1,6 +1,6 @@
 // Client-side centers admin UI with create/edit/toggle flows using shared fetch + table helpers.
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import AdminTable, {
@@ -8,6 +8,7 @@ import AdminTable, {
 } from "@/components/admin/shared/AdminTable";
 import { fetchJson } from "@/lib/api/fetchJson";
 import type { CenterRecord } from "@/lib/centers/getCenters";
+import { NORTH_AMERICA_TIMEZONES } from "@/lib/timezones/northAmerica";
 
 type CentersClientProps = {
   initialCenters: CenterRecord[];
@@ -77,6 +78,14 @@ export default function CentersClient({ initialCenters }: CentersClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  // Preserve any existing timezone values that are outside the curated list.
+  const timezoneOptions = useMemo(() => {
+    const options = new Set(NORTH_AMERICA_TIMEZONES);
+    if (form.timezone && !options.has(form.timezone)) {
+      options.add(form.timezone);
+    }
+    return Array.from(options);
+  }, [form.timezone]);
 
   async function refreshCenters() {
     setIsLoading(true);
@@ -281,7 +290,7 @@ export default function CentersClient({ initialCenters }: CentersClientProps) {
               <span className="text-slate-700">
                 {t("admin.centers.fields.timezone")}
               </span>
-              <input
+              <select
                 className="rounded border border-slate-300 px-3 py-2"
                 data-testid="center-timezone-select"
                 value={form.timezone}
@@ -291,7 +300,17 @@ export default function CentersClient({ initialCenters }: CentersClientProps) {
                     timezone: event.target.value,
                   }))
                 }
-              />
+              >
+                {/* Keep timezone selection constrained to valid IANA identifiers. */}
+                <option value="">
+                  {t("admin.centers.placeholders.timezone")}
+                </option>
+                {timezoneOptions.map((timezone) => (
+                  <option key={timezone} value={timezone}>
+                    {timezone}
+                  </option>
+                ))}
+              </select>
             </label>
           </div>
           <div className="grid gap-4 md:grid-cols-2">

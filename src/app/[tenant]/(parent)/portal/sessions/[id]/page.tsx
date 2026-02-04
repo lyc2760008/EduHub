@@ -164,7 +164,7 @@ export default function PortalSessionDetailPage() {
   const locale = useLocale();
   // Session detail uses the shared portal time zone for consistent formatting.
   const { data: portalMe } = usePortalMe();
-  const timeZone = portalMe?.tenant?.timeZone ?? undefined;
+  const tenantTimeZone = portalMe?.tenant?.timeZone ?? undefined;
   const params = useParams<{ tenant?: string; id?: string }>();
   const router = useRouter();
   const tenant = typeof params.tenant === "string" ? params.tenant : "";
@@ -469,6 +469,8 @@ export default function PortalSessionDetailPage() {
   }, [activeStudentId, sessionDetail]);
 
   const session = sessionDetail?.session ?? null;
+  // Prefer the session timezone so parent times align with admin display.
+  const sessionTimeZone = session?.timezone ?? tenantTimeZone;
   const sessionTypeKey = session ? getSessionTypeLabelKey(session.sessionType) : null;
   const sessionTypeLabel = sessionTypeKey ? t(sessionTypeKey) : t("generic.dash");
   const sessionTitle = session?.groupName?.trim() || sessionTypeLabel;
@@ -570,7 +572,7 @@ export default function PortalSessionDetailPage() {
     session.startAt,
     session.endAt,
     locale,
-    timeZone,
+    sessionTimeZone,
   );
   const durationLabel = session.endAt
     ? formatPortalDuration(session.startAt, session.endAt)
@@ -596,7 +598,7 @@ export default function PortalSessionDetailPage() {
         </div>
         <PageHeader titleKey="portal.sessionDetail.title" />
         {/* Time hint reinforces the portal timezone rule on session detail pages. */}
-        <PortalTimeHint />
+        <PortalTimeHint timeZones={[session?.timezone]} />
       </div>
 
       <Card>
@@ -623,7 +625,11 @@ export default function PortalSessionDetailPage() {
                 </span>
                 <span className="text-sm text-[var(--text)]">
                     {dateTimeLabel ||
-                      formatPortalDateTime(session.startAt, locale, timeZone) ||
+                      formatPortalDateTime(
+                        session.startAt,
+                        locale,
+                        sessionTimeZone,
+                      ) ||
                       t("generic.dash")}
                   </span>
               </div>
@@ -785,7 +791,7 @@ export default function PortalSessionDetailPage() {
                       ? formatPortalDateTime(
                           requestSummary.createdAt,
                           locale,
-                          timeZone,
+                          sessionTimeZone,
                         ) ||
                         t("generic.dash")
                       : t("generic.dash")}
@@ -797,7 +803,11 @@ export default function PortalSessionDetailPage() {
                   </span>
                   <span>
                     {requestUpdatedAt
-                      ? formatPortalDateTime(requestUpdatedAt, locale, timeZone) ||
+                      ? formatPortalDateTime(
+                          requestUpdatedAt,
+                          locale,
+                          sessionTimeZone,
+                        ) ||
                         t("generic.dash")
                       : t("generic.dash")}
                   </span>
@@ -969,7 +979,7 @@ export default function PortalSessionDetailPage() {
                           {formatPortalDateTime(
                             requestDetail.createdAt,
                             locale,
-                            timeZone,
+                            sessionTimeZone,
                           ) || t("generic.dash")}
                         </span>
                       </div>
@@ -983,7 +993,7 @@ export default function PortalSessionDetailPage() {
                               requestDetail.resolvedAt ??
                               requestDetail.createdAt,
                             locale,
-                            timeZone,
+                            sessionTimeZone,
                           ) || t("generic.dash")}
                         </span>
                       </div>

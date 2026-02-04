@@ -54,18 +54,21 @@
         "active": "启用",
         "inactive": "停用"
       },
-      "fields": {
-        "name": "名称",
-        "timezone": "时区",
-        "address1": "地址 1",
-        "address2": "地址 2",
-        "city": "城市",
-        "province": "省/州",
-        "postalCode": "邮编",
-        "country": "国家",
-        "status": "状态",
-        "actions": "操作"
-      },
+    "fields": {
+      "name": "名称",
+      "timezone": "时区",
+      "address1": "地址 1",
+      "address2": "地址 2",
+      "city": "城市",
+      "province": "省/州",
+      "postalCode": "邮编",
+      "country": "国家",
+      "status": "状态",
+      "actions": "操作"
+    },
+    "placeholders": {
+      "timezone": "请选择时区"
+    },
       "actions": {
         "save": "保存",
         "cancel": "取消"
@@ -709,7 +712,8 @@
     },
     "timeHint": {
       "label": "时间显示为 {tz}",
-      "local": "时间显示为您的本地时间（{tz}）"
+      "local": "时间显示为您的本地时间（{tz}）",
+      "multiple": "时间显示为各校区的时区"
     },
     "nav": {
       "dashboard": "首页",

@@ -31,6 +31,7 @@ type PortalSession = {
   id: string;
   startAt: string;
   endAt?: string | null;
+  timezone?: string | null;
   sessionType: string;
   groupName?: string | null;
 };
@@ -45,6 +46,7 @@ type PortalAttendanceItem = {
   sessionId: string;
   dateTime: string;
   sessionEndAt?: string | null;
+  timezone?: string | null;
   status: string;
   sessionType: string;
   groupName?: string | null;
@@ -107,6 +109,19 @@ export default function PortalStudentDetailPage() {
   const [hasError, setHasError] = useState(false);
   const [attendanceError, setAttendanceError] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  // Aggregate session timezones so the time hint reflects actual data.
+  const sessionTimeZones = useMemo(() => {
+    const zones = new Set<string>();
+    upcomingSessions
+      .map((session) => session.timezone)
+      .filter((value): value is string => Boolean(value))
+      .forEach((value) => zones.add(value));
+    attendanceItems
+      .map((item) => item.timezone)
+      .filter((value): value is string => Boolean(value))
+      .forEach((value) => zones.add(value));
+    return Array.from(zones);
+  }, [attendanceItems, upcomingSessions]);
 
   const studentName = student ? `${student.firstName} ${student.lastName}` : "";
   const statusLabelKey = student?.isActive
@@ -302,7 +317,7 @@ export default function PortalStudentDetailPage() {
         </Link>
         <PageHeader titleKey="portal.student.detail.title" />
         {/* Time hint keeps session and attendance timestamps aligned to the portal timezone. */}
-        <PortalTimeHint />
+        <PortalTimeHint timeZones={sessionTimeZones} />
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-lg font-semibold text-[var(--text)]">
             {studentName}

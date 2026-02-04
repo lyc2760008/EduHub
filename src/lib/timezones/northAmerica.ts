@@ -1,0 +1,21 @@
+// North America-focused timezone list for admin center selection.
+export const NORTH_AMERICA_TIMEZONES = [
+  "America/Anchorage",
+  "America/Chicago",
+  "America/Denver",
+  "America/Detroit",
+  "America/Edmonton",
+  "America/Halifax",
+  "America/Indiana/Indianapolis",
+  "America/Los_Angeles",
+  "America/Mexico_City",
+  "America/New_York",
+  "America/Phoenix",
+  "America/Regina",
+  "America/St_Johns",
+  "America/Tijuana",
+  "America/Toronto",
+  "America/Vancouver",
+  "America/Winnipeg",
+  "Pacific/Honolulu",
+];

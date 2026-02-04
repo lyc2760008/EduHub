@@ -54,18 +54,21 @@
         "active": "Active",
         "inactive": "Inactive"
       },
-      "fields": {
-        "name": "Name",
-        "timezone": "Timezone",
-        "address1": "Address line 1",
-        "address2": "Address line 2",
-        "city": "City",
-        "province": "Province/State",
-        "postalCode": "Postal code",
-        "country": "Country",
-        "status": "Status",
-        "actions": "Actions"
-      },
+    "fields": {
+      "name": "Name",
+      "timezone": "Timezone",
+      "address1": "Address line 1",
+      "address2": "Address line 2",
+      "city": "City",
+      "province": "Province/State",
+      "postalCode": "Postal code",
+      "country": "Country",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "placeholders": {
+      "timezone": "Select a timezone"
+    },
       "actions": {
         "save": "Save",
         "cancel": "Cancel"
@@ -648,7 +651,8 @@
     },
     "timeHint": {
       "label": "Times shown in {tz}",
-      "local": "Times shown in your local time ({tz})"
+      "local": "Times shown in your local time ({tz})",
+      "multiple": "Times shown in each center's timezone"
     },
     "nav": {
       "dashboard": "Dashboard",

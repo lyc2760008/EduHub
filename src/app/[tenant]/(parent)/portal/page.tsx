@@ -42,6 +42,7 @@ type PortalSession = {
   studentId: string;
   startAt: string;
   endAt?: string | null;
+  timezone?: string | null;
   sessionType: string;
   groupName?: string | null;
 };
@@ -154,6 +155,8 @@ export default function PortalDashboardPage() {
     portalMe?.students?.filter((student) => student.isActive).length ?? 0;
   const hasStudents = linkedStudentCount > 0;
   const timeZone = portalMe?.tenant?.timeZone ?? undefined;
+  // Favor session timezones when available to align with admin display.
+  const nextSessionTimeZone = nextSession?.timezone ?? timeZone;
   const isPageLoading = isLoading || isMeLoading;
   const hasPageError = hasError || Boolean(meError);
 
@@ -191,7 +194,7 @@ export default function PortalDashboardPage() {
       <div className="space-y-6" data-testid="portal-dashboard-error">
         <PageHeader titleKey="portal.dashboard.title" />
         {/* Time hint remains visible even when the dashboard fails to load. */}
-        <PortalTimeHint />
+        <PortalTimeHint timeZones={[nextSession?.timezone]} />
         <Card>
           <div className="space-y-3 text-center">
             <h2 className="text-base font-semibold text-[var(--text)]">
@@ -221,7 +224,7 @@ export default function PortalDashboardPage() {
       <div className="space-y-6" data-testid="portal-dashboard-empty">
         <PageHeader titleKey="portal.dashboard.title" />
         {/* Time hint remains visible even when there are no linked students yet. */}
-        <PortalTimeHint />
+        <PortalTimeHint timeZones={[nextSession?.timezone]} />
         <PortalEmptyState
           variant="noStudents"
           hintKey="portal.empty.noStudents.hint"
@@ -248,7 +251,7 @@ export default function PortalDashboardPage() {
       <div className="space-y-2">
         <PageHeader titleKey="portal.dashboard.title" />
         {/* Time hint reinforces the timezone rule across dashboard summaries. */}
-        <PortalTimeHint />
+        <PortalTimeHint timeZones={[nextSession?.timezone]} />
         <p className="text-sm text-[var(--muted)]">
           {greetingName
             ? t("portal.dashboard.greetingWithName", { name: greetingName })
@@ -297,8 +300,13 @@ export default function PortalDashboardPage() {
                       nextSession.startAt,
                       nextSession.endAt ?? null,
                       locale,
-                      timeZone,
-                    ) || formatPortalDateTime(nextSession.startAt, locale, timeZone)}
+                      nextSessionTimeZone,
+                    ) ||
+                      formatPortalDateTime(
+                        nextSession.startAt,
+                        locale,
+                        nextSessionTimeZone,
+                      )}
                   </p>
                   <p className="text-sm text-[var(--muted)]">{nextSessionTitle}</p>
                   {nextSessionStudentName ? (

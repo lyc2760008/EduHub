@@ -28,6 +28,7 @@ type PortalSession = {
   studentId: string;
   startAt: string;
   endAt?: string | null;
+  timezone?: string | null;
   sessionType: string;
   groupName?: string | null;
 };
@@ -66,6 +67,11 @@ export default function PortalSessionsPage() {
   const [rangeDays, setRangeDays] = useState(7);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  // Derive timezones from the loaded sessions for a truthful time hint.
+  const sessionTimeZones = useMemo(
+    () => sessions.map((session) => session.timezone ?? null),
+    [sessions],
+  );
 
   const studentNameById = useMemo(
     () => new Map(students.map((student) => [student.id, `${student.firstName} ${student.lastName}`])),
@@ -153,7 +159,7 @@ export default function PortalSessionsPage() {
           subtitleKey="portal.sessions.helper"
         />
         {/* Time hint remains visible even when the session list fails to load. */}
-        <PortalTimeHint />
+        <PortalTimeHint timeZones={sessionTimeZones} />
         <Card>
           <div className="space-y-3 text-center" data-testid="portal-sessions-error">
             <h2 className="text-base font-semibold text-[var(--text)]">
@@ -183,7 +189,7 @@ export default function PortalSessionsPage() {
           subtitleKey="portal.sessions.helper"
         />
         {/* Time hint persists even when there are no linked students yet. */}
-        <PortalTimeHint />
+        <PortalTimeHint timeZones={sessionTimeZones} />
         <PortalEmptyState
           variant="noStudents"
           hintKey="portal.empty.noStudents.hint"
@@ -203,7 +209,7 @@ export default function PortalSessionsPage() {
         subtitleKey="portal.sessions.helper"
       />
       {/* Time hint keeps session list timestamps aligned to the portal timezone rule. */}
-      <PortalTimeHint />
+      <PortalTimeHint timeZones={sessionTimeZones} />
       <div className="flex flex-wrap gap-3" data-testid="portal-sessions-filters">
         <label className="flex flex-col gap-1 text-xs text-[var(--muted)]">
           {t("portal.sessions.filter.student")}
@@ -249,6 +255,7 @@ export default function PortalSessionsPage() {
                 id: session.id,
                 startAt: session.startAt,
                 endAt: session.endAt ?? null,
+                timezone: session.timezone ?? null,
                 sessionType: session.sessionType,
                 groupName: session.groupName ?? null,
                 studentName: studentNameById.get(session.studentId) ?? null,

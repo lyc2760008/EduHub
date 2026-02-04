@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
 import { requireRole } from "@/lib/rbac";
+import { isValidTimeZone } from "@/lib/timezones/isValidTimeZone";
 import type { Role } from "@/generated/prisma/client";
 
 export const runtime = "nodejs";
@@ -89,6 +90,13 @@ export async function PATCH(req: NextRequest, context: Params) {
     if (!hasUpdates) {
       return NextResponse.json(
         { error: "ValidationError", details: "No fields to update" },
+        { status: 400 }
+      );
+    }
+    // Ensure updated timezones are valid IANA identifiers.
+    if (data.timezone && !isValidTimeZone(data.timezone)) {
+      return NextResponse.json(
+        { error: "ValidationError", details: "Invalid timezone" },
         { status: 400 }
       );
     }

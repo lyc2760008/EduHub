@@ -17,6 +17,7 @@ type SessionRowProps = {
     id: string;
     startAt: string;
     endAt?: string | null;
+    timezone?: string | null;
     sessionType: string;
     groupName?: string | null;
     studentName?: string | null;
@@ -34,7 +35,8 @@ export default function SessionRow({
   const locale = useLocale();
   // Use the portal time zone so session times match the trust hint on each page.
   const { data: portalMe } = usePortalMe();
-  const timeZone = portalMe?.tenant?.timeZone ?? undefined;
+  // Prefer per-session timezone so parent times align with admin display.
+  const timeZone = session.timezone ?? portalMe?.tenant?.timeZone ?? undefined;
   const sessionTypeKey = getSessionTypeLabelKey(session.sessionType);
   const sessionTitle = session.groupName?.trim()
     ? session.groupName

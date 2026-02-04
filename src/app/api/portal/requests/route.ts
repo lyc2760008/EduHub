@@ -72,6 +72,8 @@ export async function GET(req: NextRequest) {
             id: true,
             startAt: true,
             sessionType: true,
+            // Include timezone so parent-facing lists match admin display.
+            timezone: true,
             group: { select: { name: true } },
           },
         },

@@ -96,6 +96,8 @@ export async function GET(req: NextRequest) {
               startAt: true,
               endAt: true,
               sessionType: true,
+              // Include timezone so parent UI can align with admin display.
+              timezone: true,
               groupId: true,
               group: { select: { name: true } },
             },
@@ -126,6 +128,7 @@ export async function GET(req: NextRequest) {
       parentVisibleNote: row.parentVisibleNote ?? null,
       sessionType: row.session.sessionType,
       sessionEndAt: row.session.endAt ? row.session.endAt.toISOString() : null,
+      timezone: row.session.timezone ?? null,
       groupId: row.session.groupId,
       groupName: row.session.group?.name ?? null,
     }));

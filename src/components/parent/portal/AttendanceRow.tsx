@@ -18,6 +18,7 @@ type AttendanceRowProps = {
     id: string;
     dateTime: string;
     sessionEndAt?: string | null;
+    timezone?: string | null;
     status: string;
     sessionType: string;
     groupName?: string | null;
@@ -36,7 +37,8 @@ export default function AttendanceRow({ attendance, href }: AttendanceRowProps) 
   const locale = useLocale();
   // Attendance timestamps should match the portal-wide time zone hint.
   const { data: portalMe } = usePortalMe();
-  const timeZone = portalMe?.tenant?.timeZone ?? undefined;
+  // Prefer per-session timezone so parent times align with admin display.
+  const timeZone = attendance.timezone ?? portalMe?.tenant?.timeZone ?? undefined;
   const statusKey = getAttendanceStatusLabelKey(attendance.status);
   const sessionTypeKey = getSessionTypeLabelKey(attendance.sessionType);
   const sessionTitle = attendance.groupName?.trim()

@@ -29,6 +29,7 @@ type PortalRequest = {
     id: string;
     startAt: string;
     sessionType: string;
+    timezone?: string | null;
     group?: { name: string | null } | null;
   } | null;
   student?: {
@@ -57,6 +58,7 @@ type RequestRow = {
   updatedAt: string;
   sessionTitle: string;
   sessionStartAt: string | null;
+  sessionTimeZone: string | null;
   studentName: string;
   canWithdraw: boolean;
 };
@@ -139,6 +141,11 @@ export default function PortalRequestsPage() {
   const [withdrawTarget, setWithdrawTarget] = useState<RequestRow | null>(null);
   const [withdrawError, setWithdrawError] = useState<string | null>(null);
   const [isWithdrawSubmitting, setIsWithdrawSubmitting] = useState(false);
+  // Surface per-session timezones so the hint matches rendered timestamps.
+  const requestTimeZones = useMemo(
+    () => rows.map((row) => row.sessionTimeZone),
+    [rows],
+  );
 
   const loadRequests = useCallback(async () => {
     if (!tenant) return;
@@ -179,6 +186,7 @@ export default function PortalRequestsPage() {
         ? sessionSummary.group.name ?? sessionTypeLabel
         : sessionTypeLabel;
       const sessionStartAt = sessionSummary?.startAt ?? null;
+      const sessionTimeZone = sessionSummary?.timezone ?? null;
       const isUpcoming = sessionStartAt
         ? new Date(sessionStartAt).getTime() > Date.now()
         : false;
@@ -198,6 +206,7 @@ export default function PortalRequestsPage() {
         updatedAt,
         sessionTitle,
         sessionStartAt,
+        sessionTimeZone,
         studentName,
         canWithdraw: statusValue === "PENDING" && isUpcoming,
       } satisfies RequestRow;
@@ -308,7 +317,7 @@ export default function PortalRequestsPage() {
       <div className="space-y-6" data-testid="portal-requests-page">
         <PageHeader titleKey="portal.requests.title" subtitleKey="portal.requests.helper" />
         {/* Time hint anchors request list timestamps to the portal timezone rule. */}
-        <PortalTimeHint />
+        <PortalTimeHint timeZones={requestTimeZones} />
         {errorState}
       </div>
     );
@@ -319,7 +328,7 @@ export default function PortalRequestsPage() {
       <div className="space-y-6" data-testid="portal-requests-page">
         <PageHeader titleKey="portal.requests.title" subtitleKey="portal.requests.helper" />
         {/* Time hint stays visible even when the list is empty. */}
-        <PortalTimeHint />
+        <PortalTimeHint timeZones={requestTimeZones} />
         {emptyState}
       </div>
     );
@@ -329,7 +338,7 @@ export default function PortalRequestsPage() {
     <div className="space-y-6" data-testid="portal-requests-page">
       <PageHeader titleKey="portal.requests.title" subtitleKey="portal.requests.helper" />
       {/* Time hint keeps request timestamps consistent across portal pages. */}
-      <PortalTimeHint />
+      <PortalTimeHint timeZones={requestTimeZones} />
 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--muted)]">
@@ -366,16 +375,17 @@ export default function PortalRequestsPage() {
         {tableRows.map((row) => {
           const statusLabel = t(getRequestStatusLabelKey(row.status));
           const statusTone = getRequestStatusTone(row.status);
+          const rowTimeZone = row.sessionTimeZone ?? timeZone;
           const sessionDateTime = row.sessionStartAt
-            ? formatPortalDateTime(row.sessionStartAt, locale, timeZone) ||
+            ? formatPortalDateTime(row.sessionStartAt, locale, rowTimeZone) ||
               t("generic.dash")
             : t("generic.dash");
           const updatedLabel = row.updatedAt
-            ? formatPortalDateTime(row.updatedAt, locale, timeZone) ||
+            ? formatPortalDateTime(row.updatedAt, locale, rowTimeZone) ||
               t("generic.dash")
             : t("generic.dash");
           const submittedLabel = row.submittedAt
-            ? formatPortalDateTime(row.submittedAt, locale, timeZone) ||
+            ? formatPortalDateTime(row.submittedAt, locale, rowTimeZone) ||
               t("generic.dash")
             : t("generic.dash");
           const href = tenant

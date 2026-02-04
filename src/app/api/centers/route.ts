@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
 import { requireRole } from "@/lib/rbac";
+import { isValidTimeZone } from "@/lib/timezones/isValidTimeZone";
 import type { Role } from "@/generated/prisma/client";
 
 export const runtime = "nodejs";
@@ -75,6 +76,13 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "ValidationError", details: parsed.error.issues },
+        { status: 400 }
+      );
+    }
+    // Timezone must be a valid IANA identifier to keep scheduling consistent.
+    if (!isValidTimeZone(parsed.data.timezone)) {
+      return NextResponse.json(
+        { error: "ValidationError", details: "Invalid timezone" },
         { status: 400 }
       );
     }
