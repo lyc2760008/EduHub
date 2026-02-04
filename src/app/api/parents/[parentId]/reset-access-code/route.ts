@@ -4,10 +4,12 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from "@/lib/audit/constants";
+import { writeAuditEvent } from "@/lib/audit/writeAuditEvent";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
 import { requireRole } from "@/lib/rbac";
-import type { Role } from "@/generated/prisma/client";
+import { AuditActorType, type Role } from "@/generated/prisma/client";
 
 export const runtime = "nodejs";
 
@@ -123,7 +125,7 @@ export async function POST(req: NextRequest, context: Params) {
 
     const parent = await prisma.parent.findFirst({
       where: { id: parentId, tenantId },
-      select: { id: true },
+      select: { id: true, email: true },
     });
 
     if (!parent) {
@@ -140,6 +142,23 @@ export async function POST(req: NextRequest, context: Params) {
         accessCodeHash,
         accessCodeUpdatedAt,
       },
+    });
+
+    // Audit the reset without persisting the plaintext access code.
+    await writeAuditEvent({
+      tenantId,
+      actorType: AuditActorType.USER,
+      actorId: ctx.user.id,
+      actorDisplay: ctx.user.email ?? ctx.user.name ?? null,
+      action: AUDIT_ACTIONS.PARENT_ACCESS_CODE_RESET,
+      entityType: AUDIT_ENTITY_TYPES.ACCESS_CODE,
+      entityId: parent.id,
+      metadata: {
+        targetParentId: parent.id,
+        targetEmail: parent.email,
+        codeLength: accessCode.length,
+      },
+      request: req,
     });
 
     // Return the plaintext code exactly once; never log or persist it.

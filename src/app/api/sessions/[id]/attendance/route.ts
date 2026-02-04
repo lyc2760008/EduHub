@@ -2,11 +2,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from "@/lib/audit/constants";
+import { writeAuditEvent } from "@/lib/audit/writeAuditEvent";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
 import { requireRole } from "@/lib/rbac";
 import { parseParentVisibleNote } from "@/lib/validation/attendance";
 import {
+  AuditActorType,
   AttendanceStatus,
   RequestType,
   type Prisma,
@@ -363,6 +366,28 @@ export async function PUT(req: NextRequest, context: Params) {
       );
     }
 
+    const noteCandidates = normalizedItems.filter(
+      (item) => item.parentVisibleNoteProvided && item.status !== null,
+    );
+    const noteCandidateIds = noteCandidates.map((item) => item.studentId);
+    const existingNotes = noteCandidateIds.length
+      ? await prisma.attendance.findMany({
+          where: {
+            tenantId,
+            sessionId: session.id,
+            studentId: { in: noteCandidateIds },
+          },
+          select: {
+            id: true,
+            studentId: true,
+            parentVisibleNote: true,
+          },
+        })
+      : [];
+    const existingNotesByStudentId = new Map(
+      existingNotes.map((row) => [row.studentId, row]),
+    );
+
     const now = new Date();
     const upsertItems = normalizedItems
       .filter((item) => item.status !== null)
@@ -433,16 +458,63 @@ export async function PUT(req: NextRequest, context: Params) {
         );
       }
 
-      if (deleteStudentIds.length) {
-        await tx.attendance.deleteMany({
+    if (deleteStudentIds.length) {
+      await tx.attendance.deleteMany({
+        where: {
+          tenantId,
+          sessionId: session.id,
+          studentId: { in: deleteStudentIds },
+        },
+      });
+    }
+    });
+
+    const updatedNotes = noteCandidateIds.length
+      ? await prisma.attendance.findMany({
           where: {
             tenantId,
             sessionId: session.id,
-            studentId: { in: deleteStudentIds },
+            studentId: { in: noteCandidateIds },
           },
+          select: {
+            id: true,
+            studentId: true,
+            parentVisibleNote: true,
+          },
+        })
+      : [];
+    const updatedNotesByStudentId = new Map(
+      updatedNotes.map((row) => [row.studentId, row]),
+    );
+
+    // Audit parent-visible note updates separately so attendance writes stay atomic.
+    await Promise.all(
+      noteCandidates.map(async (item) => {
+        const before = existingNotesByStudentId.get(item.studentId);
+        const after = updatedNotesByStudentId.get(item.studentId);
+        const previousNote = before?.parentVisibleNote ?? null;
+        const nextNote = after?.parentVisibleNote ?? null;
+        if (previousNote === nextNote || !after) return;
+
+        await writeAuditEvent({
+          tenantId,
+          actorType: AuditActorType.USER,
+          actorId: ctx.user.id,
+          actorDisplay: ctx.user.email ?? ctx.user.name ?? null,
+          action: AUDIT_ACTIONS.ATTENDANCE_PARENT_VISIBLE_NOTE_UPDATED,
+          entityType: AUDIT_ENTITY_TYPES.ATTENDANCE,
+          entityId: after.id,
+          metadata: {
+            sessionId: session.id,
+            studentId: item.studentId,
+            hadNote: Boolean(previousNote),
+            hasNote: Boolean(nextNote),
+            noteLength: nextNote ? nextNote.length : 0,
+          },
+          request: req,
         });
-      }
-    });
+      }),
+    );
 
     // Response shape: counts for upserted and cleared attendance rows.
     return NextResponse.json({

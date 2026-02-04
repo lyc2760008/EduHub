@@ -375,6 +375,82 @@
       },
       "empty": "No requests found."
     },
+    "audit": {
+      "_comment": "Admin audit log UI copy (Step 20.8) for security and operational events.",
+      "title": "Audit log",
+      "helper": "A read-only record of important actions in this tenant.",
+      "filter": {
+        "range": {
+          "label": "Date range",
+          "today": "Today",
+          "7d": "Last 7 days",
+          "30d": "Last 30 days",
+          "all": "All"
+        },
+        "category": {
+          "label": "Category",
+          "all": "All",
+          "auth": "Auth",
+          "requests": "Requests",
+          "attendance": "Attendance",
+          "admin": "Admin actions"
+        },
+        "actorType": {
+          "label": "Actor type",
+          "all": "All",
+          "parent": "Parent",
+          "admin": "Admin",
+          "tutor": "Tutor"
+        }
+      },
+      "col": {
+        "time": "Time",
+        "actor": "Actor",
+        "action": "Action",
+        "entity": "Entity"
+      },
+      "detail": {
+        "title": "Audit event",
+        "section": {
+          "summary": "Summary",
+          "metadata": "Metadata"
+        },
+        "field": {
+          "category": "Category",
+          "ip": "IP address",
+          "userAgent": "User agent"
+        }
+      },
+      "empty": {
+        "title": "No audit events",
+        "body": "No events were recorded for the selected filters."
+      },
+      "error": {
+        "title": "Couldn't load audit log",
+        "body": "Please try again.",
+        "tryAgain": "Try again"
+      },
+      "action": {
+        "loadMore": "Load more"
+      },
+      "event": {
+        "parentLoginSucceeded": "Parent login succeeded",
+        "parentLoginFailed": "Parent login failed",
+        "parentLoginThrottled": "Parent login throttled",
+        "parentLoginLocked": "Parent login locked out",
+        "parentAccessCodeResetByAdmin": "Access code reset by admin",
+        "absenceRequestCreated": "Absence request created",
+        "absenceRequestWithdrawn": "Absence request withdrawn",
+        "absenceRequestResubmitted": "Absence request re-submitted",
+        "absenceRequestApproved": "Absence request approved",
+        "absenceRequestDeclined": "Absence request declined",
+        "attendanceMarked": "Attendance marked",
+        "attendanceUpdated": "Attendance updated",
+        "parentVisibleNoteUpdated": "Parent-visible note updated",
+        "studentLinkedToParent": "Student linked to parent",
+        "studentUnlinkedFromParent": "Student unlinked from parent"
+      }
+    },
     "reports": {
       "_comment": "Admin reports labels, filters, and table headers.",
       "title": "Reports",
@@ -612,6 +688,8 @@
     "reports": "Reports",
     "sessions": "Sessions",
     "requests": "Requests",
+    "operations": "Operations",
+    "audit": "Audit log",
     "admin": {
       "centers": "Centers",
       "subjects": "Subjects",
@@ -661,6 +739,33 @@
       "requests": "My requests",
       "signOut": "Sign out",
       "language": "Language"
+    },
+    "auth": {
+      "_comment": "Parent auth hardening copy (Step 20.8).",
+      "state": {
+        "signingIn": "Signing in…"
+      },
+      "error": {
+        "invalidCredentials": "We couldnâ€™t sign you in. Please check your email and access code.",
+        "generic": {
+          "title": "Couldnâ€™t sign in",
+          "body": "Please try again. If the problem continues, contact your center."
+        }
+      },
+      "throttle": {
+        "title": "Please slow down",
+        "body": "Too many attempts in a short time. Please try again soon.",
+        "retryAfter": "Try again in {minutes} minutes."
+      },
+      "lockout": {
+        "title": "Temporarily locked",
+        "body": {
+          "_comment": "Lockout copy variants; withTime aligns to portal.auth.lockout.body to avoid JSON key collisions.",
+          "withTime": "For your security, sign-in is temporarily locked. Try again in {minutes} minutes.",
+          "noTime": "For your security, sign-in is temporarily locked. Please wait a few minutes and try again."
+        },
+        "buttonHelper": "You can try again when the cooldown ends."
+      }
     },
     "common": {
       "viewAll": "View all",
@@ -1014,10 +1119,12 @@
       },
       "submit": "Sign in",
       "error": {
+        "_comment": "Parent login validation + throttle messages.",
         "emailRequired": "Email is required.",
         "emailInvalid": "Enter a valid email address.",
         "codeRequired": "Access code is required.",
         "invalidCredentials": "We couldn’t sign you in. Please check your email and access code.",
+        "throttled": "Too many attempts. Try again in {minutes} minutes.",
         "generic": "Something went wrong. Please try again."
       }
     },

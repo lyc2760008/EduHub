@@ -2,10 +2,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from "@/lib/audit/constants";
+import { writeAuditEvent } from "@/lib/audit/writeAuditEvent";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
 import { requireRole } from "@/lib/rbac";
-import { RequestStatus, type Role } from "@/generated/prisma/client";
+import {
+  AuditActorType,
+  RequestStatus,
+  type Role,
+} from "@/generated/prisma/client";
 
 export const runtime = "nodejs";
 
@@ -160,6 +166,27 @@ export async function POST(req: NextRequest, context: Params) {
     if (!updated) {
       return buildErrorResponse(404, "NotFound", "Request not found");
     }
+
+    // Audit resolution without persisting message content.
+    await writeAuditEvent({
+      tenantId,
+      actorType: AuditActorType.USER,
+      actorId: ctx.user.id,
+      actorDisplay: ctx.user.email ?? ctx.user.name ?? null,
+      action: AUDIT_ACTIONS.ABSENCE_REQUEST_RESOLVED,
+      entityType: AUDIT_ENTITY_TYPES.REQUEST,
+      entityId: updated.id,
+      metadata: {
+        sessionId: updated.sessionId,
+        studentId: updated.studentId,
+        reasonCode: updated.reasonCode,
+        messageLength: updated.message ? updated.message.length : 0,
+        fromStatus: RequestStatus.PENDING,
+        toStatus: updated.status,
+        resolvedStatus: updated.status,
+      },
+      request: req,
+    });
 
     return NextResponse.json({ request: updated });
   } catch (error) {

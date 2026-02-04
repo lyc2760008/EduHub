@@ -1,7 +1,14 @@
 // Parent portal requests endpoint with tenant + linked student validation.
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma, RequestStatus, RequestType } from "@/generated/prisma/client";
+import {
+  AuditActorType,
+  Prisma,
+  RequestStatus,
+  RequestType,
+} from "@/generated/prisma/client";
 
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from "@/lib/audit/constants";
+import { writeAuditEvent } from "@/lib/audit/writeAuditEvent";
 import { prisma } from "@/lib/db/prisma";
 import {
   assertParentLinkedToStudent,
@@ -171,6 +178,26 @@ export async function POST(req: NextRequest) {
         updatedAt: true,
         resolvedAt: true,
       },
+    });
+
+    // Audit the absence request creation without persisting message content.
+    await writeAuditEvent({
+      tenantId,
+      actorType: AuditActorType.PARENT,
+      actorId: ctx.parentId,
+      actorDisplay: ctx.parent.email,
+      action: AUDIT_ACTIONS.ABSENCE_REQUEST_CREATED,
+      entityType: AUDIT_ENTITY_TYPES.REQUEST,
+      entityId: created.id,
+      metadata: {
+        sessionId: created.sessionId,
+        studentId: created.studentId,
+        reasonCode: created.reasonCode,
+        messageLength: created.message ? created.message.length : 0,
+        fromStatus: null,
+        toStatus: created.status,
+      },
+      request: req,
     });
 
     return NextResponse.json(

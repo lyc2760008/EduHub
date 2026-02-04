@@ -1,11 +1,14 @@
 import bcrypt from "bcryptjs";
-import type { NextAuthConfig } from "next-auth";
+import { CredentialsSignin, type NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { NextRequest } from "next/server";
 
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from "@/lib/audit/constants";
+import { writeAuditEvent } from "@/lib/audit/writeAuditEvent";
+import { checkParentAuthThrottle } from "@/lib/auth/checkParentAuthThrottle";
 import { prisma } from "@/lib/db/prisma";
 import { resolveTenant } from "@/lib/tenant/resolveTenant";
-import type { Role } from "@/generated/prisma/client";
+import { AuditActorType, type Role } from "@/generated/prisma/client";
 
 type AuthUser = {
   id: string;
@@ -20,6 +23,14 @@ type AuthUser = {
 // Minimal shape we return from authorize so callbacks can enrich JWT/session.
 // This keeps all tenant-aware fields server-side and avoids extra lookups later.
 type AuthResult = AuthUser;
+
+// Custom error exposes a stable code prefix with retry seconds for throttled attempts.
+class ParentAuthThrottledError extends CredentialsSignin {
+  constructor(retryAfterSeconds: number) {
+    super();
+    this.code = `AUTH_THROTTLED:${retryAfterSeconds}`;
+  }
+}
 
 // Wrap the NextAuth request so we can reuse resolveTenant's NextRequest signature.
 // We also ensure host/tenant headers exist so tenant resolution can parse subdomains.
@@ -132,10 +143,32 @@ export const authConfig: NextAuthConfig = {
 
         const tenantResult = await resolveTenant(tenantRequest);
         if (!("tenantId" in tenantResult)) return null;
+        const tenantId = tenantResult.tenantId;
+
+        // Throttle parent auth before expensive hashing to avoid brute-force abuse.
+        const throttleResult = await checkParentAuthThrottle({
+          tenantId,
+          email,
+        });
+        if (!throttleResult.allowed) {
+          await writeAuditEvent({
+            tenantId,
+            actorType: AuditActorType.PARENT,
+            actorDisplay: email,
+            action: AUDIT_ACTIONS.PARENT_LOGIN_THROTTLED,
+            entityType: AUDIT_ENTITY_TYPES.ACCESS_CODE,
+            metadata: {
+              method: "email_access_code",
+              retryAfterSeconds: throttleResult.retryAfterSeconds,
+            },
+            request: tenantRequest,
+          });
+          throw new ParentAuthThrottledError(throttleResult.retryAfterSeconds);
+        }
 
         const parent = await prisma.parent.findFirst({
           where: {
-            tenantId: tenantResult.tenantId,
+            tenantId,
             email: { equals: email, mode: "insensitive" },
           },
           select: {
@@ -147,24 +180,68 @@ export const authConfig: NextAuthConfig = {
           },
         });
 
-        if (!parent?.accessCodeHash) return null;
+        if (!parent?.accessCodeHash) {
+          await writeAuditEvent({
+            tenantId,
+            actorType: AuditActorType.PARENT,
+            actorId: parent?.id ?? null,
+            actorDisplay: email,
+            action: AUDIT_ACTIONS.PARENT_LOGIN_FAILED,
+            entityType: AUDIT_ENTITY_TYPES.ACCESS_CODE,
+            entityId: parent?.id ?? null,
+            metadata: {
+              method: "email_access_code",
+              reason: "invalid_credentials",
+            },
+            request: tenantRequest,
+          });
+          return null;
+        }
 
         const accessCodeOk = await bcrypt.compare(
           accessCode,
           parent.accessCodeHash,
         );
-        if (!accessCodeOk) return null;
+        if (!accessCodeOk) {
+          await writeAuditEvent({
+            tenantId,
+            actorType: AuditActorType.PARENT,
+            actorId: parent.id,
+            actorDisplay: email,
+            action: AUDIT_ACTIONS.PARENT_LOGIN_FAILED,
+            entityType: AUDIT_ENTITY_TYPES.ACCESS_CODE,
+            entityId: parent.id,
+            metadata: {
+              method: "email_access_code",
+              reason: "invalid_credentials",
+            },
+            request: tenantRequest,
+          });
+          return null;
+        }
 
         const displayName = [parent.firstName, parent.lastName]
           .filter(Boolean)
           .join(" ");
+
+        await writeAuditEvent({
+          tenantId,
+          actorType: AuditActorType.PARENT,
+          actorId: parent.id,
+          actorDisplay: email,
+          action: AUDIT_ACTIONS.PARENT_LOGIN_SUCCEEDED,
+          entityType: AUDIT_ENTITY_TYPES.ACCESS_CODE,
+          entityId: parent.id,
+          metadata: { method: "email_access_code" },
+          request: tenantRequest,
+        });
 
         return {
           id: parent.id,
           parentId: parent.id,
           email: parent.email,
           name: displayName || null,
-          tenantId: tenantResult.tenantId,
+          tenantId,
           role: "Parent",
         } satisfies AuthResult;
       },

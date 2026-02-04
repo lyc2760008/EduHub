@@ -27,6 +27,8 @@ model Tenant {
   parents         Parent[]
   studentParents  StudentParent[]
   memberships     TenantMembership[]
+  // Audit events record tenant-scoped security + admin actions.
+  auditEvents     AuditEvent[]
   // Centers are tenant-scoped locations/settings for scheduling and reporting.
   centers         Center[]
   // Staff-to-center assignments scoped to this tenant.
@@ -146,6 +148,40 @@ enum Role {
   Tutor
   Parent
   Student
+}
+
+// Audit actor type distinguishes parent, staff, and system-originated events.
+enum AuditActorType {
+  PARENT
+  USER
+  SYSTEM
+}
+
+// AuditEvent is a tenant-scoped security/audit log for key portal/admin actions.
+model AuditEvent {
+  id           String         @id @default(cuid())
+  tenantId     String
+  occurredAt   DateTime       @default(now())
+  actorType    AuditActorType
+  actorId      String?
+  // Snapshot display (email/name) at the time of action to support investigations.
+  actorDisplay String?
+  // Action is a stable string constant (do not store secrets).
+  action       String
+  // Entity type is a small enum-like string to keep query filters predictable.
+  entityType   String?
+  entityId     String?
+  // Metadata must remain small and never include access codes or secrets.
+  metadata     Json?
+  ip           String?
+  userAgent    String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, occurredAt])
+  @@index([tenantId, action, occurredAt])
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, action, actorDisplay, occurredAt])
 }
 
 model Student {

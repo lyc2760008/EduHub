@@ -2,7 +2,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-import { RequestStatus } from "@/generated/prisma/client";
+import { AuditActorType, RequestStatus } from "@/generated/prisma/client";
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from "@/lib/audit/constants";
+import { writeAuditEvent } from "@/lib/audit/writeAuditEvent";
 import { prisma } from "@/lib/db/prisma";
 import { buildPortalError, requirePortalParent } from "@/lib/portal/parent";
 
@@ -53,6 +55,9 @@ export async function POST(req: NextRequest, context: Params) {
         parentId: true,
         status: true,
         sessionId: true,
+        studentId: true,
+        reasonCode: true,
+        message: true,
       },
     });
 
@@ -125,6 +130,26 @@ export async function POST(req: NextRequest, context: Params) {
     if (!updated) {
       return buildPortalError(404, "NOT_FOUND");
     }
+
+    // Audit the withdraw action without persisting the request message content.
+    await writeAuditEvent({
+      tenantId,
+      actorType: AuditActorType.PARENT,
+      actorId: ctx.parentId,
+      actorDisplay: ctx.parent.email,
+      action: AUDIT_ACTIONS.ABSENCE_REQUEST_WITHDRAWN,
+      entityType: AUDIT_ENTITY_TYPES.REQUEST,
+      entityId: updated.id,
+      metadata: {
+        sessionId: updated.sessionId,
+        studentId: updated.studentId,
+        reasonCode: updated.reasonCode,
+        messageLength: updated.message ? updated.message.length : 0,
+        fromStatus: RequestStatus.PENDING,
+        toStatus: updated.status,
+      },
+      request: req,
+    });
 
     return NextResponse.json({
       request: {

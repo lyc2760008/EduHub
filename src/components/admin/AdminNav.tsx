@@ -4,8 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 
+import type { Role } from "@/generated/prisma/client";
+
 type AdminNavProps = {
   tenant: string;
+  userRole?: Role;
 };
 
 type AdminNavItem = {
@@ -15,12 +18,14 @@ type AdminNavItem = {
   activePrefixes?: string[];
 };
 
-export default function AdminNav({ tenant }: AdminNavProps) {
+export default function AdminNav({ tenant, userRole }: AdminNavProps) {
   const pathname = usePathname();
   const t = useTranslations();
+  // UI-level guard keeps the audit link hidden for non-admin roles.
+  const isAdmin = userRole === "Owner" || userRole === "Admin";
 
-  // Centralized admin navigation items keep labels and routes consistent.
-  const navItems: AdminNavItem[] = [
+  // Core admin navigation items keep labels and routes consistent.
+  const coreItems: AdminNavItem[] = [
     { id: "dashboard", href: `/${tenant}/admin`, labelKey: "nav.dashboard" },
     {
       id: "centers",
@@ -54,48 +59,86 @@ export default function AdminNav({ tenant }: AdminNavProps) {
       href: `/${tenant}/admin/sessions`,
       labelKey: "nav.sessions",
     },
-    // Requests inbox lives alongside other operational modules.
+  ];
+
+  // Operations nav highlights audit-ready workflows for admin users.
+  const operationsItems: AdminNavItem[] = [
     {
       id: "requests",
       href: `/${tenant}/admin/requests`,
       labelKey: "nav.requests",
     },
+    ...(isAdmin
+      ? [
+          {
+            id: "audit",
+            href: `/${tenant}/admin/audit`,
+            labelKey: "nav.audit",
+          } satisfies AdminNavItem,
+        ]
+      : []),
   ];
 
   return (
     <div className="border-b border-slate-200 bg-white">
       <nav
-        className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm sm:px-6"
+        className="flex flex-col gap-2 px-4 py-3 text-sm sm:px-6"
         // Test id enables stable AdminNav selection without relying on text labels.
         data-testid="admin-nav"
       >
-        {navItems.map((item) => {
-          // Dashboard uses exact matching; other sections use prefix matching.
-          const isActive =
-            item.id === "dashboard"
-              ? pathname === item.href
-              : item.activePrefixes
-                ? item.activePrefixes.some((prefix) =>
-                    pathname.startsWith(prefix),
-                  )
-                : pathname.startsWith(item.href);
-          const linkClassName = isActive
-            ? "rounded bg-slate-100 px-2 py-1 font-semibold text-slate-900"
-            : "rounded px-2 py-1 text-slate-600 hover:text-slate-900";
+        <div className="flex flex-wrap items-center gap-3">
+          {coreItems.map((item) => {
+            // Dashboard uses exact matching; other sections use prefix matching.
+            const isActive =
+              item.id === "dashboard"
+                ? pathname === item.href
+                : item.activePrefixes
+                  ? item.activePrefixes.some((prefix) =>
+                      pathname.startsWith(prefix),
+                    )
+                  : pathname.startsWith(item.href);
+            const linkClassName = isActive
+              ? "rounded bg-slate-100 px-2 py-1 font-semibold text-slate-900"
+              : "rounded px-2 py-1 text-slate-600 hover:text-slate-900";
 
-          return (
-            <Link
-              key={item.id}
-              className={linkClassName}
-              href={item.href}
-              // data-testid and aria-current keep active-link checks deterministic in E2E.
-              data-testid={`nav-link-${item.id}`}
-              aria-current={isActive ? "page" : undefined}
-            >
-              {t(item.labelKey)}
-            </Link>
-          );
-        })}
+            return (
+              <Link
+                key={item.id}
+                className={linkClassName}
+                href={item.href}
+                // data-testid and aria-current keep active-link checks deterministic in E2E.
+                data-testid={`nav-link-${item.id}`}
+                aria-current={isActive ? "page" : undefined}
+              >
+                {t(item.labelKey)}
+              </Link>
+            );
+          })}
+        </div>
+        {operationsItems.length ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs font-semibold uppercase text-slate-500">
+              {t("nav.operations")}
+            </span>
+            {operationsItems.map((item) => {
+              const isActive = pathname.startsWith(item.href);
+              const linkClassName = isActive
+                ? "rounded bg-slate-100 px-2 py-1 font-semibold text-slate-900"
+                : "rounded px-2 py-1 text-slate-600 hover:text-slate-900";
+              return (
+                <Link
+                  key={item.id}
+                  className={linkClassName}
+                  href={item.href}
+                  data-testid={`nav-link-${item.id}`}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  {t(item.labelKey)}
+                </Link>
+              );
+            })}
+          </div>
+        ) : null}
       </nav>
     </div>
   );
