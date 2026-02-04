@@ -72,6 +72,33 @@ function firstOccurrenceDate(
   return null;
 }
 
+function isTransientNetworkError(error: unknown) {
+  // Treat connection resets as transient so the full suite can retry once.
+  if (!(error instanceof Error)) return false;
+  return /ECONNRESET|socket hang up|ECONNREFUSED/i.test(error.message);
+}
+
+async function postWithRetry(
+  page: Page,
+  url: string,
+  options: Parameters<Page["request"]["post"]>[1],
+  attempts = 2,
+) {
+  // Retry a single time on transient network errors seen during full-suite load.
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await page.request.post(url, options);
+    } catch (error) {
+      lastError = error;
+      if (!isTransientNetworkError(error) || attempt === attempts - 1) {
+        throw error;
+      }
+    }
+  }
+  throw lastError;
+}
+
 async function fetchCenters(page: Page, tenant: string) {
   const response = await page.request.get(
     buildTenantApiPath(tenant, "/api/centers?includeInactive=true"),
@@ -371,7 +398,8 @@ test.describe("Sessions - tutor access", () => {
     await expect(page.getByTestId("sessions-create-button")).toHaveCount(0);
     await expect(page.getByTestId("sessions-generate-button")).toHaveCount(0);
 
-    const response = await page.request.post(
+    const response = await postWithRetry(
+      page,
       buildTenantApiPath(tenantSlug, "/api/sessions/generate"),
       { data: {} },
     );

@@ -66,14 +66,18 @@ export default function PortalAccountPage() {
               <span className="text-xs font-semibold text-[var(--muted)]">
                 {t("portal.account.field.email")}
               </span>
-              <span className="text-sm text-[var(--text)]">{data.parent.email}</span>
+              <span className="text-sm text-[var(--text)]" data-testid="portal-account-email">
+                {data.parent.email}
+              </span>
             </div>
             {tenantDisplay ? (
               <div className="grid gap-1">
                 <span className="text-xs font-semibold text-[var(--muted)]">
                   {t("portal.account.field.tenant")}
                 </span>
-                <span className="text-sm text-[var(--text)]">{tenantDisplay}</span>
+                <span className="text-sm text-[var(--text)]" data-testid="portal-account-tenant">
+                  {tenantDisplay}
+                </span>
               </div>
             ) : null}
           </div>
@@ -90,7 +94,7 @@ export default function PortalAccountPage() {
               {t("portal.account.students.empty")}
             </p>
           ) : (
-            <div className="grid gap-2">
+            <div className="grid gap-2" data-testid="portal-account-students">
               {data.students.map((student) => {
                 const statusKey = student.isActive
                   ? "portal.student.status.active"

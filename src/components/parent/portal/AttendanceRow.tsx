@@ -98,8 +98,10 @@ export default function AttendanceRow({ attendance, href }: AttendanceRowProps) 
     return (
       <Link
         href={href}
-        // Keep attendance rows clickable for session detail navigation.
+        // Data attributes keep attendance list ordering assertions stable in E2E.
         data-testid={`portal-attendance-row-${attendance.id}`}
+        data-date-time={attendance.dateTime}
+        data-session-end-at={attendance.sessionEndAt ?? ""}
         className="block rounded-2xl focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
       >
         {body}
@@ -107,6 +109,14 @@ export default function AttendanceRow({ attendance, href }: AttendanceRowProps) 
     );
   }
 
-  return <div data-testid={`portal-attendance-row-${attendance.id}`}>{body}</div>;
+  return (
+    <div
+      data-testid={`portal-attendance-row-${attendance.id}`}
+      data-date-time={attendance.dateTime}
+      data-session-end-at={attendance.sessionEndAt ?? ""}
+    >
+      {body}
+    </div>
+  );
 }
 

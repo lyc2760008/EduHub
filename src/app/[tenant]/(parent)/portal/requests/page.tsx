@@ -383,7 +383,14 @@ export default function PortalRequestsPage() {
             : `/portal/sessions/${row.sessionId}#absence-request`;
 
           return (
-            <div key={row.id} data-testid={`portal-request-row-${row.id}`}>
+            <div
+              key={row.id}
+              // Data attributes make request ordering assertions deterministic in E2E.
+              data-testid={`portal-request-row-${row.id}`}
+              data-submitted-at={row.submittedAt}
+              data-updated-at={row.updatedAt}
+              data-session-start-at={row.sessionStartAt ?? ""}
+            >
               <div className="hidden items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 md:grid md:grid-cols-[minmax(140px,_1fr)_minmax(180px,_1fr)_minmax(160px,_1fr)_minmax(120px,_auto)_minmax(140px,_auto)_48px]">
                 <Link href={href} className="text-sm text-[var(--text)]">
                   {submittedLabel}

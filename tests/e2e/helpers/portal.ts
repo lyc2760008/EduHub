@@ -23,6 +23,14 @@ type PortalSeedData = {
   unlinkedStudentId: string;
 };
 
+type PortalSortingFixtures = {
+  tenantSlug: string;
+  parent: ParentAccessCredentials;
+  studentId: string;
+  upcomingSessions: Array<{ sessionId: string; startAt: string }>;
+  pastSessions: Array<{ sessionId: string; startAt: string }>;
+};
+
 type ParentCreateResponse = {
   parent?: { id?: string; email?: string };
 };
@@ -36,6 +44,7 @@ type SessionCreateResponse = {
 };
 
 let portalSeedPromise: Promise<PortalSeedData> | null = null;
+let portalSortingPromise: Promise<PortalSortingFixtures> | null = null;
 // Incremental seed helps avoid session unique constraint collisions.
 let portalSessionSeed = 0;
 
@@ -323,4 +332,79 @@ export async function loginParentWithAccessCode(
     credentials.email,
     credentials.accessCode,
   );
+}
+
+export async function ensurePortalSortingFixtures(page: Page) {
+  // Create a minimal set of sessions/attendance for ordering smoke tests.
+  if (!portalSortingPromise) {
+    portalSortingPromise = (async () => {
+      const tenantSlug = resolvePortalTenantSlug();
+      if (tenantSlug !== "e2e-testing") {
+        throw new Error(
+          `Portal sorting fixtures must target the dedicated e2e tenant; got ${tenantSlug}.`,
+        );
+      }
+      const seed = await ensurePortalSeedData(page, tenantSlug);
+      const studentId = seed.parent1StudentIds[0];
+
+      await loginAsAdmin(page, tenantSlug);
+      const { tutor, center } = await resolveCenterAndTutor(page, tenantSlug);
+      const timezone = center.timezone || "America/Edmonton";
+
+      const upcomingSessions = await Promise.all([
+        createPortalSession(page, tenantSlug, {
+          centerId: center.id,
+          tutorId: tutor.id,
+          studentId,
+          timezone,
+          offsetDays: 2,
+        }),
+        createPortalSession(page, tenantSlug, {
+          centerId: center.id,
+          tutorId: tutor.id,
+          studentId,
+          timezone,
+          offsetDays: 5,
+        }),
+      ]);
+
+      const pastSessions = await Promise.all([
+        createPortalSession(page, tenantSlug, {
+          centerId: center.id,
+          tutorId: tutor.id,
+          studentId,
+          timezone,
+          offsetDays: -12,
+        }),
+        createPortalSession(page, tenantSlug, {
+          centerId: center.id,
+          tutorId: tutor.id,
+          studentId,
+          timezone,
+          offsetDays: -4,
+        }),
+      ]);
+
+      for (const past of pastSessions) {
+        const attendanceResponse = await page.request.put(
+          buildTenantApiPath(tenantSlug, `/api/sessions/${past.sessionId}/attendance`),
+          { data: { items: [{ studentId, status: "PRESENT" }] } },
+        );
+        expect(attendanceResponse.ok()).toBeTruthy();
+      }
+
+      // Clear admin session cookies before returning to parent login flows.
+      await page.context().clearCookies();
+
+      return {
+        tenantSlug,
+        parent: seed.parent1,
+        studentId,
+        upcomingSessions,
+        pastSessions,
+      };
+    })();
+  }
+
+  return portalSortingPromise;
 }

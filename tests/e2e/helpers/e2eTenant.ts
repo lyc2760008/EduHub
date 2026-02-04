@@ -240,112 +240,68 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
 
   const timezone = "America/Edmonton";
   const nowLocal = DateTime.now().setZone(timezone);
-  const upcomingStart = nowLocal.plus({ days: 2 }).set({
-    hour: 10,
-    minute: 0,
-    second: 0,
-    millisecond: 0,
-  });
-  const pastStart = nowLocal.minus({ days: 7 }).set({
-    hour: 9,
-    minute: 0,
-    second: 0,
-    millisecond: 0,
-  });
-  const tutorBStart = nowLocal.plus({ days: 1 }).set({
-    hour: 11,
-    minute: 15,
-    second: 0,
-    millisecond: 0,
-  });
-  const unlinkedStart = nowLocal.plus({ days: 4 }).set({
-    hour: 14,
-    minute: 30,
-    second: 0,
-    millisecond: 0,
-  });
-  const absenceHappyStart = nowLocal.plus({ days: 3 }).set({
-    hour: 12,
-    minute: 0,
-    second: 0,
-    millisecond: 0,
-  });
-  const absenceDuplicateStart = nowLocal.plus({ days: 5 }).set({
-    hour: 13,
-    minute: 0,
-    second: 0,
-    millisecond: 0,
-  });
-  const absenceResolveStart = nowLocal.plus({ days: 6 }).set({
-    hour: 15,
-    minute: 0,
-    second: 0,
-    millisecond: 0,
-  });
-  const absenceResolvedStart = nowLocal.plus({ days: 7 }).set({
-    hour: 16,
-    minute: 0,
-    second: 0,
-    millisecond: 0,
-  });
-  const absenceStaffApprovedStart = nowLocal.plus({ days: 8 }).set({
-    hour: 9,
-    minute: 30,
-    second: 0,
-    millisecond: 0,
-  });
-  const absenceStaffPendingStart = nowLocal.plus({ days: 9 }).set({
-    hour: 10,
-    minute: 30,
-    second: 0,
-    millisecond: 0,
-  });
-  const absenceStaffDeclinedStart = nowLocal.plus({ days: 10 }).set({
-    hour: 11,
-    minute: 30,
-    second: 0,
-    millisecond: 0,
-  });
-  const absenceWithdrawFutureStart = nowLocal.plus({ days: 2 }).set({
-    hour: 14,
-    minute: 0,
-    second: 0,
-    millisecond: 0,
-  });
-  const absenceResubmitStart = nowLocal.plus({ days: 2 }).set({
-    hour: 15,
-    minute: 0,
-    second: 0,
-    millisecond: 0,
-  });
-  const absenceApproveLockStart = nowLocal.plus({ days: 2 }).set({
-    hour: 16,
-    minute: 0,
-    second: 0,
-    millisecond: 0,
-  });
-  const absenceDeclineLockStart = nowLocal.plus({ days: 2 }).set({
-    hour: 17,
-    minute: 0,
-    second: 0,
-    millisecond: 0,
-  });
-  const absenceWithdrawPastStart = nowLocal.minus({ minutes: 5 }).set({
-    second: 0,
-    millisecond: 0,
-  });
-  const absenceAutoAssistWithdrawnStart = nowLocal.plus({ days: 3 }).set({
-    hour: 9,
-    minute: 45,
-    second: 0,
-    millisecond: 0,
-  });
-  const absenceAutoAssistApprovedStart = nowLocal.plus({ days: 3 }).set({
-    hour: 10,
-    minute: 45,
-    second: 0,
-    millisecond: 0,
-  });
+  // Stagger fixture session seconds to avoid unique constraint collisions across runs.
+  let sessionSecondSeed = 1;
+  const withUniqueSessionSeconds = (value: DateTime) => {
+    const seed = sessionSecondSeed % 60;
+    sessionSecondSeed += 1;
+    return value.set({ second: seed, millisecond: (seed * 37) % 1000 });
+  };
+
+  const upcomingStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 2 }).set({ hour: 10, minute: 0 }),
+  );
+  const pastStart = withUniqueSessionSeconds(
+    nowLocal.minus({ days: 7 }).set({ hour: 9, minute: 0 }),
+  );
+  const tutorBStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 1 }).set({ hour: 11, minute: 15 }),
+  );
+  const unlinkedStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 4 }).set({ hour: 14, minute: 30 }),
+  );
+  const absenceHappyStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 3 }).set({ hour: 12, minute: 0 }),
+  );
+  const absenceDuplicateStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 5 }).set({ hour: 13, minute: 0 }),
+  );
+  const absenceResolveStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 6 }).set({ hour: 15, minute: 0 }),
+  );
+  const absenceResolvedStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 7 }).set({ hour: 16, minute: 0 }),
+  );
+  const absenceStaffApprovedStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 8 }).set({ hour: 9, minute: 30 }),
+  );
+  const absenceStaffPendingStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 9 }).set({ hour: 10, minute: 30 }),
+  );
+  const absenceStaffDeclinedStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 10 }).set({ hour: 11, minute: 30 }),
+  );
+  const absenceWithdrawFutureStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 2 }).set({ hour: 14, minute: 0 }),
+  );
+  const absenceResubmitStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 2 }).set({ hour: 15, minute: 0 }),
+  );
+  const absenceApproveLockStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 2 }).set({ hour: 16, minute: 0 }),
+  );
+  const absenceDeclineLockStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 2 }).set({ hour: 17, minute: 0 }),
+  );
+  const absenceWithdrawPastStart = withUniqueSessionSeconds(
+    nowLocal.minus({ minutes: 5 }).set({ second: 0, millisecond: 0 }),
+  );
+  const absenceAutoAssistWithdrawnStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 3 }).set({ hour: 9, minute: 45 }),
+  );
+  const absenceAutoAssistApprovedStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 3 }).set({ hour: 10, minute: 45 }),
+  );
 
   await prisma.$transaction(async (tx) => {
     const center = await tx.center.upsert({

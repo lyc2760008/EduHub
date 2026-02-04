@@ -113,14 +113,20 @@ export default function PortalIdentityMenu({
       <summary
         className="cursor-pointer list-none rounded-xl px-3 py-2 transition hover:bg-[var(--surface-2)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
         aria-label={identityLabel}
+        // Data-testid keeps identity dropdown triggers stable for portal E2E.
+        data-testid="portal-identity-trigger"
       >
         {triggerBody}
       </summary>
-      <div className="absolute right-0 z-50 mt-2 w-48 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg">
+      <div
+        className="absolute right-0 z-50 mt-2 w-48 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg"
+        data-testid="portal-identity-dropdown"
+      >
         <Link
           href={accountHref}
           className="flex items-center rounded-xl px-3 py-2 text-sm font-semibold text-[var(--text)] hover:bg-[var(--surface-2)]"
           onClick={closeMenu}
+          data-testid="portal-identity-account"
         >
           {t("portal.header.menu.account")}
         </Link>
@@ -128,6 +134,7 @@ export default function PortalIdentityMenu({
           href={helpHref}
           className="flex items-center rounded-xl px-3 py-2 text-sm font-semibold text-[var(--text)] hover:bg-[var(--surface-2)]"
           onClick={closeMenu}
+          data-testid="portal-identity-help"
         >
           {t("portal.header.menu.help")}
         </Link>
@@ -136,6 +143,7 @@ export default function PortalIdentityMenu({
           type="button"
           onClick={() => void handleSignOut()}
           className="flex w-full items-center rounded-xl px-3 py-2 text-sm font-semibold text-[var(--text)] hover:bg-[var(--surface-2)]"
+          data-testid="portal-identity-logout"
         >
           {t("portal.header.menu.logout")}
         </button>

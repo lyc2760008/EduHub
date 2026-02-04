@@ -85,7 +85,11 @@ export default function PortalHelpPage() {
       <PageHeader titleKey="portal.help.title" subtitleKey="portal.help.helper" />
 
       <Card>
-        <div className="space-y-3">
+        <div
+          className="space-y-3"
+          // Data-testid keeps the help accordion stable for E2E smoke coverage.
+          data-testid="portal-help-accordion"
+        >
           {HELP_ITEMS.map((item) => (
             <details
               key={item.questionKey}

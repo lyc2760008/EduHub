@@ -64,8 +64,10 @@ export default function SessionRow({
     return (
       <Link
         href={href}
-        // data-testid ties the session row to its id for reliable assertions.
+        // data-testid and timestamps keep session list sorting assertions stable in E2E.
         data-testid={`portal-session-row-${session.id}`}
+        data-start-at={session.startAt}
+        data-end-at={session.endAt ?? ""}
         className="block rounded-2xl focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
       >
         <Card padding="normal">{body}</Card>
@@ -74,7 +76,11 @@ export default function SessionRow({
   }
 
   return (
-    <div data-testid={`portal-session-row-${session.id}`}>
+    <div
+      data-testid={`portal-session-row-${session.id}`}
+      data-start-at={session.startAt}
+      data-end-at={session.endAt ?? ""}
+    >
       <Card padding="normal">{body}</Card>
     </div>
   );
