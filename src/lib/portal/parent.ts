@@ -1,19 +1,19 @@
 // Parent-portal API helpers for tenant-scoped access, linkage checks, and query parsing.
 import type { Session } from "next-auth";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
-import { jsonError } from "@/lib/http/response";
 import { resolveTenant, type TenantContext } from "@/lib/tenant/resolveTenant";
 
 export type PortalErrorCode =
-  | "ValidationError"
-  | "Unauthorized"
-  | "Forbidden"
-  | "NotFound"
-  | "Conflict"
-  | "InternalError";
+  | "VALIDATION_ERROR"
+  | "UNAUTHORIZED"
+  | "FORBIDDEN"
+  | "NOT_FOUND"
+  | "CONFLICT"
+  | "INTERNAL_ERROR";
 
 export type PortalParentContext = {
   tenant: TenantContext;
@@ -38,10 +38,17 @@ function addDays(value: Date, days: number) {
 export function buildPortalError(
   status: number,
   code: PortalErrorCode,
-  message: string,
-  details: Record<string, unknown> = {},
+  meta?: Record<string, unknown>,
 ) {
-  return jsonError(status, message, { error: { code, message, details } });
+  return NextResponse.json(
+    {
+      error: {
+        code,
+        ...(meta && Object.keys(meta).length ? { meta } : {}),
+      },
+    },
+    { status },
+  );
 }
 
 async function normalizeTenantResponse(response: Response) {
@@ -49,44 +56,14 @@ async function normalizeTenantResponse(response: Response) {
   const status = response.status;
   const code: PortalErrorCode =
     status === 401
-      ? "Unauthorized"
+      ? "UNAUTHORIZED"
       : status === 403
-        ? "Forbidden"
+        ? "FORBIDDEN"
         : status === 404
-          ? "NotFound"
-          : "ValidationError";
-  let message =
-    status === 401
-      ? "Unauthorized"
-      : status === 403
-        ? "Forbidden"
-        : status === 404
-          ? "NotFound"
-          : "ValidationError";
-  let details: Record<string, unknown> = {};
+          ? "NOT_FOUND"
+          : "VALIDATION_ERROR";
 
-  try {
-    const payload = (await response.clone().json()) as {
-      error?: unknown;
-      message?: unknown;
-      details?: unknown;
-    };
-    if (typeof payload?.error === "string") {
-      message = payload.error;
-    } else if (typeof payload?.message === "string") {
-      message = payload.message;
-    }
-    if (payload?.details) {
-      details =
-        typeof payload.details === "string"
-          ? { message: payload.details }
-          : (payload.details as Record<string, unknown>);
-    }
-  } catch {
-    // Fall back to default message when response bodies are not JSON.
-  }
-
-  return buildPortalError(status, code, message, details);
+  return buildPortalError(status, code);
 }
 
 // Require a parent-authenticated session and resolve tenant/parent context.
@@ -95,11 +72,11 @@ export async function requirePortalParent(
 ): Promise<PortalParentContext | Response> {
   const session = (await auth()) as Session | null;
   if (!session?.user) {
-    return buildPortalError(401, "Unauthorized", "Unauthorized");
+    return buildPortalError(401, "UNAUTHORIZED");
   }
 
   if (session.user.role !== "Parent") {
-    return buildPortalError(403, "Forbidden", "Forbidden");
+    return buildPortalError(403, "FORBIDDEN");
   }
 
   const tenantResult = await resolveTenant(request);
@@ -108,14 +85,14 @@ export async function requirePortalParent(
   }
 
   if (session.user.tenantId !== tenantResult.tenantId) {
-    return buildPortalError(403, "Forbidden", "Forbidden", {
+    return buildPortalError(403, "FORBIDDEN", {
       reason: "TenantMismatch",
     });
   }
 
   const parentId = session.user.parentId ?? session.user.id;
   if (!parentId) {
-    return buildPortalError(401, "Unauthorized", "Unauthorized");
+    return buildPortalError(401, "UNAUTHORIZED");
   }
 
   const parent = await prisma.parent.findFirst({
@@ -130,14 +107,14 @@ export async function requirePortalParent(
   });
 
   if (!parent) {
-    return buildPortalError(403, "Forbidden", "Forbidden", {
+    return buildPortalError(403, "FORBIDDEN", {
       reason: "ParentMissing",
     });
   }
 
   if (!parent.accessCodeHash) {
     // Treat missing access code as inactive parent access to prevent stale sessions.
-    return buildPortalError(403, "Forbidden", "Forbidden", {
+    return buildPortalError(403, "FORBIDDEN", {
       reason: "ParentInactive",
     });
   }
@@ -167,7 +144,7 @@ export async function assertParentLinkedToStudent(
   });
 
   if (!link) {
-    return buildPortalError(404, "NotFound", "Student not found");
+    return buildPortalError(404, "NOT_FOUND");
   }
 
   return null;
@@ -193,12 +170,12 @@ export async function assertSessionUpcomingAndMatchesStudent(
 
   if (!match?.session) {
     // Return 404 to avoid leaking sessions or roster details across tenants.
-    return buildPortalError(404, "NotFound", "Session not found");
+    return buildPortalError(404, "NOT_FOUND");
   }
 
   const now = new Date();
   if (match.session.startAt <= now) {
-    return buildPortalError(403, "Forbidden", "Session is not upcoming", {
+    return buildPortalError(403, "FORBIDDEN", {
       reason: "PORTAL_REQUEST_NOT_ALLOWED",
       rule: "SESSION_NOT_UPCOMING",
     });
@@ -244,14 +221,14 @@ export function resolvePortalRange(
 ): { from: Date; to: Date } | Response {
   const parsedFrom = parseDateParam(fromParam);
   if (parsedFrom === null) {
-    return buildPortalError(400, "ValidationError", "Invalid from date", {
+    return buildPortalError(400, "VALIDATION_ERROR", {
       field: "from",
     });
   }
 
   const parsedTo = parseDateParam(toParam);
   if (parsedTo === null) {
-    return buildPortalError(400, "ValidationError", "Invalid to date", {
+    return buildPortalError(400, "VALIDATION_ERROR", {
       field: "to",
     });
   }
@@ -275,7 +252,7 @@ export function resolvePortalRange(
   }
 
   if (from > to) {
-    return buildPortalError(400, "ValidationError", "from must be <= to", {
+    return buildPortalError(400, "VALIDATION_ERROR", {
       from: from.toISOString(),
       to: to.toISOString(),
     });
@@ -285,8 +262,7 @@ export function resolvePortalRange(
   if (rangeDays > config.maxRangeDays) {
     return buildPortalError(
       400,
-      "ValidationError",
-      "Date range too large",
+      "VALIDATION_ERROR",
       {
         maxDays: config.maxRangeDays,
       },

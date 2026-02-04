@@ -21,7 +21,7 @@ export async function GET(req: NextRequest, context: Params) {
     const sessionId = id?.trim();
 
     if (!sessionId) {
-      return buildPortalError(400, "ValidationError", "Invalid session id", {
+      return buildPortalError(400, "VALIDATION_ERROR", {
         field: "id",
       });
     }
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest, context: Params) {
 
     const linkedStudentIds = await getLinkedStudentIds(tenantId, ctx.parentId);
     if (!linkedStudentIds.length) {
-      return buildPortalError(404, "NotFound", "Session not found");
+      return buildPortalError(404, "NOT_FOUND");
     }
 
     // Only fetch roster rows for linked students to prevent group-session leakage.
@@ -72,7 +72,7 @@ export async function GET(req: NextRequest, context: Params) {
     });
 
     if (!rosterRows.length) {
-      return buildPortalError(404, "NotFound", "Session not found");
+      return buildPortalError(404, "NOT_FOUND");
     }
 
     const rosterStudentIds = rosterRows.map((row) => row.studentId);
@@ -98,7 +98,7 @@ export async function GET(req: NextRequest, context: Params) {
           id: row.id,
           status: row.status,
           parentVisibleNote: row.parentVisibleNote ?? null,
-          markedAt: row.markedAt,
+          markedAt: row.markedAt ? row.markedAt.toISOString() : null,
         },
       ]),
     );
@@ -137,8 +137,8 @@ export async function GET(req: NextRequest, context: Params) {
       session: {
         id: session.id,
         sessionType: session.sessionType,
-        startAt: session.startAt,
-        endAt: session.endAt,
+        startAt: session.startAt.toISOString(),
+        endAt: session.endAt ? session.endAt.toISOString() : null,
         timezone: session.timezone,
         groupId: session.groupId,
         groupName: session.group?.name ?? null,
@@ -167,9 +167,11 @@ export async function GET(req: NextRequest, context: Params) {
                 id: request.id,
                 type: request.type,
                 status: request.status,
-                createdAt: request.createdAt,
-                updatedAt: request.updatedAt,
-                resolvedAt: request.resolvedAt,
+                createdAt: request.createdAt.toISOString(),
+                updatedAt: request.updatedAt.toISOString(),
+                resolvedAt: request.resolvedAt
+                  ? request.resolvedAt.toISOString()
+                  : null,
               }
             : null,
         };
@@ -177,6 +179,6 @@ export async function GET(req: NextRequest, context: Params) {
     });
   } catch (error) {
     console.error("GET /api/portal/sessions/[id] failed", error);
-    return buildPortalError(500, "InternalError", "Internal server error");
+    return buildPortalError(500, "INTERNAL_ERROR");
   }
 }

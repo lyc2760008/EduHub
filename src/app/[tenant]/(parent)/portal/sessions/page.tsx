@@ -10,6 +10,7 @@ import PageHeader from "@/components/parent/PageHeader";
 import PortalEmptyState from "@/components/parent/portal/PortalEmptyState";
 import PortalSkeletonBlock from "@/components/parent/portal/PortalSkeletonBlock";
 import SessionRow from "@/components/parent/portal/SessionRow";
+import PortalTimeHint from "@/components/parent/portal/PortalTimeHint";
 import { fetchJson } from "@/lib/api/fetchJson";
 
 type PortalStudent = {
@@ -26,6 +27,7 @@ type PortalSession = {
   id: string;
   studentId: string;
   startAt: string;
+  endAt?: string | null;
   sessionType: string;
   groupName?: string | null;
 };
@@ -145,34 +147,50 @@ export default function PortalSessionsPage() {
 
   if (hasError) {
     return (
-      <Card>
-        <div className="space-y-3 text-center" data-testid="portal-sessions-error">
-          <h2 className="text-base font-semibold text-[var(--text)]">
-            {t("portal.error.sessions.title")}
-          </h2>
-          <p className="text-sm text-[var(--muted)]">
-            {t("portal.error.sessions.body")}
-          </p>
-          <button
-            type="button"
-            onClick={() => void loadSessions()}
-            className="inline-flex h-11 items-center rounded-xl bg-[var(--primary)] px-4 text-sm font-semibold text-[var(--primary-foreground)]"
-          >
-            {t("portal.common.tryAgain")}
-          </button>
-        </div>
-      </Card>
+      <div className="space-y-6" data-testid="portal-sessions-page">
+        <PageHeader
+          titleKey="portal.sessions.title"
+          subtitleKey="portal.sessions.helper"
+        />
+        {/* Time hint remains visible even when the session list fails to load. */}
+        <PortalTimeHint />
+        <Card>
+          <div className="space-y-3 text-center" data-testid="portal-sessions-error">
+            <h2 className="text-base font-semibold text-[var(--text)]">
+              {t("portal.error.sessions.title")}
+            </h2>
+            <p className="text-sm text-[var(--muted)]">
+              {t("portal.error.sessions.body")}
+            </p>
+            <button
+              type="button"
+              onClick={() => void loadSessions()}
+              className="inline-flex h-11 items-center rounded-xl bg-[var(--primary)] px-4 text-sm font-semibold text-[var(--primary-foreground)]"
+            >
+              {t("portal.common.tryAgain")}
+            </button>
+          </div>
+        </Card>
+      </div>
     );
   }
 
   if (students.length === 0) {
     return (
-      <PortalEmptyState
-        variant="noStudents"
-        hintKey="portal.empty.noStudents.hint"
-        actionLabelKey="portal.empty.noStudents.cta"
-        actionHref={tenant ? `/${tenant}/portal/students` : "/portal/students"}
-      />
+      <div className="space-y-6" data-testid="portal-sessions-page">
+        <PageHeader
+          titleKey="portal.sessions.title"
+          subtitleKey="portal.sessions.helper"
+        />
+        {/* Time hint persists even when there are no linked students yet. */}
+        <PortalTimeHint />
+        <PortalEmptyState
+          variant="noStudents"
+          hintKey="portal.empty.noStudents.hint"
+          actionLabelKey="portal.empty.noStudents.cta"
+          actionHref={tenant ? `/${tenant}/portal/students` : "/portal/students"}
+        />
+      </div>
     );
   }
 
@@ -184,6 +202,8 @@ export default function PortalSessionsPage() {
         titleKey="portal.sessions.title"
         subtitleKey="portal.sessions.helper"
       />
+      {/* Time hint keeps session list timestamps aligned to the portal timezone rule. */}
+      <PortalTimeHint />
       <div className="flex flex-wrap gap-3" data-testid="portal-sessions-filters">
         <label className="flex flex-col gap-1 text-xs text-[var(--muted)]">
           {t("portal.sessions.filter.student")}
@@ -228,6 +248,7 @@ export default function PortalSessionsPage() {
               session={{
                 id: session.id,
                 startAt: session.startAt,
+                endAt: session.endAt ?? null,
                 sessionType: session.sessionType,
                 groupName: session.groupName ?? null,
                 studentName: studentNameById.get(session.studentId) ?? null,

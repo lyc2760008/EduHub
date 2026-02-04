@@ -10,20 +10,19 @@ import Card from "@/components/parent/Card";
 import PageHeader from "@/components/parent/PageHeader";
 import SectionHeader from "@/components/parent/SectionHeader";
 import PortalEmptyState from "@/components/parent/portal/PortalEmptyState";
+import { usePortalMe } from "@/components/parent/portal/PortalMeProvider";
 import PortalSkeletonBlock from "@/components/parent/portal/PortalSkeletonBlock";
+import PortalTimeHint from "@/components/parent/portal/PortalTimeHint";
 import StudentCard from "@/components/parent/portal/StudentCard";
 import { fetchJson } from "@/lib/api/fetchJson";
-import { formatPortalDateTime, getSessionTypeLabelKey } from "@/lib/portal/format";
+import {
+  formatPortalDateTime,
+  formatPortalDateTimeRange,
+  getSessionTypeLabelKey,
+} from "@/lib/portal/format";
 
 const SUMMARY_RANGE_DAYS = 30;
 const UPCOMING_RANGE_DAYS = 7;
-
-type PortalMeResponse = {
-  parent: { id: string; email: string; name: string | null; isActive?: boolean };
-  linkedStudentIds: string[];
-  linkedStudentCount: number;
-  linkedActiveStudentCount?: number;
-};
 
 type PortalStudent = {
   id: string;
@@ -42,6 +41,7 @@ type PortalSession = {
   id: string;
   studentId: string;
   startAt: string;
+  endAt?: string | null;
   sessionType: string;
   groupName?: string | null;
 };
@@ -81,9 +81,11 @@ export default function PortalDashboardPage() {
   const params = useParams<{ tenant?: string }>();
   const tenant = typeof params.tenant === "string" ? params.tenant : "";
 
+  // Portal identity data is shared from the layout-level /me fetch.
+  const { data: portalMe, isLoading: isMeLoading, error: meError, reload: reloadMe } =
+    usePortalMe();
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
-  const [me, setMe] = useState<PortalMeResponse | null>(null);
   const [students, setStudents] = useState<PortalStudent[]>([]);
   const [nextSession, setNextSession] = useState<PortalSession | null>(null);
   const [attendanceCounts, setAttendanceCounts] = useState<Record<string, number>>({});
@@ -115,27 +117,24 @@ export default function PortalDashboardPage() {
       skip: "0",
     });
 
-    const [meResult, studentsResult, sessionsResult, attendanceResult] =
-      await Promise.all([
-        fetchJson<PortalMeResponse>(buildPortalApiUrl(tenant, "/me")),
-        fetchJson<PortalStudentsResponse>(
-          buildPortalApiUrl(tenant, "/students", studentParams),
-        ),
-        fetchJson<PortalSessionsResponse>(
-          buildPortalApiUrl(tenant, "/sessions", upcomingParams),
-        ),
-        fetchJson<PortalAttendanceResponse>(
-          buildPortalApiUrl(tenant, "/attendance", attendanceParams),
-        ),
-      ]);
+    const [studentsResult, sessionsResult, attendanceResult] = await Promise.all([
+      fetchJson<PortalStudentsResponse>(
+        buildPortalApiUrl(tenant, "/students", studentParams),
+      ),
+      fetchJson<PortalSessionsResponse>(
+        buildPortalApiUrl(tenant, "/sessions", upcomingParams),
+      ),
+      fetchJson<PortalAttendanceResponse>(
+        buildPortalApiUrl(tenant, "/attendance", attendanceParams),
+      ),
+    ]);
 
-    if (!meResult.ok || !studentsResult.ok || !sessionsResult.ok || !attendanceResult.ok) {
+    if (!studentsResult.ok || !sessionsResult.ok || !attendanceResult.ok) {
       setHasError(true);
       setIsLoading(false);
       return;
     }
 
-    setMe(meResult.data);
     setStudents(studentsResult.data.items);
     setNextSession(sessionsResult.data.items[0] ?? null);
     setAttendanceCounts(attendanceResult.data.countsByStatus ?? {});
@@ -150,10 +149,13 @@ export default function PortalDashboardPage() {
     return () => clearTimeout(handle);
   }, [loadDashboard]);
 
-  const linkedStudentCount = me?.linkedStudentCount ?? 0;
+  const linkedStudentCount = portalMe?.students?.length ?? 0;
   const linkedActiveStudentCount =
-    me?.linkedActiveStudentCount ?? me?.linkedStudentCount ?? 0;
+    portalMe?.students?.filter((student) => student.isActive).length ?? 0;
   const hasStudents = linkedStudentCount > 0;
+  const timeZone = portalMe?.tenant?.timeZone ?? undefined;
+  const isPageLoading = isLoading || isMeLoading;
+  const hasPageError = hasError || Boolean(meError);
 
   const attendanceSummary = [
     { status: "PRESENT", key: "portal.attendance.status.present" },
@@ -162,7 +164,7 @@ export default function PortalDashboardPage() {
     { status: "EXCUSED", key: "portal.attendance.status.excused" },
   ];
 
-  if (isLoading) {
+  if (isPageLoading) {
     return (
       <div className="space-y-6" data-testid="portal-dashboard-loading">
         <PortalSkeletonBlock className="h-8 w-40" />
@@ -184,40 +186,53 @@ export default function PortalDashboardPage() {
     );
   }
 
-  if (hasError) {
+  if (hasPageError) {
     return (
-      <Card>
-        <div className="space-y-3 text-center" data-testid="portal-dashboard-error">
-          <h2 className="text-base font-semibold text-[var(--text)]">
-            {t("portal.error.generic.title")}
-          </h2>
-          <p className="text-sm text-[var(--muted)]">
-            {t("portal.error.generic.body")}
-          </p>
-          <button
-            type="button"
-            onClick={() => void loadDashboard()}
-            className="inline-flex h-11 items-center rounded-xl bg-[var(--primary)] px-4 text-sm font-semibold text-[var(--primary-foreground)]"
-          >
-            {t("portal.common.tryAgain")}
-          </button>
-        </div>
-      </Card>
+      <div className="space-y-6" data-testid="portal-dashboard-error">
+        <PageHeader titleKey="portal.dashboard.title" />
+        {/* Time hint remains visible even when the dashboard fails to load. */}
+        <PortalTimeHint />
+        <Card>
+          <div className="space-y-3 text-center">
+            <h2 className="text-base font-semibold text-[var(--text)]">
+              {t("portal.error.generic.title")}
+            </h2>
+            <p className="text-sm text-[var(--muted)]">
+              {t("portal.error.generic.body")}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                void loadDashboard();
+                reloadMe();
+              }}
+              className="inline-flex h-11 items-center rounded-xl bg-[var(--primary)] px-4 text-sm font-semibold text-[var(--primary-foreground)]"
+            >
+              {t("portal.common.tryAgain")}
+            </button>
+          </div>
+        </Card>
+      </div>
     );
   }
 
   if (!hasStudents) {
     return (
-      <PortalEmptyState
-        variant="noStudents"
-        hintKey="portal.empty.noStudents.hint"
-        actionLabelKey="portal.empty.noStudents.cta"
-        actionHref={tenant ? `/${tenant}/portal/students` : "/portal/students"}
-      />
+      <div className="space-y-6" data-testid="portal-dashboard-empty">
+        <PageHeader titleKey="portal.dashboard.title" />
+        {/* Time hint remains visible even when there are no linked students yet. */}
+        <PortalTimeHint />
+        <PortalEmptyState
+          variant="noStudents"
+          hintKey="portal.empty.noStudents.hint"
+          actionLabelKey="portal.empty.noStudents.cta"
+          actionHref={tenant ? `/${tenant}/portal/students` : "/portal/students"}
+        />
+      </div>
     );
   }
 
-  const greetingName = me?.parent.name?.trim();
+  const greetingName = portalMe?.parent.displayName?.trim();
   const nextSessionTypeKey = nextSession
     ? getSessionTypeLabelKey(nextSession.sessionType)
     : null;
@@ -232,6 +247,8 @@ export default function PortalDashboardPage() {
     <div className="space-y-8" data-testid="portal-dashboard-page">
       <div className="space-y-2">
         <PageHeader titleKey="portal.dashboard.title" />
+        {/* Time hint reinforces the timezone rule across dashboard summaries. */}
+        <PortalTimeHint />
         <p className="text-sm text-[var(--muted)]">
           {greetingName
             ? t("portal.dashboard.greetingWithName", { name: greetingName })
@@ -276,7 +293,12 @@ export default function PortalDashboardPage() {
               >
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-[var(--text)]">
-                    {formatPortalDateTime(nextSession.startAt, locale)}
+                    {formatPortalDateTimeRange(
+                      nextSession.startAt,
+                      nextSession.endAt ?? null,
+                      locale,
+                      timeZone,
+                    ) || formatPortalDateTime(nextSession.startAt, locale, timeZone)}
                   </p>
                   <p className="text-sm text-[var(--muted)]">{nextSessionTitle}</p>
                   {nextSessionStudentName ? (

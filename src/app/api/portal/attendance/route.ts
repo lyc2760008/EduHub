@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
     const { from, to } = rangeResult;
 
     const { take, skip } = parsePortalPagination(req, {
-      take: 100,
+      take: 50,
       maxTake: 200,
       skip: 0,
     });
@@ -121,11 +121,11 @@ export async function GET(req: NextRequest) {
       id: row.id,
       studentId: row.studentId,
       sessionId: row.sessionId,
-      dateTime: row.session.startAt,
+      dateTime: row.session.startAt.toISOString(),
       status: row.status,
       parentVisibleNote: row.parentVisibleNote ?? null,
       sessionType: row.session.sessionType,
-      sessionEndAt: row.session.endAt,
+      sessionEndAt: row.session.endAt ? row.session.endAt.toISOString() : null,
       groupId: row.session.groupId,
       groupName: row.session.group?.name ?? null,
     }));
@@ -139,6 +139,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("GET /api/portal/attendance failed", error);
-    return buildPortalError(500, "InternalError", "Internal server error");
+    return buildPortalError(500, "INTERNAL_ERROR");
   }
 }

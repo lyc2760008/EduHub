@@ -8,7 +8,9 @@ import { useLocale, useTranslations } from "next-intl";
 
 import Card from "@/components/parent/Card";
 import PageHeader from "@/components/parent/PageHeader";
+import { usePortalMe } from "@/components/parent/portal/PortalMeProvider";
 import PortalSkeletonBlock from "@/components/parent/portal/PortalSkeletonBlock";
+import PortalTimeHint from "@/components/parent/portal/PortalTimeHint";
 import { fetchJson } from "@/lib/api/fetchJson";
 import { formatPortalDateTime, getSessionTypeLabelKey } from "@/lib/portal/format";
 
@@ -109,24 +111,14 @@ function getRequestStatusTone(status: string | null | undefined) {
 }
 
 function sortRequestRows(rows: RequestRow[]) {
-  const now = Date.now();
+  // Requests should appear newest-first per the portal UX contract.
   return [...rows].sort((a, b) => {
-    const aStart = a.sessionStartAt ? new Date(a.sessionStartAt).getTime() : 0;
-    const bStart = b.sessionStartAt ? new Date(b.sessionStartAt).getTime() : 0;
-    const aUpcoming = aStart >= now;
-    const bUpcoming = bStart >= now;
-
-    if (aUpcoming !== bUpcoming) {
-      return aUpcoming ? -1 : 1;
-    }
-
-    if (aStart !== bStart) {
-      return aStart - bStart;
-    }
-
     const aUpdated = new Date(a.updatedAt).getTime();
     const bUpdated = new Date(b.updatedAt).getTime();
-    return bUpdated - aUpdated;
+    if (aUpdated !== bUpdated) return bUpdated - aUpdated;
+    const aSubmitted = new Date(a.submittedAt).getTime();
+    const bSubmitted = new Date(b.submittedAt).getTime();
+    return bSubmitted - aSubmitted;
   });
 }
 
@@ -135,6 +127,9 @@ export default function PortalRequestsPage() {
   const locale = useLocale();
   const params = useParams<{ tenant?: string }>();
   const tenant = typeof params.tenant === "string" ? params.tenant : "";
+  // Use portal identity data to align request timestamps with the portal timezone hint.
+  const { data: portalMe } = usePortalMe();
+  const timeZone = portalMe?.tenant?.timeZone ?? undefined;
 
   const [rows, setRows] = useState<RequestRow[]>([]);
   const [statusFilter, setStatusFilter] = useState<RequestStatusFilter>("ALL");
@@ -312,6 +307,8 @@ export default function PortalRequestsPage() {
     return (
       <div className="space-y-6" data-testid="portal-requests-page">
         <PageHeader titleKey="portal.requests.title" subtitleKey="portal.requests.helper" />
+        {/* Time hint anchors request list timestamps to the portal timezone rule. */}
+        <PortalTimeHint />
         {errorState}
       </div>
     );
@@ -321,6 +318,8 @@ export default function PortalRequestsPage() {
     return (
       <div className="space-y-6" data-testid="portal-requests-page">
         <PageHeader titleKey="portal.requests.title" subtitleKey="portal.requests.helper" />
+        {/* Time hint stays visible even when the list is empty. */}
+        <PortalTimeHint />
         {emptyState}
       </div>
     );
@@ -329,6 +328,8 @@ export default function PortalRequestsPage() {
   return (
     <div className="space-y-6" data-testid="portal-requests-page">
       <PageHeader titleKey="portal.requests.title" subtitleKey="portal.requests.helper" />
+      {/* Time hint keeps request timestamps consistent across portal pages. */}
+      <PortalTimeHint />
 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--muted)]">
@@ -366,13 +367,16 @@ export default function PortalRequestsPage() {
           const statusLabel = t(getRequestStatusLabelKey(row.status));
           const statusTone = getRequestStatusTone(row.status);
           const sessionDateTime = row.sessionStartAt
-            ? formatPortalDateTime(row.sessionStartAt, locale) || t("generic.dash")
+            ? formatPortalDateTime(row.sessionStartAt, locale, timeZone) ||
+              t("generic.dash")
             : t("generic.dash");
           const updatedLabel = row.updatedAt
-            ? formatPortalDateTime(row.updatedAt, locale) || t("generic.dash")
+            ? formatPortalDateTime(row.updatedAt, locale, timeZone) ||
+              t("generic.dash")
             : t("generic.dash");
           const submittedLabel = row.submittedAt
-            ? formatPortalDateTime(row.submittedAt, locale) || t("generic.dash")
+            ? formatPortalDateTime(row.submittedAt, locale, timeZone) ||
+              t("generic.dash")
             : t("generic.dash");
           const href = tenant
             ? `/${tenant}/portal/sessions/${row.sessionId}#absence-request`

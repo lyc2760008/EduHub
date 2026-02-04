@@ -14,14 +14,16 @@ import { createParentRequestSchema } from "@/lib/validation/parentRequest";
 
 export const runtime = "nodejs";
 
-function parseStatusFilter(value: string | null): RequestStatus | null | Response {
+function parseStatusFilter(
+  value: string | null,
+): RequestStatus | null | Response {
   if (!value) return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
   if (Object.values(RequestStatus).includes(trimmed as RequestStatus)) {
     return trimmed as RequestStatus;
   }
-  return buildPortalError(400, "ValidationError", "Invalid status", {
+  return buildPortalError(400, "VALIDATION_ERROR", {
     field: "status",
     reason: "PORTAL_REQUEST_INVALID",
   });
@@ -40,7 +42,7 @@ export async function GET(req: NextRequest) {
 
     const { take, skip } = parsePortalPagination(req, {
       take: 50,
-      maxTake: 100,
+      maxTake: 200,
       skip: 0,
     });
 
@@ -83,10 +85,25 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ items, take, skip });
+    return NextResponse.json({
+      items: items.map((item) => ({
+        ...item,
+        createdAt: item.createdAt.toISOString(),
+        updatedAt: item.updatedAt.toISOString(),
+        resolvedAt: item.resolvedAt ? item.resolvedAt.toISOString() : null,
+        session: item.session
+          ? {
+              ...item.session,
+              startAt: item.session.startAt.toISOString(),
+            }
+          : null,
+      })),
+      take,
+      skip,
+    });
   } catch (error) {
     console.error("GET /api/portal/requests failed", error);
-    return buildPortalError(500, "InternalError", "Internal server error");
+    return buildPortalError(500, "INTERNAL_ERROR");
   }
 }
 
@@ -101,15 +118,14 @@ export async function POST(req: NextRequest) {
     try {
       body = await req.json();
     } catch {
-      return buildPortalError(400, "ValidationError", "Invalid JSON body", {
+      return buildPortalError(400, "VALIDATION_ERROR", {
         reason: "PORTAL_REQUEST_INVALID",
       });
     }
 
     const parsed = createParentRequestSchema.safeParse(body);
     if (!parsed.success) {
-      return buildPortalError(400, "ValidationError", "Invalid payload", {
-        issues: parsed.error.issues,
+      return buildPortalError(400, "VALIDATION_ERROR", {
         reason: "PORTAL_REQUEST_INVALID",
       });
     }
@@ -155,17 +171,27 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ request: created }, { status: 201 });
+    return NextResponse.json(
+      {
+        request: {
+          ...created,
+          createdAt: created.createdAt.toISOString(),
+          updatedAt: created.updatedAt.toISOString(),
+          resolvedAt: created.resolvedAt ? created.resolvedAt.toISOString() : null,
+        },
+      },
+      { status: 201 },
+    );
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      return buildPortalError(409, "Conflict", "Request already exists", {
+      return buildPortalError(409, "CONFLICT", {
         reason: "PORTAL_REQUEST_DUPLICATE",
       });
     }
     console.error("POST /api/portal/requests failed", error);
-    return buildPortalError(500, "InternalError", "Internal server error");
+    return buildPortalError(500, "INTERNAL_ERROR");
   }
 }

@@ -44,7 +44,7 @@ export async function GET(req: NextRequest, context: Params) {
     });
 
     if (!student) {
-      return buildPortalError(404, "NotFound", "Student not found");
+      return buildPortalError(404, "NOT_FOUND");
     }
 
     return NextResponse.json({
@@ -58,6 +58,6 @@ export async function GET(req: NextRequest, context: Params) {
     });
   } catch (error) {
     console.error("GET /api/portal/students/[id] failed", error);
-    return buildPortalError(500, "InternalError", "Internal server error");
+    return buildPortalError(500, "INTERNAL_ERROR");
   }
 }

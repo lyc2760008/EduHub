@@ -71,6 +71,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ items, total, take, skip });
   } catch (error) {
     console.error("GET /api/portal/students failed", error);
-    return buildPortalError(500, "InternalError", "Internal server error");
+    return buildPortalError(500, "INTERNAL_ERROR");
   }
 }

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useParams } from "next/navigation";
 
 import styles from "./parentTokens.module.css";
+import { PortalMeProvider } from "./portal/PortalMeProvider";
 import PortalTopNav from "./PortalTopNav";
 
 type ParentShellProps = {
@@ -27,25 +28,28 @@ export default function ParentShell({
     tenantSlug ?? (typeof params.tenant === "string" ? params.tenant : "");
 
   return (
-    <div
-      className={`${styles.parentPortal} min-h-screen bg-[var(--background)] text-[var(--text)]`}
-      data-testid="parent-shell"
-    >
-      {/* Parent header is scoped so admin styles remain untouched. */}
-      <header className="border-b border-[var(--border)]">
-        <PortalTopNav
-          tenantSlug={resolvedTenant}
-          tenantLabel={tenantLabel}
-          showNav={showNav}
-          headerActions={headerActions}
-        />
-      </header>
-      <main
-        className="mx-auto w-full max-w-[960px] p-5 md:p-8"
-        data-testid="parent-content"
+    <PortalMeProvider tenantSlug={resolvedTenant} enabled={showNav}>
+      {/* PortalMeProvider keeps identity data shared across header + pages. */}
+      <div
+        className={`${styles.parentPortal} min-h-screen bg-[var(--background)] text-[var(--text)]`}
+        data-testid="parent-shell"
       >
-        {children}
-      </main>
-    </div>
+        {/* Parent header is scoped so admin styles remain untouched. */}
+        <header className="border-b border-[var(--border)]">
+          <PortalTopNav
+            tenantSlug={resolvedTenant}
+            tenantLabel={tenantLabel}
+            showNav={showNav}
+            headerActions={headerActions}
+          />
+        </header>
+        <main
+          className="mx-auto w-full max-w-[960px] p-5 md:p-8"
+          data-testid="parent-content"
+        >
+          {children}
+        </main>
+      </div>
+    </PortalMeProvider>
   );
 }

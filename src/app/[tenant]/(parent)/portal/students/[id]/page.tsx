@@ -3,7 +3,7 @@
 // Parent portal student detail page with overview + attendance tabs.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import Card from "@/components/parent/Card";
@@ -12,6 +12,7 @@ import PortalTabs from "@/components/parent/portal/PortalTabs";
 import PortalSkeletonBlock from "@/components/parent/portal/PortalSkeletonBlock";
 import AttendanceRow from "@/components/parent/portal/AttendanceRow";
 import SessionRow from "@/components/parent/portal/SessionRow";
+import PortalTimeHint from "@/components/parent/portal/PortalTimeHint";
 import { fetchJson } from "@/lib/api/fetchJson";
 
 type PortalStudentDetail = {
@@ -29,6 +30,7 @@ type PortalStudentResponse = {
 type PortalSession = {
   id: string;
   startAt: string;
+  endAt?: string | null;
   sessionType: string;
   groupName?: string | null;
 };
@@ -42,6 +44,7 @@ type PortalAttendanceItem = {
   // Session id is used to link attendance rows to the session detail view.
   sessionId: string;
   dateTime: string;
+  sessionEndAt?: string | null;
   status: string;
   sessionType: string;
   groupName?: string | null;
@@ -56,6 +59,14 @@ type PortalAttendanceResponse = {
 
 const UPCOMING_RANGE_DAYS = 14;
 const ATTENDANCE_DEFAULT_RANGE = 30;
+
+// Portal API errors expose safe codes for client-side handling.
+function resolvePortalErrorCode(details: unknown): string | undefined {
+  if (!details || typeof details !== "object") return undefined;
+  const payload = details as { error?: { code?: unknown } };
+  const code = payload.error?.code;
+  return typeof code === "string" ? code : undefined;
+}
 
 function buildPortalApiUrl(tenant: string, path: string, params?: URLSearchParams) {
   const base = tenant ? `/t/${tenant}/api/portal${path}` : `/api/portal${path}`;
@@ -81,6 +92,7 @@ function getRangeLastDays(days: number) {
 export default function PortalStudentDetailPage() {
   const t = useTranslations();
   const params = useParams<{ tenant?: string; id?: string }>();
+  const router = useRouter();
   const tenant = typeof params.tenant === "string" ? params.tenant : "";
   const studentId = typeof params.id === "string" ? params.id : "";
 
@@ -125,7 +137,12 @@ export default function PortalStudentDetailPage() {
     );
 
     if (!studentResult.ok) {
-      if (studentResult.status === 404) {
+      const errorCode = resolvePortalErrorCode(studentResult.details);
+      if (studentResult.status === 401 || errorCode === "UNAUTHORIZED") {
+        router.replace(tenant ? `/${tenant}/parent/login` : "/parent/login");
+        return;
+      }
+      if (studentResult.status === 404 || errorCode === "NOT_FOUND") {
         setNotFound(true);
       } else {
         setHasError(true);
@@ -171,7 +188,7 @@ export default function PortalStudentDetailPage() {
     setUpcomingSessions(sessionsResult.data.items ?? []);
     setAttendanceCounts(attendanceResult.data.countsByStatus ?? {});
     setIsLoading(false);
-  }, [studentId, tenant]);
+  }, [router, studentId, tenant]);
 
   const loadAttendanceHistory = useCallback(async () => {
     if (!tenant || !studentId) return;
@@ -236,16 +253,16 @@ export default function PortalStudentDetailPage() {
       <Card>
         <div className="space-y-3 text-center" data-testid="portal-student-not-found">
           <h2 className="text-base font-semibold text-[var(--text)]">
-            {t("portal.error.notFound.title")}
+            {t("portal.error.notAvailable.title")}
           </h2>
           <p className="text-sm text-[var(--muted)]">
-            {t("portal.error.notFound.body")}
+            {t("portal.error.notAvailable.body")}
           </p>
           <Link
-            href={tenant ? `/${tenant}/portal/students` : "/portal/students"}
+            href={tenant ? `/${tenant}/portal` : "/portal"}
             className="inline-flex h-11 items-center rounded-xl bg-[var(--primary)] px-4 text-sm font-semibold text-[var(--primary-foreground)]"
           >
-            {t("portal.common.backToStudents")}
+            {t("portal.error.notAvailable.cta")}
           </Link>
         </div>
       </Card>
@@ -284,6 +301,8 @@ export default function PortalStudentDetailPage() {
           {t("portal.common.back")}
         </Link>
         <PageHeader titleKey="portal.student.detail.title" />
+        {/* Time hint keeps session and attendance timestamps aligned to the portal timezone. */}
+        <PortalTimeHint />
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-lg font-semibold text-[var(--text)]">
             {studentName}

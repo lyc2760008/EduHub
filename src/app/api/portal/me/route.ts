@@ -23,35 +23,50 @@ export async function GET(req: NextRequest) {
       ctx.parentId,
     );
 
-    const linkedActiveStudentCount = linkedStudentIds.length
-      ? await prisma.student.count({
+    const linkedStudents = linkedStudentIds.length
+      ? await prisma.student.findMany({
           where: {
             tenantId,
             id: { in: linkedStudentIds },
-            status: StudentStatus.ACTIVE,
+          },
+          orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            status: true,
           },
         })
-      : 0;
+      : [];
 
-    const displayName = [ctx.parent.firstName, ctx.parent.lastName]
+    const parentDisplayName = [ctx.parent.firstName, ctx.parent.lastName]
       .filter(Boolean)
-      .join(" ");
+      .join(" ")
+      .trim();
 
-    // Response is intentionally minimal to keep portal data exposure scoped.
     return NextResponse.json({
       parent: {
         id: ctx.parent.id,
         email: ctx.parent.email,
-        name: displayName || null,
-        // accessCodeHash presence is treated as the active flag for portal access.
-        isActive: Boolean(ctx.parent.accessCodeHash),
+        displayName: parentDisplayName || null,
       },
-      linkedStudentIds,
-      linkedStudentCount: linkedStudentIds.length,
-      linkedActiveStudentCount,
+      tenant: {
+        id: ctx.tenant.tenantId,
+        slug: ctx.tenant.tenantSlug,
+        displayName: ctx.tenant.tenantName ?? ctx.tenant.tenantSlug ?? null,
+        timeZone: "UTC",
+      },
+      students: linkedStudents.map((student) => ({
+        id: student.id,
+        displayName: [student.firstName, student.lastName]
+          .filter(Boolean)
+          .join(" ")
+          .trim(),
+        isActive: student.status === StudentStatus.ACTIVE,
+      })),
     });
   } catch (error) {
     console.error("GET /api/portal/me failed", error);
-    return buildPortalError(500, "InternalError", "Internal server error");
+    return buildPortalError(500, "INTERNAL_ERROR");
   }
 }

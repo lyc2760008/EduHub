@@ -9,6 +9,7 @@ import Card from "@/components/parent/Card";
 import PageHeader from "@/components/parent/PageHeader";
 import PortalEmptyState from "@/components/parent/portal/PortalEmptyState";
 import PortalSkeletonBlock from "@/components/parent/portal/PortalSkeletonBlock";
+import PortalTimeHint from "@/components/parent/portal/PortalTimeHint";
 import StudentCard from "@/components/parent/portal/StudentCard";
 import { fetchJson } from "@/lib/api/fetchJson";
 
@@ -85,34 +86,50 @@ export default function PortalStudentsPage() {
 
   if (hasError) {
     return (
-      <Card>
-        <div className="space-y-3 text-center" data-testid="portal-students-error">
-          <h2 className="text-base font-semibold text-[var(--text)]">
-            {t("portal.error.students.title")}
-          </h2>
-          <p className="text-sm text-[var(--muted)]">
-            {t("portal.error.students.body")}
-          </p>
-          <button
-            type="button"
-            onClick={() => void loadStudents()}
-            className="inline-flex h-11 items-center rounded-xl bg-[var(--primary)] px-4 text-sm font-semibold text-[var(--primary-foreground)]"
-          >
-            {t("portal.common.tryAgain")}
-          </button>
-        </div>
-      </Card>
+      <div className="space-y-6" data-testid="portal-students-page">
+        <PageHeader
+          titleKey="portal.students.title"
+          subtitleKey="portal.students.helper"
+        />
+        {/* Time hint remains visible even when the student list fails to load. */}
+        <PortalTimeHint />
+        <Card>
+          <div className="space-y-3 text-center" data-testid="portal-students-error">
+            <h2 className="text-base font-semibold text-[var(--text)]">
+              {t("portal.error.students.title")}
+            </h2>
+            <p className="text-sm text-[var(--muted)]">
+              {t("portal.error.students.body")}
+            </p>
+            <button
+              type="button"
+              onClick={() => void loadStudents()}
+              className="inline-flex h-11 items-center rounded-xl bg-[var(--primary)] px-4 text-sm font-semibold text-[var(--primary-foreground)]"
+            >
+              {t("portal.common.tryAgain")}
+            </button>
+          </div>
+        </Card>
+      </div>
     );
   }
 
   if (students.length === 0) {
     return (
-      <PortalEmptyState
-        variant="noStudents"
-        hintKey="portal.empty.noStudents.hint"
-        actionLabelKey="portal.empty.noStudents.cta"
-        actionHref={tenant ? `/${tenant}/portal/students` : "/portal/students"}
-      />
+      <div className="space-y-6" data-testid="portal-students-page">
+        <PageHeader
+          titleKey="portal.students.title"
+          subtitleKey="portal.students.helper"
+        />
+        {/* Time hint persists even when there are no linked students yet. */}
+        <PortalTimeHint />
+        <PortalEmptyState
+          variant="noStudents"
+          hintKey="portal.empty.noStudents.hint"
+          actionLabelKey="portal.empty.noStudents.cta"
+          actionHref={tenant ? `/${tenant}/portal/students` : "/portal/students"}
+        />
+      </div>
     );
   }
 
@@ -122,6 +139,8 @@ export default function PortalStudentsPage() {
         titleKey="portal.students.title"
         subtitleKey="portal.students.helper"
       />
+      {/* Time hint stays consistent across portal pages, even when no times are shown. */}
+      <PortalTimeHint />
       <div className="grid gap-3" data-testid="portal-students-list">
         {students.map((student) => (
           <StudentCard

@@ -8,10 +8,14 @@ import { useLocale, useTranslations } from "next-intl";
 
 import Card from "@/components/parent/Card";
 import PageHeader from "@/components/parent/PageHeader";
+import { usePortalMe } from "@/components/parent/portal/PortalMeProvider";
 import PortalSkeletonBlock from "@/components/parent/portal/PortalSkeletonBlock";
+import PortalTimeHint from "@/components/parent/portal/PortalTimeHint";
 import { fetchJson } from "@/lib/api/fetchJson";
 import {
   formatPortalDateTime,
+  formatPortalDateTimeRange,
+  formatPortalDuration,
   getAttendanceStatusLabelKey,
   getSessionTypeLabelKey,
 } from "@/lib/portal/format";
@@ -20,8 +24,8 @@ type PortalSessionDetail = {
   id: string;
   sessionType: string;
   startAt: string;
-  endAt: string;
-  timezone: string;
+  endAt: string | null;
+  timezone?: string | null;
   groupId?: string | null;
   groupName?: string | null;
   centerId?: string | null;
@@ -87,6 +91,14 @@ const ABSENCE_REASON_OPTIONS = [
   { value: "OTHER", labelKey: "portal.absence.reason.other" },
 ];
 
+// Portal API errors expose safe codes for client-side handling.
+function resolvePortalErrorCode(details: unknown): string | undefined {
+  if (!details || typeof details !== "object") return undefined;
+  const payload = details as { error?: { code?: unknown } };
+  const code = payload.error?.code;
+  return typeof code === "string" ? code : undefined;
+}
+
 function buildPortalApiUrl(tenant: string, path: string, params?: URLSearchParams) {
   const base = tenant ? `/t/${tenant}/api/portal${path}` : `/api/portal${path}`;
   if (!params) return base;
@@ -94,39 +106,6 @@ function buildPortalApiUrl(tenant: string, path: string, params?: URLSearchParam
   return query ? `${base}?${query}` : base;
 }
 
-function formatSessionDateTime(
-  startAt: string,
-  endAt: string,
-  locale: string,
-) {
-  const start = new Date(startAt);
-  const end = new Date(endAt);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "";
-
-  const dateLabel = new Intl.DateTimeFormat(locale, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  }).format(start);
-  const timeFormatter = new Intl.DateTimeFormat(locale, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-  const timeRange = `${timeFormatter.format(start)} - ${timeFormatter.format(end)}`;
-
-  return `${dateLabel} ${timeRange}`;
-}
-
-function formatSessionDuration(startAt: string, endAt: string) {
-  const start = new Date(startAt);
-  const end = new Date(endAt);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "";
-  const minutes = Math.max(0, Math.round((end.getTime() - start.getTime()) / 60000));
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  // Use HH:MM to avoid adding new localized duration copy outside the contract.
-  return `${hours}:${String(remainder).padStart(2, "0")}`;
-}
 
 function getRequestStatusLabelKey(status: string | null | undefined) {
   switch (status) {
@@ -183,6 +162,9 @@ function resolveReasonLabelKey(reasonCode: string | null | undefined) {
 export default function PortalSessionDetailPage() {
   const t = useTranslations();
   const locale = useLocale();
+  // Session detail uses the shared portal time zone for consistent formatting.
+  const { data: portalMe } = usePortalMe();
+  const timeZone = portalMe?.tenant?.timeZone ?? undefined;
   const params = useParams<{ tenant?: string; id?: string }>();
   const router = useRouter();
   const tenant = typeof params.tenant === "string" ? params.tenant : "";
@@ -221,6 +203,11 @@ export default function PortalSessionDetailPage() {
     );
 
     if (!result.ok) {
+      const errorCode = resolvePortalErrorCode(result.details);
+      if (result.status === 401 || errorCode === "UNAUTHORIZED") {
+        router.replace(tenant ? `/${tenant}/parent/login` : "/parent/login");
+        return;
+      }
       // Non-leaky not-found state covers missing sessions and access denial.
       setNotFound(true);
       setIsLoading(false);
@@ -237,7 +224,7 @@ export default function PortalSessionDetailPage() {
       setActiveStudentId((current) => current ?? result.data.students[0].student.id);
     }
     setIsLoading(false);
-  }, [sessionId, tenant]);
+  }, [router, sessionId, tenant]);
 
   const loadRequestDetail = useCallback(
     async (
@@ -563,28 +550,31 @@ export default function PortalSessionDetailPage() {
       <Card>
         <div className="space-y-3 text-center" data-testid="portal-session-detail-not-found">
           <h2 className="text-base font-semibold text-[var(--text)]">
-            {t("portal.sessionDetail.error.notFound.title")}
+            {t("portal.error.notAvailable.title")}
           </h2>
           <p className="text-sm text-[var(--muted)]">
-            {t("portal.sessionDetail.error.notFound.body")}
+            {t("portal.error.notAvailable.body")}
           </p>
           <Link
-            href={backHref}
+            href={tenant ? `/${tenant}/portal` : "/portal"}
             className="inline-flex h-11 items-center rounded-xl bg-[var(--primary)] px-4 text-sm font-semibold text-[var(--primary-foreground)]"
           >
-            {t("portal.sessionDetail.error.notFound.cta")}
+            {t("portal.error.notAvailable.cta")}
           </Link>
         </div>
       </Card>
     );
   }
 
-  const dateTimeLabel = formatSessionDateTime(
+  const dateTimeLabel = formatPortalDateTimeRange(
     session.startAt,
     session.endAt,
     locale,
+    timeZone,
   );
-  const durationLabel = formatSessionDuration(session.startAt, session.endAt);
+  const durationLabel = session.endAt
+    ? formatPortalDuration(session.startAt, session.endAt)
+    : "";
 
   return (
     <div className="space-y-6" data-testid="portal-session-detail-page">
@@ -605,6 +595,8 @@ export default function PortalSessionDetailPage() {
           <span>{t("portal.sessionDetail.title")}</span>
         </div>
         <PageHeader titleKey="portal.sessionDetail.title" />
+        {/* Time hint reinforces the portal timezone rule on session detail pages. */}
+        <PortalTimeHint />
       </div>
 
       <Card>
@@ -630,10 +622,10 @@ export default function PortalSessionDetailPage() {
                   {t("portal.sessionDetail.field.dateTime")}
                 </span>
                 <span className="text-sm text-[var(--text)]">
-                  {dateTimeLabel ||
-                    formatPortalDateTime(session.startAt, locale) ||
-                    t("generic.dash")}
-                </span>
+                    {dateTimeLabel ||
+                      formatPortalDateTime(session.startAt, locale, timeZone) ||
+                      t("generic.dash")}
+                  </span>
               </div>
               <div className="grid gap-1 md:grid-cols-[160px_1fr] md:items-center">
                 <span className="text-sm text-[var(--muted)]">
@@ -790,7 +782,11 @@ export default function PortalSessionDetailPage() {
                   </span>
                   <span>
                     {requestSummary.createdAt
-                      ? formatPortalDateTime(requestSummary.createdAt, locale) ||
+                      ? formatPortalDateTime(
+                          requestSummary.createdAt,
+                          locale,
+                          timeZone,
+                        ) ||
                         t("generic.dash")
                       : t("generic.dash")}
                   </span>
@@ -801,7 +797,7 @@ export default function PortalSessionDetailPage() {
                   </span>
                   <span>
                     {requestUpdatedAt
-                      ? formatPortalDateTime(requestUpdatedAt, locale) ||
+                      ? formatPortalDateTime(requestUpdatedAt, locale, timeZone) ||
                         t("generic.dash")
                       : t("generic.dash")}
                   </span>
@@ -970,8 +966,11 @@ export default function PortalSessionDetailPage() {
                           {t("portal.absence.status.submittedAt")}
                         </span>
                         <span>
-                          {formatPortalDateTime(requestDetail.createdAt, locale) ||
-                            t("generic.dash")}
+                          {formatPortalDateTime(
+                            requestDetail.createdAt,
+                            locale,
+                            timeZone,
+                          ) || t("generic.dash")}
                         </span>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -984,6 +983,7 @@ export default function PortalSessionDetailPage() {
                               requestDetail.resolvedAt ??
                               requestDetail.createdAt,
                             locale,
+                            timeZone,
                           ) || t("generic.dash")}
                         </span>
                       </div>

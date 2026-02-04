@@ -691,6 +691,26 @@
     }
   },
   "portal": {
+    "_comment": "Parent portal UX copy and trust-layer additions (Step 20.7).",
+    "header": {
+      "_comment": "Portal header identity and menu labels.",
+      "identity": {
+        "label": "当前登录",
+        "fallback": "账号"
+      },
+      "menu": {
+        "account": "账号信息",
+        "help": "帮助",
+        "logout": "退出登录"
+      },
+      "tenant": {
+        "label": "校区"
+      }
+    },
+    "timeHint": {
+      "label": "时间显示为 {tz}",
+      "local": "时间显示为您的本地时间（{tz}）"
+    },
     "nav": {
       "dashboard": "首页",
       "students": "我的孩子",
@@ -719,6 +739,11 @@
       "notFound": {
         "title": "未找到页面",
         "body": "该页面不可用。"
+      },
+      "notAvailable": {
+        "title": "页面不可用",
+        "body": "该页面可能已被移除或您没有权限访问。",
+        "cta": "返回首页"
       },
       "students": {
         "title": "无法加载孩子信息",
@@ -970,6 +995,55 @@
       },
       "error": {
         "title": "无法加载申请列表",
+        "body": "请稍后重试。"
+      }
+    },
+    "account": {
+      "_comment": "Parent portal account page copy (Step 20.7).",
+      "title": "账号信息",
+      "helper": "查看您的账号信息与已关联的孩子。",
+      "section": {
+        "info": "账号信息",
+        "students": "已关联的孩子"
+      },
+      "field": {
+        "email": "邮箱",
+        "tenant": "校区"
+      },
+      "students": {
+        "empty": "暂未关联孩子。"
+      },
+      "guidance": {
+        "missingStudents": "如果孩子信息缺失或不正确，请联系校区管理员。",
+        "securityTip": "安全提示：请妥善保管您的访问码。"
+      },
+      "error": {
+        "title": "无法加载账号信息",
+        "body": "请稍后重试。"
+      }
+    },
+    "help": {
+      "_comment": "Parent portal help/FAQ copy (Step 20.7).",
+      "title": "帮助",
+      "helper": "关于家长端的常见问题。",
+      "q": {
+        "gettingStarted": "家长端可以做什么？",
+        "missingStudents": "为什么孩子信息缺失或不正确？",
+        "timezone": "课程时间按哪个时区显示？",
+        "attendanceStatuses": "出勤状态代表什么？",
+        "absenceRequests": "请假申请如何运作？",
+        "troubleshooting": "问题排查"
+      },
+      "a": {
+        "gettingStarted": "您可以查看已关联的孩子、即将到来的课程、出勤记录以及请假申请状态。",
+        "missingStudents": "孩子关联由校区管理。如需帮助，请联系校区管理员。",
+        "timezone": "课程时间按校区时区显示（每个页面都会提示）。",
+        "attendanceStatuses": "出勤由工作人员在课程后记录。如有家长可见留言，也会在相应位置显示。",
+        "absenceRequests": "申请状态可能为待处理、已批准、已拒绝或已撤回。批准不会取消或改期课程。",
+        "troubleshooting": "请尝试刷新页面。如仍有问题，可退出后重新登录，或联系校区。"
+      },
+      "error": {
+        "title": "无法加载帮助页面",
         "body": "请稍后重试。"
       }
     }

@@ -18,7 +18,7 @@ export async function POST(req: NextRequest, context: Params) {
     const requestId = id?.trim();
 
     if (!requestId) {
-      return buildPortalError(400, "ValidationError", "Invalid request id", {
+      return buildPortalError(400, "VALIDATION_ERROR", {
         field: "id",
         reason: "PORTAL_REQUEST_INVALID",
       });
@@ -33,15 +33,14 @@ export async function POST(req: NextRequest, context: Params) {
     try {
       body = await req.json();
     } catch {
-      return buildPortalError(400, "ValidationError", "Invalid JSON body", {
+      return buildPortalError(400, "VALIDATION_ERROR", {
         reason: "PORTAL_REQUEST_INVALID",
       });
     }
 
     const parsed = resubmitParentRequestSchema.safeParse(body);
     if (!parsed.success) {
-      return buildPortalError(400, "ValidationError", "Invalid payload", {
-        issues: parsed.error.issues,
+      return buildPortalError(400, "VALIDATION_ERROR", {
         reason: "PORTAL_REQUEST_INVALID",
       });
     }
@@ -58,11 +57,11 @@ export async function POST(req: NextRequest, context: Params) {
 
     if (!request || request.parentId !== ctx.parentId) {
       // Return 404 to avoid leaking existence across parents or tenants.
-      return buildPortalError(404, "NotFound", "Request not found");
+      return buildPortalError(404, "NOT_FOUND");
     }
 
     if (request.status !== RequestStatus.WITHDRAWN) {
-      return buildPortalError(409, "Conflict", "Request cannot be resubmitted", {
+      return buildPortalError(409, "CONFLICT", {
         reason: "PORTAL_REQUEST_STATUS_INVALID",
         status: request.status,
       });
@@ -74,12 +73,12 @@ export async function POST(req: NextRequest, context: Params) {
     });
 
     if (!session) {
-      return buildPortalError(404, "NotFound", "Session not found");
+      return buildPortalError(404, "NOT_FOUND");
     }
 
     const now = new Date();
     if (session.startAt <= now) {
-      return buildPortalError(409, "Conflict", "Session has already started", {
+      return buildPortalError(409, "CONFLICT", {
         reason: "PORTAL_REQUEST_NOT_ALLOWED",
         rule: "SESSION_NOT_UPCOMING",
       });
@@ -104,7 +103,7 @@ export async function POST(req: NextRequest, context: Params) {
     });
 
     if (updateResult.count === 0) {
-      return buildPortalError(409, "Conflict", "Request cannot be resubmitted", {
+      return buildPortalError(409, "CONFLICT", {
         reason: "PORTAL_REQUEST_STATUS_INVALID",
       });
     }
@@ -126,12 +125,19 @@ export async function POST(req: NextRequest, context: Params) {
     });
 
     if (!updated) {
-      return buildPortalError(404, "NotFound", "Request not found");
+      return buildPortalError(404, "NOT_FOUND");
     }
 
-    return NextResponse.json({ request: updated });
+    return NextResponse.json({
+      request: {
+        ...updated,
+        createdAt: updated.createdAt.toISOString(),
+        updatedAt: updated.updatedAt.toISOString(),
+        resolvedAt: updated.resolvedAt ? updated.resolvedAt.toISOString() : null,
+      },
+    });
   } catch (error) {
     console.error("POST /api/portal/requests/[id]/resubmit failed", error);
-    return buildPortalError(500, "InternalError", "Internal server error");
+    return buildPortalError(500, "INTERNAL_ERROR");
   }
 }

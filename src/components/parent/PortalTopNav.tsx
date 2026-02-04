@@ -1,11 +1,15 @@
-﻿"use client";
+"use client";
 
 // Portal top navigation keeps parent routes discoverable without exposing admin links.
 import type { ReactNode } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+
+import PortalIdentityMenu from "@/components/parent/portal/PortalIdentityMenu";
+import { usePortalMe } from "@/components/parent/portal/PortalMeProvider";
 
 type PortalTopNavProps = {
   tenantSlug: string;
@@ -39,8 +43,15 @@ export default function PortalTopNav({
   const t = useTranslations();
   const pathname = usePathname();
   const router = useRouter();
+  const { data: portalMe } = usePortalMe();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const basePath = tenantSlug ? `/${tenantSlug}/portal` : "/portal";
   const activeKey = resolveActiveKey(pathname);
+  const tenantDisplay =
+    portalMe?.tenant?.displayName?.trim() ||
+    portalMe?.tenant?.slug?.trim() ||
+    tenantLabel ||
+    tenantSlug;
 
   const navItems: NavItem[] = [
     { key: "dashboard", labelKey: "portal.nav.dashboard", href: basePath },
@@ -78,68 +89,190 @@ export default function PortalTopNav({
     await signOut({ callbackUrl });
   }
 
-  return (
-    <div className="mx-auto flex w-full max-w-[960px] flex-wrap items-center justify-between gap-3 px-5 py-4 md:px-8">
-      {showNav ? (
-        <div className="flex flex-wrap items-center gap-4" data-testid="parent-nav">
-          <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-            {tenantLabel ?? tenantSlug}
-          </span>
-          <nav className="flex flex-wrap items-center gap-2 text-sm">
-            {navItems.map((item) => {
-              const isActive = activeKey === item.key;
-              const baseClassName =
-                "relative flex h-11 items-center rounded-xl px-3 transition focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]";
-              const toneClassName = isActive
-                ? "bg-[var(--surface-2)] text-[var(--text)] font-semibold"
-                : "text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]";
-              const indicatorClassName = isActive
-                ? "after:absolute after:bottom-1 after:left-3 after:right-3 after:h-[2px] after:rounded-full after:bg-[var(--primary)]"
-                : "";
-              const className = `${baseClassName} ${toneClassName} ${indicatorClassName}`;
+  function closeMenu() {
+    setIsMenuOpen(false);
+  }
 
-              return (
-                <Link
-                  key={item.key}
-                  className={className}
-                  href={item.href}
-                  aria-current={isActive ? "page" : undefined}
-                >
-                  {t(item.labelKey)}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-      ) : (
-        // Hide the nav for parent auth screens while keeping header spacing stable.
-        <div aria-hidden="true" className="h-11" />
-      )}
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={handleLanguageToggle}
-          className="flex h-11 items-center rounded-xl px-3 text-sm text-[var(--muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
-          data-testid="parent-language-toggle"
-        >
-          {t("portal.nav.language")}
-        </button>
+  return (
+    <div className="mx-auto flex w-full max-w-[960px] flex-col gap-3 px-5 py-4 md:px-8">
+      <div className="flex w-full items-center justify-between gap-3">
         {showNav ? (
           <button
             type="button"
-            onClick={handleSignOut}
-            className="flex h-11 items-center rounded-xl px-3 text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
-            data-testid="parent-signout"
+            onClick={() => setIsMenuOpen((prev) => !prev)}
+            className="flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text)] transition hover:bg-[var(--surface-2)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] md:hidden"
+            aria-expanded={isMenuOpen}
+            aria-controls="portal-mobile-menu"
+            data-testid="parent-nav-toggle"
           >
-            {t("portal.nav.signOut")}
+            <span className="sr-only">{t("portal.common.open")}</span>
+            <svg
+              viewBox="0 0 24 24"
+              className="h-5 w-5"
+              role="img"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                d="M4 7h16M4 12h16M4 17h16"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
           </button>
         ) : null}
-        {/* Header actions remain optional so portal pages can add secondary controls. */}
-        {headerActions ? (
-          <div className="flex items-center gap-2">{headerActions}</div>
+
+        {showNav ? (
+          <div className="hidden flex-wrap items-center gap-4 md:flex" data-testid="parent-nav">
+            <nav className="flex flex-wrap items-center gap-2 text-sm">
+              {navItems.map((item) => {
+                const isActive = activeKey === item.key;
+                const baseClassName =
+                  "relative flex h-11 items-center rounded-xl px-3 transition focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]";
+                const toneClassName = isActive
+                  ? "bg-[var(--surface-2)] text-[var(--text)] font-semibold"
+                  : "text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]";
+                const indicatorClassName = isActive
+                  ? "after:absolute after:bottom-1 after:left-3 after:right-3 after:h-[2px] after:rounded-full after:bg-[var(--primary)]"
+                  : "";
+                const className = `${baseClassName} ${toneClassName} ${indicatorClassName}`;
+
+                return (
+                  <Link
+                    key={item.key}
+                    className={className}
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                  >
+                    {t(item.labelKey)}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        ) : (
+          // Hide the nav for parent auth screens while keeping header spacing stable.
+          <div aria-hidden="true" className="hidden h-11 md:block" />
+        )}
+
+        {showNav ? (
+          <div className="flex min-w-0 flex-1 justify-center md:hidden">
+            {tenantDisplay ? (
+              <span className="max-w-[180px] truncate text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                {tenantDisplay}
+              </span>
+            ) : null}
+          </div>
         ) : null}
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleLanguageToggle}
+            className="flex h-11 items-center rounded-xl px-3 text-sm text-[var(--muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+            data-testid="parent-language-toggle"
+          >
+            {t("portal.nav.language")}
+          </button>
+          {showNav ? (
+            <>
+              <PortalIdentityMenu
+                variant="compact"
+                className="md:hidden"
+                tenantLabel={tenantLabel}
+              />
+              <PortalIdentityMenu
+                variant="full"
+                className="hidden md:block"
+                tenantLabel={tenantLabel}
+              />
+            </>
+          ) : null}
+          {/* Header actions remain optional so portal pages can add secondary controls. */}
+          {headerActions ? (
+            <div className="flex items-center gap-2">{headerActions}</div>
+          ) : null}
+        </div>
       </div>
+
+      {showNav && isMenuOpen ? (
+        // Mobile menu keeps portal navigation and account links accessible on small screens.
+        <div className="fixed inset-0 z-50" data-testid="portal-mobile-menu">
+          <button
+            type="button"
+            onClick={closeMenu}
+            className="absolute inset-0 bg-black/40"
+            aria-label={t("portal.common.cancel")}
+          />
+          <div
+            id="portal-mobile-menu"
+            className="relative h-full w-full max-w-xs rounded-tr-2xl bg-[var(--background)] p-5 shadow-xl"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                {tenantDisplay}
+              </span>
+              <button
+                type="button"
+                onClick={closeMenu}
+                className="text-sm font-semibold text-[var(--muted)]"
+              >
+                {t("portal.common.cancel")}
+              </button>
+            </div>
+
+            <nav className="mt-4 grid gap-2">
+              {navItems.map((item) => {
+                const isActive = activeKey === item.key;
+                return (
+                  <Link
+                    key={item.key}
+                    href={item.href}
+                    onClick={closeMenu}
+                    className={`flex h-11 items-center rounded-xl px-3 text-sm font-semibold transition ${
+                      isActive
+                        ? "bg-[var(--surface-2)] text-[var(--text)]"
+                        : "text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
+                    }`}
+                  >
+                    {t(item.labelKey)}
+                  </Link>
+                );
+              })}
+            </nav>
+
+            <div className="mt-6 border-t border-[var(--border)] pt-4">
+              <div className="grid gap-2">
+                <Link
+                  href={`${basePath}/account`}
+                  onClick={closeMenu}
+                  className="flex h-11 items-center rounded-xl px-3 text-sm font-semibold text-[var(--text)] hover:bg-[var(--surface-2)]"
+                >
+                  {t("portal.header.menu.account")}
+                </Link>
+                <Link
+                  href={`${basePath}/help`}
+                  onClick={closeMenu}
+                  className="flex h-11 items-center rounded-xl px-3 text-sm font-semibold text-[var(--text)] hover:bg-[var(--surface-2)]"
+                >
+                  {t("portal.header.menu.help")}
+                </Link>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    closeMenu();
+                    await handleSignOut();
+                  }}
+                  className="flex h-11 items-center rounded-xl px-3 text-sm font-semibold text-[var(--text)] hover:bg-[var(--surface-2)]"
+                >
+                  {t("portal.header.menu.logout")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
-

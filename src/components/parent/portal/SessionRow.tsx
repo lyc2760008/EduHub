@@ -5,12 +5,18 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 
 import Card from "@/components/parent/Card";
-import { formatPortalDateTime, getSessionTypeLabelKey } from "@/lib/portal/format";
+import { usePortalMe } from "@/components/parent/portal/PortalMeProvider";
+import {
+  formatPortalDateTime,
+  formatPortalDateTimeRange,
+  getSessionTypeLabelKey,
+} from "@/lib/portal/format";
 
 type SessionRowProps = {
   session: {
     id: string;
     startAt: string;
+    endAt?: string | null;
     sessionType: string;
     groupName?: string | null;
     studentName?: string | null;
@@ -26,18 +32,24 @@ export default function SessionRow({
 }: SessionRowProps) {
   const t = useTranslations();
   const locale = useLocale();
+  // Use the portal time zone so session times match the trust hint on each page.
+  const { data: portalMe } = usePortalMe();
+  const timeZone = portalMe?.tenant?.timeZone ?? undefined;
   const sessionTypeKey = getSessionTypeLabelKey(session.sessionType);
   const sessionTitle = session.groupName?.trim()
     ? session.groupName
     : sessionTypeKey
       ? t(sessionTypeKey)
       : t("generic.dash");
+  const dateTimeLabel =
+    formatPortalDateTimeRange(session.startAt, session.endAt, locale, timeZone) ||
+    formatPortalDateTime(session.startAt, locale, timeZone);
 
   const body = (
     <div className="flex items-center justify-between gap-4">
       <div className="space-y-1">
         <p className="text-sm font-semibold text-[var(--text)]">
-          {formatPortalDateTime(session.startAt, locale)}
+          {dateTimeLabel}
         </p>
         <p className="text-sm text-[var(--muted)]">{sessionTitle}</p>
         {showStudentName && session.studentName ? (

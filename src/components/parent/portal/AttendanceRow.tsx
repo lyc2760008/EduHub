@@ -5,12 +5,19 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 
 import Card from "@/components/parent/Card";
-import { formatPortalDateTime, getAttendanceStatusLabelKey, getSessionTypeLabelKey } from "@/lib/portal/format";
+import { usePortalMe } from "@/components/parent/portal/PortalMeProvider";
+import {
+  formatPortalDateTime,
+  formatPortalDateTimeRange,
+  getAttendanceStatusLabelKey,
+  getSessionTypeLabelKey,
+} from "@/lib/portal/format";
 
 type AttendanceRowProps = {
   attendance: {
     id: string;
     dateTime: string;
+    sessionEndAt?: string | null;
     status: string;
     sessionType: string;
     groupName?: string | null;
@@ -27,6 +34,9 @@ function buildNotePreview(note: string, limit: number) {
 export default function AttendanceRow({ attendance, href }: AttendanceRowProps) {
   const t = useTranslations();
   const locale = useLocale();
+  // Attendance timestamps should match the portal-wide time zone hint.
+  const { data: portalMe } = usePortalMe();
+  const timeZone = portalMe?.tenant?.timeZone ?? undefined;
   const statusKey = getAttendanceStatusLabelKey(attendance.status);
   const sessionTypeKey = getSessionTypeLabelKey(attendance.sessionType);
   const sessionTitle = attendance.groupName?.trim()
@@ -45,13 +55,20 @@ export default function AttendanceRow({ attendance, href }: AttendanceRowProps) 
   const statusToneClassName = statusKey
     ? "border-[var(--info)] text-[var(--info)]"
     : "border-[var(--border)] text-[var(--muted)]";
+  const dateTimeLabel =
+    formatPortalDateTimeRange(
+      attendance.dateTime,
+      attendance.sessionEndAt,
+      locale,
+      timeZone,
+    ) || formatPortalDateTime(attendance.dateTime, locale, timeZone);
 
   const body = (
     <Card padding="normal">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1">
           <p className="text-sm font-semibold text-[var(--text)]">
-            {formatPortalDateTime(attendance.dateTime, locale)}
+            {dateTimeLabel}
           </p>
           <p className="text-xs text-[var(--muted)]">{sessionTitle}</p>
           {notePreview ? (

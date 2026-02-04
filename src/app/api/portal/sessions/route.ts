@@ -38,8 +38,8 @@ export async function GET(req: NextRequest) {
     const { from, to } = rangeResult;
 
     const { take, skip } = parsePortalPagination(req, {
-      take: 100,
-      maxTake: 200,
+      take: 50,
+      maxTake: 100,
       skip: 0,
     });
 
@@ -98,8 +98,8 @@ export async function GET(req: NextRequest) {
     const items = rows.map((row) => ({
       id: row.session.id,
       studentId: row.studentId,
-      startAt: row.session.startAt,
-      endAt: row.session.endAt,
+      startAt: row.session.startAt.toISOString(),
+      endAt: row.session.endAt ? row.session.endAt.toISOString() : null,
       sessionType: row.session.sessionType,
       timezone: row.session.timezone,
       groupId: row.session.groupId,
@@ -114,6 +114,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("GET /api/portal/sessions failed", error);
-    return buildPortalError(500, "InternalError", "Internal server error");
+    return buildPortalError(500, "INTERNAL_ERROR");
   }
 }

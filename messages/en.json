@@ -630,6 +630,26 @@
     "programsDesc": "Curate program offerings for enrollment."
   },
   "portal": {
+    "_comment": "Parent portal UX copy and trust-layer additions (Step 20.7).",
+    "header": {
+      "_comment": "Portal header identity and menu labels.",
+      "identity": {
+        "label": "Logged in as",
+        "fallback": "Account"
+      },
+      "menu": {
+        "account": "Account",
+        "help": "Help",
+        "logout": "Log out"
+      },
+      "tenant": {
+        "label": "Center"
+      }
+    },
+    "timeHint": {
+      "label": "Times shown in {tz}",
+      "local": "Times shown in your local time ({tz})"
+    },
     "nav": {
       "dashboard": "Dashboard",
       "students": "My Students",
@@ -658,6 +678,11 @@
       "notFound": {
         "title": "Page not found",
         "body": "This page isn't available."
+      },
+      "notAvailable": {
+        "title": "Page not available",
+        "body": "This page may have been removed or you may not have access.",
+        "cta": "Back to Dashboard"
       },
       "students": {
         "title": "Unable to load students",
@@ -882,6 +907,55 @@
       },
       "error": {
         "title": "Couldn't load requests",
+        "body": "Please try again."
+      }
+    },
+    "account": {
+      "_comment": "Parent portal account page copy (Step 20.7).",
+      "title": "Account",
+      "helper": "View your portal profile and linked students.",
+      "section": {
+        "info": "Account info",
+        "students": "Linked students"
+      },
+      "field": {
+        "email": "Email",
+        "tenant": "Center"
+      },
+      "students": {
+        "empty": "No linked students yet."
+      },
+      "guidance": {
+        "missingStudents": "If you see missing or incorrect students, please contact your center admin.",
+        "securityTip": "Security tip: keep your access code private."
+      },
+      "error": {
+        "title": "Couldn't load account",
+        "body": "Please try again."
+      }
+    },
+    "help": {
+      "_comment": "Parent portal help/FAQ copy (Step 20.7).",
+      "title": "Help",
+      "helper": "Common questions about using the Parent Portal.",
+      "q": {
+        "gettingStarted": "What can I do in the Parent Portal?",
+        "missingStudents": "Why is a student missing or incorrect?",
+        "timezone": "Which timezone are session times shown in?",
+        "attendanceStatuses": "What do attendance statuses mean?",
+        "absenceRequests": "How do absence requests work?",
+        "troubleshooting": "Troubleshooting"
+      },
+      "a": {
+        "gettingStarted": "You can view linked students, upcoming sessions, attendance history, and absence request statuses.",
+        "missingStudents": "Student links are managed by your center. Please contact your center admin for help.",
+        "timezone": "Session times are shown in the center’s timezone (shown on each page).",
+        "attendanceStatuses": "Attendance is marked by staff after sessions. You may also see a parent-visible note when provided.",
+        "absenceRequests": "Requests can be pending review, approved, declined, or withdrawn. Approval does not cancel or reschedule sessions.",
+        "troubleshooting": "Try refreshing the page. If issues continue, log out and log back in, or contact your center."
+      },
+      "error": {
+        "title": "Couldn't load help",
         "body": "Please try again."
       }
     },
