@@ -140,6 +140,26 @@ export async function loginAsParentWithAccessCode(
   accessCode: string,
 ) {
   // Shared login helper keeps the parent auth flow consistent across tests.
+  // Reuse an existing parent session when it already matches the expected user.
+  const sessionResponse = await page.request.get("/api/auth/session");
+  if (sessionResponse.status() === 200) {
+    const payload = (await sessionResponse.json()) as {
+      user?: { email?: string; role?: string };
+    };
+    if (
+      payload.user?.role === "Parent" &&
+      payload.user?.email?.toLowerCase() === email.toLowerCase()
+    ) {
+      const portalPath = buildTenantPath(tenantSlug, "/portal");
+      await page.goto(portalPath);
+      await page.waitForURL((url) => url.pathname.startsWith(portalPath));
+      await expect(page.getByTestId("parent-shell")).toBeVisible();
+      return;
+    }
+    // Clear mismatched sessions before attempting the parent login UI.
+    await page.context().clearCookies();
+  }
+
   await page.goto(buildTenantPath(tenantSlug, "/parent/login"));
   await page.getByTestId("parent-login-email").fill(email);
   await page.getByTestId("parent-login-access-code").fill(accessCode);

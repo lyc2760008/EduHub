@@ -1,7 +1,7 @@
 // UI login helper for Playwright tests with tenant-aware routes.
 import { expect, Page } from "@playwright/test";
 
-import { buildTenantPath } from "./tenant";
+import { buildTenantApiPath, buildTenantPath } from "./tenant";
 
 type LoginOptions = {
   email: string;
@@ -17,6 +17,25 @@ export async function loginViaUI(page: Page, opts: LoginOptions) {
   const tenantSlug =
     // Default to the dedicated e2e tenant to avoid polluting demo data.
     opts.tenantSlug || process.env.E2E_TENANT_SLUG || "e2e-testing";
+
+  // Skip login when an existing session already matches the expected user.
+  const sessionResponse = await page.request.get(
+    buildTenantApiPath(tenantSlug, "/api/me"),
+  );
+  if (sessionResponse.status() === 200) {
+    const payload = (await sessionResponse.json()) as {
+      user?: { email?: string };
+      tenant?: { tenantSlug?: string };
+    };
+    if (
+      payload.user?.email?.toLowerCase() === opts.email.toLowerCase() &&
+      payload.tenant?.tenantSlug === tenantSlug
+    ) {
+      return;
+    }
+    // Clear mismatched sessions to avoid role-based redirects during login.
+    await page.context().clearCookies();
+  }
 
   const loginPath = buildTenantPath(tenantSlug, "/login");
   // Use tenant-aware paths so tests work with subdomain or /t/<slug> base URLs.

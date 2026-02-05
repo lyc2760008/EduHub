@@ -3,6 +3,9 @@
 import "dotenv/config";
 import { defineConfig } from "@playwright/test";
 
+const ADMIN_STORAGE_STATE = "tests/e2e/.auth/admin.json";
+const PARENT_STORAGE_STATE = "tests/e2e/.auth/parent.json";
+
 export default defineConfig({
   testDir: "./tests/e2e",
   // Global setup keeps the dedicated e2e tenant fixtures ready for all specs.
@@ -17,4 +20,41 @@ export default defineConfig({
     screenshot: "only-on-failure",
     video: "retain-on-failure",
   },
+  // Project splits keep smoke fast while allowing portal/admin suites to reuse auth state.
+  projects: [
+    {
+      name: "setup-admin",
+      testDir: "./tests/e2e/setup",
+      testMatch: /.*admin\.setup\.ts/,
+    },
+    {
+      name: "setup-parent",
+      testDir: "./tests/e2e/setup",
+      testMatch: /.*parent\.setup\.ts/,
+    },
+    {
+      name: "smoke-chromium",
+      testDir: "./tests/e2e/smoke",
+      dependencies: ["setup-admin"],
+      use: {
+        storageState: ADMIN_STORAGE_STATE,
+      },
+    },
+    {
+      name: "portal-chromium",
+      testDir: "./tests/e2e/portal",
+      dependencies: ["setup-parent"],
+      use: {
+        storageState: PARENT_STORAGE_STATE,
+      },
+    },
+    {
+      name: "admin-chromium",
+      testDir: "./tests/e2e/admin",
+      dependencies: ["setup-admin"],
+      use: {
+        storageState: ADMIN_STORAGE_STATE,
+      },
+    },
+  ],
 });

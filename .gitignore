@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+# Playwright storage state files are generated per machine during E2E runs.
+tests/e2e/.auth/
 
 # next.js
 /.next/
