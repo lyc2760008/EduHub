@@ -1,0 +1,39 @@
+# Staging Docker Compose for EduHub (includes optional local Postgres).
+services:
+  app:
+    build: .
+    image: eduhub-app:staging
+    env_file: .env.staging
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-eduhub_staging}
+      POSTGRES_USER: ${POSTGRES_USER:-eduhub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eduhub}
+    ports:
+      - "5432:5432"
+    volumes:
+      - eduhub_staging_db:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  eduhub_staging_db:
+    # Persist staging Postgres data on the host.
+    driver: local

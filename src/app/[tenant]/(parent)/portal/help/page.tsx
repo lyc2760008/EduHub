@@ -7,6 +7,7 @@ import Card from "@/components/parent/Card";
 import PageHeader from "@/components/parent/PageHeader";
 import { usePortalMe } from "@/components/parent/portal/PortalMeProvider";
 import PortalSkeletonBlock from "@/components/parent/portal/PortalSkeletonBlock";
+import { buildPortalSupportLine } from "@/components/parent/portal/support";
 
 type HelpItem = {
   questionKey: string;
@@ -35,6 +36,10 @@ const HELP_ITEMS: HelpItem[] = [
     answerKey: "portal.help.a.absenceRequests",
   },
   {
+    questionKey: "portal.help.q.contactSupport",
+    answerKey: "portal.help.a.contactSupport",
+  },
+  {
     questionKey: "portal.help.q.troubleshooting",
     answerKey: "portal.help.a.troubleshooting",
   },
@@ -42,7 +47,14 @@ const HELP_ITEMS: HelpItem[] = [
 
 export default function PortalHelpPage() {
   const t = useTranslations();
-  const { isLoading, error, reload } = usePortalMe();
+  const { data, isLoading, error, reload } = usePortalMe();
+  // Precompute the support line so the contact FAQ can inject tenant-aware copy.
+  const supportContactLine = buildPortalSupportLine({
+    t,
+    centerName: data?.tenant.displayName ?? data?.tenant.slug ?? null,
+    supportEmail: data?.tenant.supportEmail ?? null,
+    supportPhone: data?.tenant.supportPhone ?? null,
+  });
 
   if (isLoading) {
     return (
@@ -120,7 +132,9 @@ export default function PortalHelpPage() {
                 </span>
               </summary>
               <p className="mt-2 text-sm text-[var(--muted)]">
-                {t(item.answerKey)}
+                {item.answerKey === "portal.help.a.contactSupport"
+                  ? t(item.answerKey, { supportContactLine })
+                  : t(item.answerKey)}
               </p>
             </details>
           ))}

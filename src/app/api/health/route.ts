@@ -1,0 +1,17 @@
+// Minimal health endpoint for deployment checks (returns 200 OK or 503 if DB is unreachable).
+import { NextResponse } from "next/server";
+
+import { prisma } from "@/lib/db/prisma";
+
+export const runtime = "nodejs";
+
+export async function GET() {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return NextResponse.json({ status: "ok" }, { status: 200 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown";
+    console.error("GET /api/health failed", { message });
+    return NextResponse.json({ status: "degraded" }, { status: 503 });
+  }
+}

@@ -1,0 +1,10 @@
+# Reduce Docker build context for faster, safer builds.
+.git
+.next
+node_modules
+*.log
+.env
+.env.*
+coverage
+test-results
+playwright-report

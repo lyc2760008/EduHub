@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+// Fail fast on missing required server env vars during app startup.
+import "@/lib/env/server";
 import "./globals.css";
 import fallbackEnMessages from "../../messages/en.json";
 import fallbackZhMessages from "../../messages/zh-CN.json";

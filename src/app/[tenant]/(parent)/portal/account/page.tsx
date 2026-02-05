@@ -7,6 +7,7 @@ import Card from "@/components/parent/Card";
 import PageHeader from "@/components/parent/PageHeader";
 import { usePortalMe } from "@/components/parent/portal/PortalMeProvider";
 import PortalSkeletonBlock from "@/components/parent/portal/PortalSkeletonBlock";
+import { buildPortalSupportLine } from "@/components/parent/portal/support";
 
 export default function PortalAccountPage() {
   const t = useTranslations();
@@ -48,6 +49,13 @@ export default function PortalAccountPage() {
 
   const tenantDisplay =
     data.tenant.displayName?.trim() || data.tenant.slug?.trim() || "";
+  // Build a tenant-aware support line for the "Need help?" callout.
+  const supportContactLine = buildPortalSupportLine({
+    t,
+    centerName: tenantDisplay || null,
+    supportEmail: data.tenant.supportEmail ?? null,
+    supportPhone: data.tenant.supportPhone ?? null,
+  });
 
   return (
     <div className="space-y-6" data-testid="portal-account-page">
@@ -128,6 +136,12 @@ export default function PortalAccountPage() {
         <div className="space-y-2 text-sm text-[var(--muted)]">
           <p>{t("portal.account.guidance.missingStudents")}</p>
           <p>{t("portal.account.guidance.securityTip")}</p>
+        </div>
+      </Card>
+
+      <Card variant="subtle">
+        <div className="space-y-2 text-sm text-[var(--muted)]">
+          <p>{supportContactLine}</p>
         </div>
       </Card>
     </div>

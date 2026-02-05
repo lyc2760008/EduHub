@@ -2,12 +2,13 @@
   "name": "edu-saas",
   "version": "0.1.0",
   "private": true,
-  "x-comment": "Playwright scripts group fast and targeted E2E runs.",
+  "x-comment": "Playwright scripts group fast and targeted E2E runs; typecheck and tenant provisioning scripts support ops readiness.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
     "e2e:smoke": "playwright test --project=smoke-chromium --workers=4",
     "e2e:golden": "playwright test --project=golden-chromium",
@@ -19,7 +20,8 @@
     "e2e:clean": "tsx scripts/e2e-clean.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "provision:tenant": "tsx scripts/provision-tenant.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.1.0",

@@ -842,6 +842,14 @@
       "status": "状态",
       "backToStudents": "返回我的孩子"
     },
+    "support": {
+      "_comment": "Support contact copy used in help/account blocks (Step 21.0B).",
+      "centerFallback": "??",
+      "contactLine": "???????? {centerName}?{supportEmail}{supportPhonePart}?",
+      "contactFallback": "???????? {centerName} ?????",
+      "phoneOnlyLine": "???????? {centerName}?{supportPhone}?",
+      "phonePart": " ??? {supportPhone}"
+    },
     "error": {
       "generic": {
         "title": "出现了一点问题",
@@ -1144,6 +1152,7 @@
         "timezone": "课程时间按哪个时区显示？",
         "attendanceStatuses": "出勤状态代表什么？",
         "absenceRequests": "请假申请如何运作？",
+        "contactSupport": "???????",
         "troubleshooting": "问题排查"
       },
       "a": {
@@ -1152,6 +1161,7 @@
         "timezone": "课程时间按校区时区显示（每个页面都会提示）。",
         "attendanceStatuses": "出勤由工作人员在课程后记录。如有家长可见留言，也会在相应位置显示。",
         "absenceRequests": "申请状态可能为待处理、已批准、已拒绝或已撤回。批准不会取消或改期课程。",
+        "contactSupport": "{supportContactLine}",
         "troubleshooting": "请尝试刷新页面。如仍有问题，可退出后重新登录，或联系校区。"
       },
       "error": {

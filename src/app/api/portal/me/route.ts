@@ -18,6 +18,15 @@ export async function GET(req: NextRequest) {
     if (ctx instanceof Response) return ctx;
     const tenantId = ctx.tenant.tenantId;
 
+    // Fetch tenant-level support contact fields without relying on generated Prisma types.
+    const [tenantMeta] = await prisma.$queryRaw<
+      Array<{
+        timeZone: string | null;
+        supportEmail: string | null;
+        supportPhone: string | null;
+      }>
+    >`SELECT "timeZone", "supportEmail", "supportPhone" FROM "Tenant" WHERE "id" = ${tenantId} LIMIT 1`;
+
     const linkedStudentIds = await getLinkedStudentIds(
       tenantId,
       ctx.parentId,
@@ -44,8 +53,8 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "asc" },
       select: { timezone: true },
     });
-    // Use a tenant-scoped center timezone so portal time hints avoid misleading UTC defaults.
-    const tenantTimeZone = primaryCenter?.timezone ?? null;
+    // Prefer tenant-level timezone set at provisioning; fall back to the first center timezone.
+    const tenantTimeZone = tenantMeta?.timeZone ?? primaryCenter?.timezone ?? null;
 
     const parentDisplayName = [ctx.parent.firstName, ctx.parent.lastName]
       .filter(Boolean)
@@ -63,6 +72,8 @@ export async function GET(req: NextRequest) {
         slug: ctx.tenant.tenantSlug,
         displayName: ctx.tenant.tenantName ?? ctx.tenant.tenantSlug ?? null,
         timeZone: tenantTimeZone,
+        supportEmail: tenantMeta?.supportEmail ?? null,
+        supportPhone: tenantMeta?.supportPhone ?? null,
       },
       students: linkedStudents.map((student) => ({
         id: student.id,

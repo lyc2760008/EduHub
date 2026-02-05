@@ -24,6 +24,9 @@ export type PortalMe = {
     id: string;
     slug?: string | null;
     displayName?: string | null;
+    // Optional support contact fields for help/account display (read-only).
+    supportEmail?: string | null;
+    supportPhone?: string | null;
     timeZone?: string | null;
   };
   students: Array<{

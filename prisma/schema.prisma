@@ -19,6 +19,11 @@ model Tenant {
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
+  // Optional tenant-level timezone for portal time hints when no center is configured.
+  timeZone  String?
+  // Optional support contact fields for portal help/account display (no messaging links).
+  supportEmail String?
+  supportPhone String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

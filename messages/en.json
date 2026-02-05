@@ -779,6 +779,14 @@
       "status": "Status",
       "backToStudents": "Back to My Students"
     },
+    "support": {
+      "_comment": "Support contact copy used in help/account blocks (Step 21.0B).",
+      "centerFallback": "your center",
+      "contactLine": "Need help? Contact {centerName} at {supportEmail}{supportPhonePart}.",
+      "contactFallback": "Need help? Contact {centerName} for assistance.",
+      "phoneOnlyLine": "Need help? Call {centerName} at {supportPhone}.",
+      "phonePart": " or call {supportPhone}"
+    },
     "error": {
       "generic": {
         "title": "Something went wrong",
@@ -1053,6 +1061,7 @@
         "timezone": "Which timezone are session times shown in?",
         "attendanceStatuses": "What do attendance statuses mean?",
         "absenceRequests": "How do absence requests work?",
+        "contactSupport": "How do I contact support?",
         "troubleshooting": "Troubleshooting"
       },
       "a": {
@@ -1061,6 +1070,7 @@
         "timezone": "Times are shown in the center's timezone (shown on each page).",
         "attendanceStatuses": "Attendance is marked by staff after sessions. You may also see a parent-visible note when provided.",
         "absenceRequests": "Requests can be pending review, approved, declined, or withdrawn. Approval does not cancel or reschedule sessions.",
+        "contactSupport": "{supportContactLine}",
         "troubleshooting": "Try refreshing the page. If issues continue, log out and log back in, or contact your center."
       },
       "error": {
