@@ -54,21 +54,21 @@
         "active": "启用",
         "inactive": "停用"
       },
-    "fields": {
-      "name": "名称",
-      "timezone": "时区",
-      "address1": "地址 1",
-      "address2": "地址 2",
-      "city": "城市",
-      "province": "省/州",
-      "postalCode": "邮编",
-      "country": "国家",
-      "status": "状态",
-      "actions": "操作"
-    },
-    "placeholders": {
-      "timezone": "请选择时区"
-    },
+      "fields": {
+        "name": "名称",
+        "timezone": "时区",
+        "address1": "地址 1",
+        "address2": "地址 2",
+        "city": "城市",
+        "province": "省/州",
+        "postalCode": "邮编",
+        "country": "国家",
+        "status": "状态",
+        "actions": "操作"
+      },
+      "placeholders": {
+        "timezone": "请选择时区"
+      },
       "actions": {
         "save": "保存",
         "cancel": "取消"
@@ -423,7 +423,7 @@
       },
       "event": {
         "parentLoginSucceeded": "家长登录成功",
-        "parentLoginFailed": "家长登录失败",
+        "parentLoginFailed": "家长登录未成功",
         "parentLoginThrottled": "家长登录受限",
         "parentLoginLocked": "家长登录被暂时锁定",
         "parentAccessCodeResetByAdmin": "管理员重置访问码",
@@ -804,7 +804,7 @@
       "language": "语言"
     },
     "auth": {
-      "_comment": "家长登录安全提示文案（Step 20.8）。",
+      "_comment": "Parent auth hardening copy aligned for Step 20.9 tone and non-leaky messaging.",
       "state": {
         "signingIn": "正在登录…"
       },
@@ -827,7 +827,7 @@
           "withTime": "为保障安全，登录已暂时锁定。{minutes} 分钟后再试。",
           "noTime": "为保障安全，登录已暂时锁定。请稍等几分钟后再试。"
         },
-        "buttonHelper": "冷却时间结束后可再次尝试。"
+        "buttonHelper": "请稍后再试"
       }
     },
     "common": {
@@ -878,7 +878,7 @@
       },
       "noUpcomingSessions": {
         "title": "暂无即将到来的课程",
-        "body": "在所选范围内没有已安排的课程。",
+        "body": "在所选范围内没有已安排的课程。请修改时间范围。",
         "short": "暂无已安排课程。"
       },
       "noAttendance": {
@@ -973,7 +973,7 @@
       }
     },
     "absence": {
-      "_comment": "家长请假申请文案（Step 20.4B + 20.6），支持撤回和重新提交。",
+      "_comment": "Parent absence request copy aligned in Step 20.9 to keep status labels consistent.",
       "cta": {
         "report": "请假申请"
       },
@@ -1051,7 +1051,8 @@
         "approvedHelper": "您的申请已获批准。",
         "declinedHelper": "您的申请已被拒绝。",
         "pendingFriendly": "待处理",
-        "withdrawnHelper": "该申请已撤回。课程开始前可重新提交。"
+        "withdrawnHelper": "该申请已撤回。课程开始前可重新提交。",
+        "withdrawn": "已撤回"
       }
     },
     "sessionDetail": {
@@ -1101,7 +1102,7 @@
       },
       "empty": {
         "title": "暂无申请",
-        "body": "您提交的请假申请会显示在这里。",
+        "body": "您提交的请假申请会显示在这里。请前往课程列表提交申请。",
         "cta": "前往课程列表"
       },
       "error": {

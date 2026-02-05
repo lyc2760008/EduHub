@@ -52,9 +52,31 @@ async function postWithRetry(
   throw lastError;
 }
 
+async function getWithRetry(
+  page: Page,
+  url: string,
+  options?: Parameters<Page["request"]["get"]>[1],
+  attempts = 2,
+) {
+  // Retry a single time on transient network errors seen during E2E runs.
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await page.request.get(url, options);
+    } catch (error) {
+      lastError = error;
+      if (!isTransientNetworkError(error) || attempt === attempts - 1) {
+        throw error;
+      }
+    }
+  }
+  throw lastError;
+}
+
 export async function fetchPortalRequests(page: Page, tenantSlug: string) {
   // Portal requests fetch must run under a parent session.
-  const response = await page.request.get(
+  const response = await getWithRetry(
+    page,
     buildPortalApiPath(tenantSlug, "/requests?take=100&skip=0"),
   );
   expect(response.status()).toBe(200);

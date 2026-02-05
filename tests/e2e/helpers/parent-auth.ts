@@ -40,6 +40,11 @@ function resolveBaseUrl() {
   }
 }
 
+function isRetryableAuthError(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  return /Timeout/i.test(error.message);
+}
+
 export function buildTenantUrl(tenantSlug: string, suffix: string) {
   // Resolve a URL that works for subdomain or /t/<slug> tenant routing schemes.
   const baseUrl = resolveBaseUrl();
@@ -143,11 +148,17 @@ export async function loginAsParentWithAccessCode(
   // Reuse an existing parent session when it already matches the expected user.
   const sessionResponse = await page.request.get("/api/auth/session");
   if (sessionResponse.status() === 200) {
-    const payload = (await sessionResponse.json()) as {
-      user?: { email?: string; role?: string };
-    };
+    let payload: { user?: { email?: string; role?: string } } | null = null;
+    try {
+      // NextAuth can return `null` JSON for anonymous sessions; guard to avoid TypeError.
+      payload = (await sessionResponse.json()) as {
+        user?: { email?: string; role?: string };
+      } | null;
+    } catch {
+      payload = null;
+    }
     if (
-      payload.user?.role === "Parent" &&
+      payload?.user?.role === "Parent" &&
       payload.user?.email?.toLowerCase() === email.toLowerCase()
     ) {
       const portalPath = buildTenantPath(tenantSlug, "/portal");
@@ -161,14 +172,27 @@ export async function loginAsParentWithAccessCode(
   }
 
   await page.goto(buildTenantPath(tenantSlug, "/parent/login"));
-  await page.getByTestId("parent-login-email").fill(email);
-  await page.getByTestId("parent-login-access-code").fill(accessCode);
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await page.getByTestId("parent-login-email").fill(email);
+    await page.getByTestId("parent-login-access-code").fill(accessCode);
 
-  const authResponsePromise = page.waitForResponse((response) =>
-    response.url().includes("/api/auth/callback/parent-credentials"),
-  );
-  await page.getByTestId("parent-login-submit").click();
-  await authResponsePromise;
+    try {
+      const authResponsePromise = page.waitForResponse(
+        (response) =>
+          response.url().includes("/api/auth/callback/parent-credentials"),
+        { timeout: 15_000 },
+      );
+      await page.getByTestId("parent-login-submit").click();
+      await authResponsePromise;
+      break;
+    } catch (error) {
+      if (attempt === 0 && isRetryableAuthError(error)) {
+        await page.reload();
+        continue;
+      }
+      throw error;
+    }
+  }
 
   // Parent portal entry route now lives under /portal.
   const portalPath = buildTenantPath(tenantSlug, "/portal");

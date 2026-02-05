@@ -39,6 +39,14 @@ export async function GET(req: NextRequest) {
         })
       : [];
 
+    const primaryCenter = await prisma.center.findFirst({
+      where: { tenantId },
+      orderBy: { createdAt: "asc" },
+      select: { timezone: true },
+    });
+    // Use a tenant-scoped center timezone so portal time hints avoid misleading UTC defaults.
+    const tenantTimeZone = primaryCenter?.timezone ?? null;
+
     const parentDisplayName = [ctx.parent.firstName, ctx.parent.lastName]
       .filter(Boolean)
       .join(" ")
@@ -54,7 +62,7 @@ export async function GET(req: NextRequest) {
         id: ctx.tenant.tenantId,
         slug: ctx.tenant.tenantSlug,
         displayName: ctx.tenant.tenantName ?? ctx.tenant.tenantSlug ?? null,
-        timeZone: "UTC",
+        timeZone: tenantTimeZone,
       },
       students: linkedStudents.map((student) => ({
         id: student.id,

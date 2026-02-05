@@ -22,16 +22,20 @@ async function createUpcomingSession(
   const { tutor, center } = await resolveCenterAndTutor(page, tenantSlug);
   const timezone = center.timezone || "America/Edmonton";
   const seed = uniqueString("resolve-session");
+  const seedValue = Array.from(seed).reduce(
+    (total, char) => total + char.charCodeAt(0),
+    0,
+  );
 
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
     const startAt = DateTime.now()
       .setZone(timezone)
       .plus({ days: 3 + attempt })
       .set({
-        hour: 9 + attempt,
-        minute: (seed.length * 7 + attempt * 11) % 55,
-        second: 0,
-        millisecond: 0,
+        hour: 9 + (attempt % 4),
+        minute: (seedValue + attempt * 11) % 55,
+        second: (seedValue + attempt * 7) % 60,
+        millisecond: (seedValue * 37 + attempt * 53) % 1000,
       });
     const endAt = startAt.plus({ hours: 1 });
 

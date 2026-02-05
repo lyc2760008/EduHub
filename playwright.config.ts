@@ -10,6 +10,8 @@ export default defineConfig({
   testDir: "./tests/e2e",
   // Global setup keeps the dedicated e2e tenant fixtures ready for all specs.
   globalSetup: "./tests/e2e/global-setup.ts",
+  // Cap workers to reduce local dev server flakiness; override with E2E_WORKERS.
+  workers: Number(process.env.E2E_WORKERS || 4),
   timeout: 60_000,
   expect: { timeout: 10_000 },
   use: {
@@ -54,6 +56,14 @@ export default defineConfig({
       dependencies: ["setup-admin"],
       use: {
         storageState: ADMIN_STORAGE_STATE,
+      },
+    },
+    {
+      name: "golden-chromium",
+      testDir: "./tests/e2e/golden",
+      dependencies: ["setup-admin", "setup-parent"],
+      use: {
+        storageState: PARENT_STORAGE_STATE,
       },
     },
   ],

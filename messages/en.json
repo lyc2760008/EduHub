@@ -54,21 +54,21 @@
         "active": "Active",
         "inactive": "Inactive"
       },
-    "fields": {
-      "name": "Name",
-      "timezone": "Timezone",
-      "address1": "Address line 1",
-      "address2": "Address line 2",
-      "city": "City",
-      "province": "Province/State",
-      "postalCode": "Postal code",
-      "country": "Country",
-      "status": "Status",
-      "actions": "Actions"
-    },
-    "placeholders": {
-      "timezone": "Select a timezone"
-    },
+      "fields": {
+        "name": "Name",
+        "timezone": "Timezone",
+        "address1": "Address line 1",
+        "address2": "Address line 2",
+        "city": "City",
+        "province": "Province/State",
+        "postalCode": "Postal code",
+        "country": "Country",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "placeholders": {
+        "timezone": "Select a timezone"
+      },
       "actions": {
         "save": "Save",
         "cancel": "Cancel"
@@ -435,9 +435,9 @@
       },
       "event": {
         "parentLoginSucceeded": "Parent login succeeded",
-        "parentLoginFailed": "Parent login failed",
-        "parentLoginThrottled": "Parent login throttled",
-        "parentLoginLocked": "Parent login locked out",
+        "parentLoginFailed": "Parent sign-in failed",
+        "parentLoginThrottled": "Parent sign-in throttled",
+        "parentLoginLocked": "Parent sign-in locked",
         "parentAccessCodeResetByAdmin": "Access code reset by admin",
         "absenceRequestCreated": "Absence request created",
         "absenceRequestWithdrawn": "Absence request withdrawn",
@@ -741,20 +741,20 @@
       "language": "Language"
     },
     "auth": {
-      "_comment": "Parent auth hardening copy (Step 20.8).",
+      "_comment": "Parent auth hardening copy (Step 20.8) aligned for Step 20.9 tone and non-leaky messaging.",
       "state": {
         "signingIn": "Signing in…"
       },
       "error": {
-        "invalidCredentials": "We couldnâ€™t sign you in. Please check your email and access code.",
+        "invalidCredentials": "We couldn't sign you in. Please check your email and access code.",
         "generic": {
-          "title": "Couldnâ€™t sign in",
+          "title": "Couldn't sign in",
           "body": "Please try again. If the problem continues, contact your center."
         }
       },
       "throttle": {
-        "title": "Please slow down",
-        "body": "Too many attempts in a short time. Please try again soon.",
+        "title": "Please try again soon",
+        "body": "Too many attempts. Try again in a few minutes.",
         "retryAfter": "Try again in {minutes} minutes."
       },
       "lockout": {
@@ -764,7 +764,7 @@
           "withTime": "For your security, sign-in is temporarily locked. Try again in {minutes} minutes.",
           "noTime": "For your security, sign-in is temporarily locked. Please wait a few minutes and try again."
         },
-        "buttonHelper": "You can try again when the cooldown ends."
+        "buttonHelper": "You can try again in a few minutes."
       }
     },
     "common": {
@@ -815,7 +815,7 @@
       },
       "noUpcomingSessions": {
         "title": "No upcoming sessions",
-        "body": "There are no sessions scheduled in the selected range.",
+        "body": "There are no sessions scheduled in the selected range. Try adjusting the date range.",
         "short": "No sessions scheduled."
       },
       "noAttendance": {
@@ -910,7 +910,7 @@
       }
     },
     "absence": {
-      "_comment": "Parent absence request copy (Step 20.4B + 20.6) with withdraw/resubmit flows.",
+      "_comment": "Parent absence request copy (Step 20.4B + 20.6) aligned in Step 20.9 to keep status labels consistent.",
       "cta": {
         "report": "Report absence"
       },
@@ -980,7 +980,7 @@
       },
       "status": {
         "label": "Absence request",
-        "pending": "Pending",
+        "pending": "Pending review",
         "pendingFriendly": "Pending review",
         "approved": "Approved",
         "declined": "Declined",
@@ -1011,8 +1011,8 @@
       },
       "empty": {
         "title": "No requests yet",
-        "body": "Absence requests you submit will appear here.",
-        "cta": "Go to Upcoming Sessions"
+        "body": "Absence requests you submit will appear here. Visit Sessions to report one.",
+        "cta": "Go to Sessions"
       },
       "error": {
         "title": "Couldn't load requests",
@@ -1058,7 +1058,7 @@
       "a": {
         "gettingStarted": "You can view linked students, upcoming sessions, attendance history, and absence request statuses.",
         "missingStudents": "Student links are managed by your center. Please contact your center admin for help.",
-        "timezone": "Session times are shown in the center’s timezone (shown on each page).",
+        "timezone": "Times are shown in the center's timezone (shown on each page).",
         "attendanceStatuses": "Attendance is marked by staff after sessions. You may also see a parent-visible note when provided.",
         "absenceRequests": "Requests can be pending review, approved, declined, or withdrawn. Approval does not cancel or reschedule sessions.",
         "troubleshooting": "Try refreshing the page. If issues continue, log out and log back in, or contact your center."
@@ -1088,7 +1088,7 @@
         "pending": "Attendance will appear after the session."
       },
       "parentNote": {
-        "helper": "This note is written by your tutor/center and is visible to parents."
+        "helper": "Shared by your tutor/center and visible to parents."
       },
       "error": {
         "notFound": {
@@ -1175,4 +1175,3 @@
     }
   }
 }
-

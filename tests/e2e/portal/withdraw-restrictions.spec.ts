@@ -1,5 +1,6 @@
 // Withdraw should be blocked for approved/declined requests and past sessions.
 import { expect, test } from "@playwright/test";
+import { DateTime } from "luxon";
 
 import {
   ensurePortalAbsenceRequest,
@@ -9,18 +10,100 @@ import {
   withdrawPortalAbsenceRequest,
 } from "..\/helpers/absence-requests";
 import { loginAsAdmin } from "..\/helpers/auth";
+import { resolveCenterAndTutor, uniqueString } from "..\/helpers/data";
 import { buildPortalPath, loginParentWithAccessCode } from "..\/helpers/portal";
 import { resolveStep206Fixtures } from "..\/helpers/step206";
+import { buildTenantApiPath } from "..\/helpers/tenant";
 
 const LOCKED_MESSAGE = "Status lock test request.";
+
+type SessionCreateResponse = {
+  session?: { id?: string };
+};
+
+async function createUpcomingSession(
+  page: Parameters<typeof loginAsAdmin>[0],
+  tenantSlug: string,
+  studentId: string,
+  label: string,
+) {
+  // Create unique sessions per run so fixture IDs don't go stale between seeds.
+  const { tutor, center } = await resolveCenterAndTutor(page, tenantSlug);
+  const timezone = center.timezone || "America/Edmonton";
+  const seed = uniqueString(`withdraw-${label}`);
+  const seedValue = Array.from(seed).reduce(
+    (total, char) => total + char.charCodeAt(0),
+    0,
+  );
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const startAt = DateTime.now()
+      .setZone(timezone)
+      .plus({ days: 4 + attempt })
+      .set({
+        hour: 10 + (attempt % 4),
+        minute: (seedValue + attempt * 13) % 55,
+        second: (seedValue + attempt * 7) % 60,
+        millisecond: (seedValue * 31 + attempt * 97) % 1000,
+      });
+    const endAt = startAt.plus({ hours: 1 });
+
+    const response = await page.request.post(
+      buildTenantApiPath(tenantSlug, "/api/sessions"),
+      {
+        data: {
+          centerId: center.id,
+          tutorId: tutor.id,
+          sessionType: "ONE_ON_ONE",
+          studentId,
+          startAt: startAt.toISO(),
+          endAt: endAt.toISO(),
+          timezone,
+        },
+      },
+    );
+
+    if (response.status() === 201) {
+      const payload = (await response.json()) as SessionCreateResponse;
+      const sessionId = payload.session?.id;
+      if (!sessionId) {
+        throw new Error("Expected session id in session create response.");
+      }
+      return sessionId;
+    }
+
+    if (response.status() !== 409) {
+      const details = await response.text();
+      throw new Error(
+        `Unexpected session create status ${response.status()}: ${details}`,
+      );
+    }
+  }
+
+  throw new Error("Unable to create a unique session for withdraw test.");
+}
 
 // Tagged for Playwright suite filtering.
 test.describe("[regression] Withdraw restrictions", () => {
   test("Approved and declined requests cannot be withdrawn", async ({ page }) => {
     const fixtures = resolveStep206Fixtures();
     const tenantSlug = fixtures.tenantSlug;
-    const approveSessionId = fixtures.step206SessionIds.approveLock;
-    const declineSessionId = fixtures.step206SessionIds.declineLock;
+
+    await loginAsAdmin(page, tenantSlug);
+    const approveSessionId = await createUpcomingSession(
+      page,
+      tenantSlug,
+      fixtures.studentId,
+      "approve",
+    );
+    const declineSessionId = await createUpcomingSession(
+      page,
+      tenantSlug,
+      fixtures.studentId,
+      "decline",
+    );
+
+    await page.context().clearCookies();
 
     await loginParentWithAccessCode(page, tenantSlug, {
       email: fixtures.parentA1Email,

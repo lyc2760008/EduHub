@@ -10,6 +10,7 @@
     "lint": "eslint src",
     "test:e2e": "playwright test",
     "e2e:smoke": "playwright test --project=smoke-chromium --workers=4",
+    "e2e:golden": "playwright test --project=golden-chromium",
     "e2e:portal": "playwright test --project=portal-chromium",
     "e2e:admin": "playwright test --project=admin-chromium",
     "e2e:full": "playwright test",

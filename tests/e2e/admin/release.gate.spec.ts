@@ -211,10 +211,25 @@ test.describe("[slow] [regression] Release gate", () => {
     await page.goto(buildTenantPath(tenantSlug, "/admin/reports"));
     await expect(page.getByTestId("report-upcoming-sessions")).toBeVisible();
 
-    await page.getByTestId("upcoming-date-from").fill(rangeStart);
-    await page.getByTestId("upcoming-date-to").fill(rangeEnd);
+    const reportAnchor = DateTime.fromFormat(
+      oneOffSession.startLocal,
+      "yyyy-LL-dd'T'HH:mm",
+    );
+    const reportFrom =
+      reportAnchor.minus({ days: 1 }).toISODate() ?? rangeStart;
+    const reportTo =
+      reportAnchor.plus({ days: 7 }).toISODate() ?? rangeEnd;
+
+    await page.getByTestId("upcoming-date-from").fill(reportFrom);
+    await page.getByTestId("upcoming-date-to").fill(reportTo);
     await page.getByTestId("upcoming-center").selectOption(center.id);
+    const upcomingResponse = page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/reports/upcoming-sessions") &&
+        response.request().method() === "GET",
+    );
     await page.getByTestId("upcoming-tutor").selectOption(tutor.id);
+    await upcomingResponse;
 
     const upcomingRows = page.locator('[data-testid^="reports-upcoming-"]');
     await expect.poll(async () => upcomingRows.count()).toBeGreaterThan(0);

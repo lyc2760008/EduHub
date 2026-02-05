@@ -2,7 +2,8 @@
 import { expect, test } from "@playwright/test";
 import { DateTime } from "luxon";
 
-import { generateOccurrences } from "../../src/lib/sessions/generator";
+// Resolve generator import from repo root (tests/e2e/admin sits three levels deep).
+import { generateOccurrences } from "../../../src/lib/sessions/generator";
 
 // Tagged for Playwright suite filtering.
 test.describe("[slow] [regression] Sessions - generator core", () => {

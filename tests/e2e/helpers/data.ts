@@ -401,10 +401,21 @@ export async function createOneOffSession(
   await page.goto(buildTenantPath(tenantSlug, "/admin/sessions"));
   await expect(page.getByTestId("sessions-list-page")).toBeVisible();
 
+  const centerFilterResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/sessions") &&
+      response.request().method() === "GET",
+  );
   await page.getByTestId("sessions-filter-center").selectOption(input.centerId);
-  await page.waitForLoadState("networkidle");
+  await centerFilterResponse;
+
+  const tutorFilterResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/sessions") &&
+      response.request().method() === "GET",
+  );
   await page.getByTestId("sessions-filter-tutor").selectOption(input.tutorId);
-  await page.waitForLoadState("networkidle");
+  await tutorFilterResponse;
 
   await page.getByTestId("sessions-create-button").click();
 
@@ -512,7 +523,10 @@ export async function generateRecurringSessions(
   await modal.getByLabel(/start time/i).fill(startTime);
   await modal.getByLabel(/end time/i).fill(endTime);
 
-  await page.getByTestId("generator-preview-button").click();
+  const previewButton = modal.getByTestId("generator-preview-button");
+  await previewButton.scrollIntoViewIfNeeded();
+  // Force the click to avoid transient overlays blocking the generator modal.
+  await previewButton.click({ force: true });
   const previewCountText = await page
     .getByTestId("generator-preview-count")
     .innerText();

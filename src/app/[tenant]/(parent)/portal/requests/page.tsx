@@ -113,14 +113,14 @@ function getRequestStatusTone(status: string | null | undefined) {
 }
 
 function sortRequestRows(rows: RequestRow[]) {
-  // Requests should appear newest-first per the portal UX contract.
+  // Sort by submittedAt to keep "newest first" stable even after status updates.
   return [...rows].sort((a, b) => {
-    const aUpdated = new Date(a.updatedAt).getTime();
-    const bUpdated = new Date(b.updatedAt).getTime();
-    if (aUpdated !== bUpdated) return bUpdated - aUpdated;
     const aSubmitted = new Date(a.submittedAt).getTime();
     const bSubmitted = new Date(b.submittedAt).getTime();
-    return bSubmitted - aSubmitted;
+    if (aSubmitted !== bSubmitted) return bSubmitted - aSubmitted;
+    const aUpdated = new Date(a.updatedAt).getTime();
+    const bUpdated = new Date(b.updatedAt).getTime();
+    return bUpdated - aUpdated;
   });
 }
 

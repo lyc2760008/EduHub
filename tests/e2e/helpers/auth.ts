@@ -9,6 +9,27 @@ type LoginOptions = {
   tenantSlug?: string;
 };
 
+function isTransientNetworkError(error: unknown) {
+  // Treat ECONNRESET-style failures as transient so login can fall back to UI flow.
+  if (!(error instanceof Error)) return false;
+  return /ECONNRESET|ECONNREFUSED|socket hang up/i.test(error.message);
+}
+
+async function tryGetSession(page: Page, tenantSlug: string) {
+  try {
+    return await page.request.get(buildTenantApiPath(tenantSlug, "/api/me"));
+  } catch (error) {
+    if (isTransientNetworkError(error)) {
+      try {
+        return await page.request.get(buildTenantApiPath(tenantSlug, "/api/me"));
+      } catch {
+        return null;
+      }
+    }
+    throw error;
+  }
+}
+
 /**
  * UI login helper.
  * Replace selectors if the login page structure changes.
@@ -17,12 +38,11 @@ export async function loginViaUI(page: Page, opts: LoginOptions) {
   const tenantSlug =
     // Default to the dedicated e2e tenant to avoid polluting demo data.
     opts.tenantSlug || process.env.E2E_TENANT_SLUG || "e2e-testing";
+  const adminPath = buildTenantPath(tenantSlug, "/admin");
 
   // Skip login when an existing session already matches the expected user.
-  const sessionResponse = await page.request.get(
-    buildTenantApiPath(tenantSlug, "/api/me"),
-  );
-  if (sessionResponse.status() === 200) {
+  const sessionResponse = await tryGetSession(page, tenantSlug);
+  if (sessionResponse && sessionResponse.status() === 200) {
     const payload = (await sessionResponse.json()) as {
       user?: { email?: string };
       tenant?: { tenantSlug?: string };
@@ -31,6 +51,9 @@ export async function loginViaUI(page: Page, opts: LoginOptions) {
       payload.user?.email?.toLowerCase() === opts.email.toLowerCase() &&
       payload.tenant?.tenantSlug === tenantSlug
     ) {
+      // Ensure the UI is on an admin route even when reusing a storage session.
+      await page.goto(adminPath);
+      await page.waitForURL((url) => url.pathname.startsWith(adminPath));
       return;
     }
     // Clear mismatched sessions to avoid role-based redirects during login.
@@ -45,7 +68,6 @@ export async function loginViaUI(page: Page, opts: LoginOptions) {
   await page.getByTestId("login-submit").click();
 
   // Wait for the tenant admin route to confirm session establishment.
-  const adminPath = buildTenantPath(tenantSlug, "/admin");
   await page.waitForURL((url) => url.pathname.startsWith(adminPath));
 
   const postLoginMarker = page.locator(

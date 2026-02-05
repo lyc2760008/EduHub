@@ -246,9 +246,9 @@ export default function PortalSessionDetailPage() {
       );
       setRequestDetail(match ?? null);
       if (mode === "resubmit" && match) {
-        // Prefill the resubmit form with the last saved reason/message.
-        setRequestReason(match.reasonCode);
-        setRequestMessage(match.message ?? "");
+        // Prefill only when fields are still empty to avoid overwriting user edits.
+        setRequestReason((current) => current || match.reasonCode);
+        setRequestMessage((current) => current || (match.message ?? ""));
       }
     },
     [tenant],
