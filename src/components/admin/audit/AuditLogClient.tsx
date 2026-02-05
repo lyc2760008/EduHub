@@ -312,14 +312,25 @@ export default function AuditLogClient() {
   const columns: AdminTableColumn<AuditEventRecord>[] = [
     {
       header: t("admin.audit.col.time"),
-      cell: (record) => formatDateTime(record.occurredAt, locale) || t("generic.dash"),
+      cell: (record) => (
+        // data-testid + data-time keep audit time assertions stable in E2E.
+        <span data-testid="audit-row-time" data-time={record.occurredAt}>
+          {formatDateTime(record.occurredAt, locale) || t("generic.dash")}
+        </span>
+      ),
       headClassName: "px-4 py-3",
       cellClassName: "px-4 py-3 text-slate-700",
     },
     {
       header: t("admin.audit.col.actor"),
       cell: (record) => (
-        <div className="flex flex-col">
+        <div
+          className="flex flex-col"
+          // data-actor-display aids tenant isolation assertions without coupling to i18n.
+          data-testid="audit-row-actor"
+          data-actor-type={record.actorType}
+          data-actor-display={record.actorDisplay ?? ""}
+        >
           <span className="text-sm text-slate-900">
             {formatActorLabel(record, t)}
           </span>
@@ -333,20 +344,37 @@ export default function AuditLogClient() {
     },
     {
       header: t("admin.audit.col.action"),
-      cell: (record) => t(getActionLabelKey(record)),
+      cell: (record) => (
+        // data-action lets tests find specific audit events without relying on labels.
+        <span data-testid="audit-row-action" data-action={record.action}>
+          {t(getActionLabelKey(record))}
+        </span>
+      ),
       headClassName: "px-4 py-3",
       cellClassName: "px-4 py-3 text-slate-700",
     },
     {
       header: t("admin.audit.col.entity"),
-      cell: (record) => formatEntitySummary(record, t),
+      cell: (record) => (
+        // data-entity-type keeps entity assertions stable for audit rows.
+        <span
+          data-testid="audit-row-entity"
+          data-entity-type={record.entityType ?? ""}
+        >
+          {formatEntitySummary(record, t)}
+        </span>
+      ),
       headClassName: "px-4 py-3",
       cellClassName: "px-4 py-3 text-slate-700",
     },
   ];
 
   const emptyState = (
-    <div className="flex flex-col items-center gap-1">
+    <div
+      className="flex flex-col items-center gap-1"
+      // data-testid keeps empty-state checks stable across breakpoints.
+      data-testid="audit-empty-state"
+    >
       <p className="text-sm font-semibold text-slate-900">
         {t("admin.audit.empty.title")}
       </p>
@@ -420,7 +448,11 @@ export default function AuditLogClient() {
       </div>
 
       {error ? (
-        <div className="rounded border border-red-200 bg-red-50 px-3 py-2">
+        <div
+          className="rounded border border-red-200 bg-red-50 px-3 py-2"
+          // data-testid keeps error state assertions stable in E2E.
+          data-testid="audit-error-state"
+        >
           <p className="text-sm font-semibold text-red-700">
             {t("admin.audit.error.title")}
           </p>

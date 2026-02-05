@@ -48,6 +48,33 @@ let portalSortingPromise: Promise<PortalSortingFixtures> | null = null;
 // Incremental seed helps avoid session unique constraint collisions.
 let portalSessionSeed = 0;
 
+function isTransientNetworkError(error: unknown) {
+  // Treat connection resets as transient so seed helpers can retry once.
+  if (!(error instanceof Error)) return false;
+  return /ECONNRESET|socket hang up|ECONNREFUSED/i.test(error.message);
+}
+
+async function postWithRetry(
+  page: Page,
+  url: string,
+  options: Parameters<Page["request"]["post"]>[1],
+  attempts = 2,
+) {
+  // Retry a single time on transient network errors seen during E2E seeding.
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await page.request.post(url, options);
+    } catch (error) {
+      lastError = error;
+      if (!isTransientNetworkError(error) || attempt === attempts - 1) {
+        throw error;
+      }
+    }
+  }
+  throw lastError;
+}
+
 export function resolvePortalTenantSlug() {
   // Default to the dedicated e2e tenant to avoid polluting demo data.
   return process.env.E2E_TENANT_SLUG || "e2e-testing";
@@ -75,7 +102,8 @@ async function createParentWithoutStudents(page: Page, tenantSlug: string) {
   // Create a standalone parent record for empty-state coverage when env creds are absent.
   const uniqueToken = uniqueString("portal-parent0");
   const parentEmail = `e2e.parent0.${uniqueToken}@example.com`;
-  const response = await page.request.post(
+  const response = await postWithRetry(
+    page,
     buildTenantApiPath(tenantSlug, "/api/parents"),
     {
       data: {
@@ -97,7 +125,8 @@ async function createParentWithoutStudents(page: Page, tenantSlug: string) {
 async function createUnlinkedStudent(page: Page, tenantSlug: string) {
   // Keep unlinked student creation API-driven to avoid UI dependencies in RBAC tests.
   const uniqueToken = uniqueString("portal-unlinked-student");
-  const response = await page.request.post(
+  const response = await postWithRetry(
+    page,
     buildTenantApiPath(tenantSlug, "/api/students"),
     {
       data: {
@@ -161,7 +190,8 @@ async function createPortalSession(
       throw new Error("Unable to build session timestamps for portal E2E.");
     }
 
-    const response = await page.request.post(
+    const response = await postWithRetry(
+      page,
       buildTenantApiPath(tenantSlug, "/api/sessions"),
       {
         data: {

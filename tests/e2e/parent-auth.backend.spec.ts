@@ -282,8 +282,8 @@ test("Parent credentials enforce tenant scope and return session claims", async 
   expect(firstResponse.status()).toBe(200);
 
   await expect(page.getByTestId("parent-login-page")).toBeVisible();
-  // Use the generic alert test id to avoid coupling to localized copy.
-  await expect(page.getByTestId("parent-login-alert")).toBeVisible();
+  // Field-level error avoids coupling to localized alert copy.
+  await expect(page.getByTestId("parent-login-code-error")).toBeVisible();
 
   await page.getByTestId("parent-login-access-code").fill(primaryCode);
   const secondAttempt = page.waitForResponse((response) =>
@@ -331,8 +331,8 @@ test("Parent login fails when access code hash is missing", async ({ page }) => 
   await page.getByTestId("parent-login-submit").click();
 
   await expect(page.getByTestId("parent-login-page")).toBeVisible();
-  // Use the generic alert test id to avoid coupling to localized copy.
-  await expect(page.getByTestId("parent-login-alert")).toBeVisible();
+  // Field-level error avoids coupling to localized alert copy.
+  await expect(page.getByTestId("parent-login-code-error")).toBeVisible();
 });
 
 test("Unauthenticated parent routes redirect to parent login", async ({

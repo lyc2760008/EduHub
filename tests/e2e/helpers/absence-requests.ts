@@ -25,6 +25,33 @@ type EnsureRequestInput = {
   message: string;
 };
 
+function isTransientNetworkError(error: unknown) {
+  // Treat connection resets as transient so request helpers can retry once.
+  if (!(error instanceof Error)) return false;
+  return /ECONNRESET|socket hang up|ECONNREFUSED/i.test(error.message);
+}
+
+async function postWithRetry(
+  page: Page,
+  url: string,
+  options: Parameters<Page["request"]["post"]>[1],
+  attempts = 2,
+) {
+  // Retry a single time on transient network errors seen during E2E runs.
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await page.request.post(url, options);
+    } catch (error) {
+      lastError = error;
+      if (!isTransientNetworkError(error) || attempt === attempts - 1) {
+        throw error;
+      }
+    }
+  }
+  throw lastError;
+}
+
 export async function fetchPortalRequests(page: Page, tenantSlug: string) {
   // Portal requests fetch must run under a parent session.
   const response = await page.request.get(
@@ -46,7 +73,8 @@ export async function ensurePortalAbsenceRequest(
   );
   if (existing) return existing;
 
-  const createResponse = await page.request.post(
+  const createResponse = await postWithRetry(
+    page,
     buildPortalApiPath(input.tenantSlug, "/requests"),
     {
       data: {
@@ -95,7 +123,8 @@ export async function withdrawPortalAbsenceRequest(
   requestId: string,
 ) {
   // Withdraw uses the portal endpoint to preserve parent-scoped behavior.
-  const response = await page.request.post(
+  const response = await postWithRetry(
+    page,
     buildPortalApiPath(tenantSlug, `/requests/${requestId}/withdraw`),
     { data: {} },
   );
@@ -112,7 +141,8 @@ export async function resubmitPortalAbsenceRequest(
   },
 ) {
   // Resubmit uses the portal endpoint so the request stays linked to the parent.
-  const response = await page.request.post(
+  const response = await postWithRetry(
+    page,
     buildPortalApiPath(input.tenantSlug, `/requests/${input.requestId}/resubmit`),
     {
       data: {
@@ -131,7 +161,8 @@ export async function resolveAbsenceRequest(
   status: "APPROVED" | "DECLINED",
 ) {
   // Admin resolve uses the staff request endpoint directly for deterministic setup.
-  const resolveResponse = await page.request.post(
+  const resolveResponse = await postWithRetry(
+    page,
     buildTenantApiPath(tenantSlug, `/api/requests/${requestId}/resolve`),
     { data: { status } },
   );

@@ -28,9 +28,10 @@ test.describe("Centers - Admin smoke", () => {
 
     await page.getByTestId("create-center-button").click();
     await page.getByTestId("center-name-input").fill(uniqueName);
+    // Timezone is a select element; use selectOption for stable E2E behavior.
     await page
       .getByTestId("center-timezone-select")
-      .fill("America/Edmonton");
+      .selectOption("America/Edmonton");
     await page.getByTestId("save-center-button").click();
 
     await expect(page.getByTestId("centers-table")).toBeVisible();

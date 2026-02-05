@@ -91,10 +91,8 @@ test.describe("Parent auth UI", () => {
     await authResponsePromise;
 
     await expect(page.getByTestId("parent-login-page")).toBeVisible();
-    const alert = page.getByTestId("parent-login-alert");
-    if (await alert.count()) {
-      await expect(alert).toBeVisible();
-    }
+    // Field-level error indicates invalid credentials without revealing tenant details.
+    await expect(page.getByTestId("parent-login-code-error")).toBeVisible();
 
     const session = (await page.evaluate(async () => {
       const response = await fetch("/api/auth/session");
@@ -121,6 +119,7 @@ test.describe("Parent auth UI", () => {
     await authResponsePromise;
 
     await expect(page.getByTestId("parent-login-page")).toBeVisible();
-    await expect(page.getByTestId("parent-login-alert")).toBeVisible();
+    // Invalid credentials should surface as a field-level error.
+    await expect(page.getByTestId("parent-login-code-error")).toBeVisible();
   });
 });

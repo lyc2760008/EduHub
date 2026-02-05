@@ -217,6 +217,8 @@ export default function ParentLoginPage({ params }: PageProps) {
                   className="text-xs text-red-600"
                   role="alert"
                   id={emailErrorId}
+                  // data-testid supports stable E2E assertions for field-level errors.
+                  data-testid="parent-login-email-error"
                 >
                   {emailError}
                 </span>
@@ -242,6 +244,8 @@ export default function ParentLoginPage({ params }: PageProps) {
                   className="text-xs text-red-600"
                   role="alert"
                   id={codeErrorId}
+                  // data-testid supports stable E2E assertions for field-level errors.
+                  data-testid="parent-login-code-error"
                 >
                   {codeError}
                 </span>

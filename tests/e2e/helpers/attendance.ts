@@ -59,8 +59,35 @@ export type AttendancePayload = {
   roster: AttendanceRosterItem[];
 };
 
+function isTransientNetworkError(error: unknown) {
+  // Treat connection resets as transient so attendance helpers can retry once.
+  if (!(error instanceof Error)) return false;
+  return /ECONNRESET|socket hang up|ECONNREFUSED/i.test(error.message);
+}
+
+async function getWithRetry(
+  page: Page,
+  url: string,
+  attempts = 2,
+) {
+  // Retry a single time on transient network errors seen during E2E runs.
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await page.request.get(url);
+    } catch (error) {
+      lastError = error;
+      if (!isTransientNetworkError(error) || attempt === attempts - 1) {
+        throw error;
+      }
+    }
+  }
+  throw lastError;
+}
+
 async function fetchCenters(page: Page, tenantSlug: string) {
-  const response = await page.request.get(
+  const response = await getWithRetry(
+    page,
     buildTenantApiPath(tenantSlug, "/api/centers?includeInactive=true"),
   );
   expect(response.status()).toBe(200);
@@ -68,7 +95,8 @@ async function fetchCenters(page: Page, tenantSlug: string) {
 }
 
 async function fetchPrograms(page: Page, tenantSlug: string) {
-  const response = await page.request.get(
+  const response = await getWithRetry(
+    page,
     buildTenantApiPath(tenantSlug, "/api/programs"),
   );
   expect(response.status()).toBe(200);
@@ -85,7 +113,8 @@ async function createProgram(page: Page, tenantSlug: string) {
 }
 
 async function fetchStudents(page: Page, tenantSlug: string) {
-  const response = await page.request.get(
+  const response = await getWithRetry(
+    page,
     buildTenantApiPath(tenantSlug, "/api/students?pageSize=50"),
   );
   expect(response.status()).toBe(200);
@@ -188,7 +217,8 @@ async function createSession(
 }
 
 export async function fetchUsers(page: Page, tenantSlug: string) {
-  const response = await page.request.get(
+  const response = await getWithRetry(
+    page,
     buildTenantApiPath(tenantSlug, "/api/users"),
   );
   expect(response.status()).toBe(200);
@@ -196,7 +226,8 @@ export async function fetchUsers(page: Page, tenantSlug: string) {
 }
 
 export async function fetchSessions(page: Page, tenantSlug: string) {
-  const response = await page.request.get(
+  const response = await getWithRetry(
+    page,
     buildTenantApiPath(tenantSlug, "/api/sessions"),
   );
   expect(response.status()).toBe(200);
@@ -209,7 +240,8 @@ export async function fetchAttendance(
   tenantSlug: string,
   sessionId: string,
 ) {
-  const response = await page.request.get(
+  const response = await getWithRetry(
+    page,
     buildTenantApiPath(tenantSlug, `/api/sessions/${sessionId}/attendance`),
   );
   expect(response.status()).toBe(200);

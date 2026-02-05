@@ -47,6 +47,7 @@ test.describe("Parent portal tenant isolation", () => {
     await authResponsePromise;
 
     await expect(page.getByTestId("parent-login-page")).toBeVisible();
-    await expect(page.getByTestId("parent-login-alert")).toBeVisible();
+    // Cross-tenant access code should fail with field-level invalid credentials.
+    await expect(page.getByTestId("parent-login-code-error")).toBeVisible();
   });
 });
