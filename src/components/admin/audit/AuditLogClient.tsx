@@ -11,6 +11,7 @@ import {
   inputBase,
   secondaryButton,
 } from "@/components/admin/shared/adminUiClasses";
+import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
 import { AUDIT_ACTIONS } from "@/lib/audit/constants";
 
@@ -220,7 +221,11 @@ function getMetadataEntries(metadata: Record<string, unknown>) {
     });
 }
 
-export default function AuditLogClient() {
+type AuditLogClientProps = {
+  tenant: string;
+};
+
+export default function AuditLogClient({ tenant }: AuditLogClientProps) {
   const t = useTranslations();
   const locale = useLocale();
 
@@ -268,7 +273,7 @@ export default function AuditLogClient() {
       }
 
       const result = await fetchJson<AuditResponse>(
-        `/api/admin/audit?${params.toString()}`,
+        buildTenantApiUrl(tenant, `/admin/audit?${params.toString()}`),
       );
 
       if (!result.ok) {
@@ -284,7 +289,7 @@ export default function AuditLogClient() {
       setIsLoading(false);
       setIsLoadingMore(false);
     },
-    [actorFilter, categoryFilter, dateRange, page.take, t],
+    [actorFilter, categoryFilter, dateRange, page.take, t, tenant],
   );
 
   useEffect(() => {

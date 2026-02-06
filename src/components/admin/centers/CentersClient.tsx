@@ -6,12 +6,14 @@ import { useTranslations } from "next-intl";
 import AdminTable, {
   type AdminTableColumn,
 } from "@/components/admin/shared/AdminTable";
+import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
 import type { CenterRecord } from "@/lib/centers/getCenters";
 import { NORTH_AMERICA_TIMEZONES } from "@/lib/timezones/northAmerica";
 
 type CentersClientProps = {
   initialCenters: CenterRecord[];
+  tenant: string;
 };
 
 type CenterFormState = {
@@ -70,7 +72,10 @@ function toPayload(form: CenterFormState) {
   };
 }
 
-export default function CentersClient({ initialCenters }: CentersClientProps) {
+export default function CentersClient({
+  initialCenters,
+  tenant,
+}: CentersClientProps) {
   const t = useTranslations();
   const [centers, setCenters] = useState<CenterRecord[]>(initialCenters);
   const [form, setForm] = useState<CenterFormState>(emptyForm);
@@ -92,7 +97,7 @@ export default function CentersClient({ initialCenters }: CentersClientProps) {
     setError(null);
     try {
       const result = await fetchJson<CenterRecord[]>(
-        "/api/centers?includeInactive=true",
+        buildTenantApiUrl(tenant, "/centers?includeInactive=true"),
       );
 
       if (!result.ok) {
@@ -125,7 +130,9 @@ export default function CentersClient({ initialCenters }: CentersClientProps) {
 
     const payload = toPayload(form);
     const isEditing = Boolean(form.id);
-    const url = isEditing ? `/api/centers/${form.id}` : "/api/centers";
+    const url = isEditing
+      ? buildTenantApiUrl(tenant, `/centers/${form.id}`)
+      : buildTenantApiUrl(tenant, "/centers");
     const method = isEditing ? "PATCH" : "POST";
     const body = isEditing ? payload : { ...payload, isActive: true };
 
@@ -182,11 +189,14 @@ export default function CentersClient({ initialCenters }: CentersClientProps) {
     setError(null);
     setMessage(null);
 
-    const result = await fetchJson<CenterRecord>(`/api/centers/${center.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isActive: !center.isActive }),
-    });
+    const result = await fetchJson<CenterRecord>(
+      buildTenantApiUrl(tenant, `/centers/${center.id}`),
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !center.isActive }),
+      },
+    );
 
     if (!result.ok) {
       // Error handling keeps the UI responsive even when the API fails.

@@ -10,6 +10,7 @@ import AdminModalShell from "@/components/admin/shared/AdminModalShell";
 import AdminTable, {
   type AdminTableColumn,
 } from "@/components/admin/shared/AdminTable";
+import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
 
 type StudentStatusValue = "ACTIVE" | "INACTIVE" | "ARCHIVED";
@@ -71,7 +72,9 @@ export default function StudentsClient({ tenant }: StudentsClientProps) {
     setError(null);
 
     try {
-      const result = await fetchJson<StudentsResponse>("/api/students");
+      const result = await fetchJson<StudentsResponse>(
+        buildTenantApiUrl(tenant, "/students"),
+      );
 
       if (!result.ok && (result.status === 401 || result.status === 403)) {
         setError(t("admin.students.messages.error"));
@@ -94,16 +97,18 @@ export default function StudentsClient({ tenant }: StudentsClientProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [t]);
+  }, [t, tenant]);
 
   const refreshLevels = useCallback(async () => {
-    const result = await fetchJson<LevelOption[]>("/api/levels");
+    const result = await fetchJson<LevelOption[]>(
+      buildTenantApiUrl(tenant, "/levels"),
+    );
     if (result.ok) {
       setLevels(result.data);
     } else {
       setLevels([]);
     }
-  }, []);
+  }, [tenant]);
 
   useEffect(() => {
     void refreshStudents();
@@ -153,7 +158,7 @@ export default function StudentsClient({ tenant }: StudentsClientProps) {
     }
 
     const result = await fetchJson<{ student: StudentListItem }>(
-      "/api/students",
+      buildTenantApiUrl(tenant, "/students"),
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

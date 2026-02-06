@@ -166,6 +166,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
               group={initialGroup}
               tutors={tutorOptions}
               students={students}
+              tenant={tenant}
             />
           </AdminPageShell>
         );

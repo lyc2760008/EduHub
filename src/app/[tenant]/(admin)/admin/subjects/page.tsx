@@ -39,7 +39,7 @@ export default async function SubjectsPage({ params }: PageProps) {
             maxWidth="max-w-5xl"
             testId="subjects-page"
           >
-            <SubjectsClient initialSubjects={subjects} />
+            <SubjectsClient initialSubjects={subjects} tenant={tenant} />
           </AdminPageShell>
         );
       }}

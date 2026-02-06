@@ -45,7 +45,11 @@ export default async function ProgramsPage({ params }: PageProps) {
             maxWidth="max-w-5xl"
             testId="programs-page"
           >
-            <ProgramsClient initialPrograms={programs} initialSubjects={subjects} />
+            <ProgramsClient
+              initialPrograms={programs}
+              initialSubjects={subjects}
+              tenant={tenant}
+            />
           </AdminPageShell>
         );
       }}

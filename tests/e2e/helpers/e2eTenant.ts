@@ -2,7 +2,21 @@
 import bcrypt from "bcryptjs";
 import { DateTime } from "luxon";
 
-import type { PrismaClient } from "../../../src/generated/prisma/client";
+import type { Prisma, PrismaClient } from "../../../src/generated/prisma/client";
+
+// DbClient allows helpers to run with either the full Prisma client or a transaction client.
+type DbClient = PrismaClient | Prisma.TransactionClient;
+
+function isPrismaClient(client: DbClient): client is PrismaClient {
+  return "$transaction" in client;
+}
+
+async function withTransaction<T>(
+  client: DbClient,
+  handler: (tx: Prisma.TransactionClient) => Promise<T>,
+) {
+  return isPrismaClient(client) ? client.$transaction(handler) : handler(client);
+}
 
 const DEFAULT_E2E_TENANT_SLUG = "e2e-testing";
 const DEFAULT_E2E_RUN_ID = "local";
@@ -17,11 +31,7 @@ function resolveE2ERunId() {
   return process.env.E2E_RUN_ID || DEFAULT_E2E_RUN_ID;
 }
 
-async function ensureE2ETenant(
-  prisma: PrismaClient,
-  slug: string,
-  name?: string,
-) {
+async function ensureE2ETenant(prisma: DbClient, slug: string, name?: string) {
   // Create missing e2e tenants on demand to keep local test setup minimal.
   const existing = await prisma.tenant.findFirst({
     where: { slug },
@@ -44,11 +54,7 @@ async function ensureE2ETenant(
   });
 }
 
-async function resolvePasswordHash(
-  prisma: PrismaClient,
-  email: string,
-  password: string,
-) {
+async function resolvePasswordHash(prisma: DbClient, email: string, password: string) {
   // Reuse an existing hash if it already matches to avoid unnecessary churn.
   const existingUser = await prisma.user.findUnique({
     where: { email },
@@ -88,7 +94,7 @@ function assertE2ETenantSlug(tenantSlug: string) {
   }
 }
 
-export async function getE2ETenant(prisma: PrismaClient) {
+export async function getE2ETenant(prisma: DbClient) {
   const tenantSlug = resolveE2ETenantSlug();
   return ensureE2ETenant(
     prisma,
@@ -97,7 +103,7 @@ export async function getE2ETenant(prisma: PrismaClient) {
   );
 }
 
-export async function upsertE2EFixtures(prisma: PrismaClient) {
+export async function upsertE2EFixtures(prisma: DbClient) {
   const tenant = await getE2ETenant(prisma);
   assertE2ETenantSlug(tenant.slug);
   const runId = sanitizeForEmail(resolveE2ERunId());
@@ -303,7 +309,7 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
     nowLocal.plus({ days: 3 }).set({ hour: 10, minute: 45 }),
   );
 
-  await prisma.$transaction(async (tx) => {
+  await withTransaction(prisma, async (tx) => {
     const center = await tx.center.upsert({
       where: { tenantId_name: { tenantId: tenant.id, name: centerName } },
       update: { timezone, isActive: true },
@@ -1445,13 +1451,13 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
   };
 }
 
-export async function cleanupE2ETenantData(prisma: PrismaClient) {
+export async function cleanupE2ETenantData(prisma: DbClient) {
   const tenantSlug = resolveE2ETenantSlug();
   assertSafeCleanup(tenantSlug);
 
   const tenant = await getE2ETenant(prisma);
 
-  await prisma.$transaction(async (tx) => {
+  await withTransaction(prisma, async (tx) => {
     // Parent requests must be cleared before sessions/students to satisfy FK constraints.
     await tx.parentRequest.deleteMany({ where: { tenantId: tenant.id } });
     await tx.sessionNote.deleteMany({ where: { tenantId: tenant.id } });

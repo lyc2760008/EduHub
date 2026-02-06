@@ -4,6 +4,7 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 
+import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
 
 type GroupTypeValue = "GROUP" | "CLASS";
@@ -42,6 +43,7 @@ type GroupDetailClientProps = {
   group: GroupDetail;
   tutors: TutorSummary[];
   students: StudentSummary[];
+  tenant: string;
 };
 
 function formatTutorLabel(tutor: TutorSummary) {
@@ -59,6 +61,7 @@ export default function GroupDetailClient({
   group: initialGroup,
   tutors,
   students,
+  tenant,
 }: GroupDetailClientProps) {
   const t = useTranslations();
   const [group, setGroup] = useState<GroupDetail>(initialGroup);
@@ -121,7 +124,7 @@ export default function GroupDetailClient({
     setTutorMessage(null);
 
     const result = await fetchJson<{ tutorIds: string[] }>(
-      `/api/groups/${group.id}/tutors`,
+      buildTenantApiUrl(tenant, `/groups/${group.id}/tutors`),
       {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -161,7 +164,7 @@ export default function GroupDetailClient({
     setStudentMessage(null);
 
     const result = await fetchJson<{ studentIds: string[] }>(
-      `/api/groups/${group.id}/students`,
+      buildTenantApiUrl(tenant, `/groups/${group.id}/students`),
       {
         method: "PUT",
         headers: { "Content-Type": "application/json" },

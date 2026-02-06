@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import AdminTable, {
   type AdminTableColumn,
 } from "@/components/admin/shared/AdminTable";
+import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
 
 type RoleValue = "Owner" | "Admin" | "Tutor" | "Parent" | "Student";
@@ -27,6 +28,7 @@ type UserListItem = {
 type UsersClientProps = {
   initialUsers: UserListItem[];
   centers: CenterOption[];
+  tenant: string;
 };
 
 type UserFormState = {
@@ -70,6 +72,7 @@ function toFormState(user: UserListItem): UserFormState {
 export default function UsersClient({
   initialUsers,
   centers,
+  tenant,
 }: UsersClientProps) {
   const t = useTranslations();
   const [users, setUsers] = useState<UserListItem[]>(initialUsers);
@@ -87,7 +90,9 @@ export default function UsersClient({
     setError(null);
 
     try {
-      const result = await fetchJson<UserListItem[]>("/api/users");
+      const result = await fetchJson<UserListItem[]>(
+        buildTenantApiUrl(tenant, "/users"),
+      );
 
       if (!result.ok && (result.status === 401 || result.status === 403)) {
         setError(t("admin.users.messages.forbidden"));
@@ -179,7 +184,9 @@ export default function UsersClient({
       payload.name = trimmedName;
     }
 
-    const url = isEditing ? `/api/users/${form.id}` : "/api/users";
+    const url = isEditing
+      ? buildTenantApiUrl(tenant, `/users/${form.id}`)
+      : buildTenantApiUrl(tenant, "/users");
     const method = isEditing ? "PATCH" : "POST";
 
     const result = await fetchJson<UserListItem>(url, {

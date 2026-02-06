@@ -30,7 +30,7 @@ export default async function RequestsPage({ params }: PageProps) {
           maxWidth="max-w-6xl"
           testId="requests-page"
         >
-          <RequestsClient />
+          <RequestsClient tenant={tenant} />
         </AdminPageShell>
       )}
     </AdminAccessGate>

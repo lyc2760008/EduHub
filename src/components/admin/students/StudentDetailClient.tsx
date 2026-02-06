@@ -10,6 +10,7 @@ import AdminModalShell from "@/components/admin/shared/AdminModalShell";
 import AdminTable, {
   type AdminTableColumn,
 } from "@/components/admin/shared/AdminTable";
+import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
 
 type StudentStatusValue = "ACTIVE" | "INACTIVE" | "ARCHIVED";
@@ -58,6 +59,7 @@ type InviteLocale = "en" | "zh-CN";
 
 type StudentDetailClientProps = {
   studentId: string;
+  tenant: string;
 };
 
 type StudentFormState = {
@@ -106,6 +108,7 @@ async function copyTextToClipboard(text: string) {
 
 export default function StudentDetailClient({
   studentId,
+  tenant,
 }: StudentDetailClientProps) {
   const t = useTranslations();
   const locale = useLocale();
@@ -149,7 +152,7 @@ export default function StudentDetailClient({
 
     try {
       const result = await fetchJson<{ student: StudentDetail }>(
-        `/api/students/${studentId}`,
+        buildTenantApiUrl(tenant, `/students/${studentId}`),
       );
 
       if (!result.ok && (result.status === 401 || result.status === 403)) {
@@ -181,16 +184,18 @@ export default function StudentDetailClient({
     } finally {
       setIsLoading(false);
     }
-  }, [studentId, t]);
+  }, [studentId, t, tenant]);
 
   const loadLevels = useCallback(async () => {
-    const result = await fetchJson<LevelOption[]>("/api/levels");
+    const result = await fetchJson<LevelOption[]>(
+      buildTenantApiUrl(tenant, "/levels"),
+    );
     if (result.ok) {
       setLevels(result.data);
     } else {
       setLevels([]);
     }
-  }, []);
+  }, [tenant]);
 
   const loadParents = useCallback(async () => {
     setIsParentsLoading(true);
@@ -198,7 +203,7 @@ export default function StudentDetailClient({
 
     try {
       const result = await fetchJson<{ parents: ParentLink[] }>(
-        `/api/students/${studentId}/parents`,
+        buildTenantApiUrl(tenant, `/students/${studentId}/parents`),
       );
 
       if (!result.ok && (result.status === 401 || result.status === 403)) {
@@ -221,7 +226,7 @@ export default function StudentDetailClient({
     } finally {
       setIsParentsLoading(false);
     }
-  }, [studentId, t]);
+  }, [studentId, t, tenant]);
 
   useEffect(() => {
     void loadStudent();
@@ -251,7 +256,10 @@ export default function StudentDetailClient({
 
     const loadInviteData = async () => {
       const result = await fetchJson<InviteData>(
-        `/api/admin/students/${studentId}/invite-data?parentId=${inviteTarget.parentId}`,
+        buildTenantApiUrl(
+          tenant,
+          `/admin/students/${studentId}/invite-data?parentId=${inviteTarget.parentId}`,
+        ),
       );
 
       if (!result.ok) {
@@ -265,7 +273,7 @@ export default function StudentDetailClient({
     };
 
     void loadInviteData();
-  }, [inviteTarget, locale, studentId, t]);
+  }, [inviteTarget, locale, studentId, t, tenant]);
 
   useEffect(() => {
     return () => {
@@ -304,7 +312,7 @@ export default function StudentDetailClient({
     };
 
     const result = await fetchJson<{ student: StudentDetail }>(
-      `/api/students/${studentId}`,
+      buildTenantApiUrl(tenant, `/students/${studentId}`),
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -355,7 +363,7 @@ export default function StudentDetailClient({
     }
 
     const result = await fetchJson<{ link: ParentLink }>(
-      `/api/students/${studentId}/parents`,
+      buildTenantApiUrl(tenant, `/students/${studentId}/parents`),
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -382,7 +390,7 @@ export default function StudentDetailClient({
     setParentEmail("");
     await loadParents();
     setParentsMessage(t("admin.students.parents.linkedSuccess"));
-  }, [loadParents, parentEmail, studentId, t]);
+  }, [loadParents, parentEmail, studentId, t, tenant]);
 
   const handleUnlinkParent = useCallback(
     async (parentId: string) => {
@@ -390,7 +398,7 @@ export default function StudentDetailClient({
       setParentsMessage(null);
 
       const result = await fetchJson<{ ok: boolean }>(
-        `/api/students/${studentId}/parents/${parentId}`,
+        buildTenantApiUrl(tenant, `/students/${studentId}/parents/${parentId}`),
         { method: "DELETE" },
       );
 
@@ -413,7 +421,7 @@ export default function StudentDetailClient({
       await loadParents();
       setParentsMessage(t("admin.students.parents.unlinkedSuccess"));
     },
-    [loadParents, studentId, t],
+    [loadParents, studentId, t, tenant],
   );
 
   const openResetModal = useCallback((link: ParentLink) => {
@@ -457,7 +465,7 @@ export default function StudentDetailClient({
 
     const result = await fetchJson<{
       accessCode: string;
-    }>(`/api/parents/${resetTarget.parentId}/reset-access-code`, {
+    }>(buildTenantApiUrl(tenant, `/parents/${resetTarget.parentId}/reset-access-code`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -471,7 +479,7 @@ export default function StudentDetailClient({
 
     setResetCode(result.data.accessCode);
     setIsResetting(false);
-  }, [resetTarget, t]);
+  }, [resetTarget, t, tenant]);
 
   const handleCopyResetCode = useCallback(async () => {
     if (!resetCode) return;
@@ -524,7 +532,10 @@ export default function StudentDetailClient({
 
       // Audit invite-copy actions without persisting invite contents.
       const auditResult = await fetchJson<{ ok: boolean }>(
-        `/api/admin/students/${studentId}/invite-copied`,
+        buildTenantApiUrl(
+          tenant,
+          `/admin/students/${studentId}/invite-copied`,
+        ),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -539,7 +550,7 @@ export default function StudentDetailClient({
       console.error("Failed to copy invite message", error);
       setInviteCopyError(t("admin.invite.modal.toast.copyError"));
     }
-  }, [inviteData, inviteLocale, inviteTarget, studentId, t]);
+  }, [inviteData, inviteLocale, inviteTarget, studentId, t, tenant]);
 
   const parentsColumns: AdminTableColumn<ParentLink>[] = useMemo(
     () => [

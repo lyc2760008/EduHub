@@ -8,6 +8,7 @@ import AdminTable, {
   type AdminTableColumn,
 } from "@/components/admin/shared/AdminTable";
 import { inputBase, primaryButton, secondaryButton } from "@/components/admin/shared/adminUiClasses";
+import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
 import { getSessionTypeLabelKey } from "@/lib/portal/format";
 
@@ -116,7 +117,11 @@ function formatDateTime(value: string, locale: string) {
   }).format(parsed);
 }
 
-export default function RequestsClient() {
+type RequestsClientProps = {
+  tenant: string;
+};
+
+export default function RequestsClient({ tenant }: RequestsClientProps) {
   const t = useTranslations();
   const locale = useLocale();
 
@@ -146,7 +151,10 @@ export default function RequestsClient() {
     setIsLoading(true);
     setError(null);
 
-    const url = `/api/requests?status=${statusFilter}`;
+    const url = buildTenantApiUrl(
+      tenant,
+      `/requests?status=${statusFilter}`,
+    );
     const result = await fetchJson<RequestsResponse>(url);
 
     if (!result.ok) {
@@ -157,7 +165,7 @@ export default function RequestsClient() {
 
     setRequests(result.data.items ?? []);
     setIsLoading(false);
-  }, [statusFilter, t]);
+  }, [statusFilter, t, tenant]);
 
   useEffect(() => {
     // Defer load to avoid setState directly inside the effect body.
@@ -198,7 +206,7 @@ export default function RequestsClient() {
       setResolveError(null);
 
       const result = await fetchJson<{ request: RequestRecord }>(
-        `/api/requests/${selected.id}/resolve`,
+        buildTenantApiUrl(tenant, `/requests/${selected.id}/resolve`),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -218,7 +226,7 @@ export default function RequestsClient() {
       setToast(t("admin.requests.state.resolvedToast"));
       void loadRequests();
     },
-    [loadRequests, selected, t],
+    [loadRequests, selected, t, tenant],
   );
 
   const columns: AdminTableColumn<RequestRecord>[] = [

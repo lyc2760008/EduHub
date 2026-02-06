@@ -10,6 +10,7 @@ import { useTranslations } from "next-intl";
 import AdminTable, {
   type AdminTableColumn,
 } from "@/components/admin/shared/AdminTable";
+import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
 
 type SubjectRecord = {
@@ -28,6 +29,7 @@ type ProgramRecord = {
 type ProgramsClientProps = {
   initialPrograms: ProgramRecord[];
   initialSubjects: SubjectRecord[];
+  tenant: string;
 };
 
 type ProgramFormState = {
@@ -53,6 +55,7 @@ function toFormState(program: ProgramRecord): ProgramFormState {
 export default function ProgramsClient({
   initialPrograms,
   initialSubjects,
+  tenant,
 }: ProgramsClientProps) {
   const t = useTranslations();
   const [programs, setPrograms] = useState<ProgramRecord[]>(initialPrograms);
@@ -76,8 +79,8 @@ export default function ProgramsClient({
 
     try {
       const [programsResult, subjectsResult] = await Promise.all([
-        fetchJson<ProgramRecord[]>("/api/programs"),
-        fetchJson<SubjectRecord[]>("/api/subjects"),
+        fetchJson<ProgramRecord[]>(buildTenantApiUrl(tenant, "/programs")),
+        fetchJson<SubjectRecord[]>(buildTenantApiUrl(tenant, "/subjects")),
       ]);
 
       if (
@@ -113,7 +116,7 @@ export default function ProgramsClient({
     } finally {
       setIsLoading(false);
     }
-  }, [t]);
+  }, [t, tenant]);
 
   useEffect(() => {
     void refreshPrograms();
@@ -159,7 +162,9 @@ export default function ProgramsClient({
       subjectId: subjectIdValue.length ? subjectIdValue : null,
     };
 
-    const url = isEditing ? `/api/programs/${form.id}` : "/api/programs";
+    const url = isEditing
+      ? buildTenantApiUrl(tenant, `/programs/${form.id}`)
+      : buildTenantApiUrl(tenant, "/programs");
     const method = isEditing ? "PATCH" : "POST";
     const body = isEditing ? payload : { ...payload, isActive: true };
 
@@ -206,7 +211,8 @@ export default function ProgramsClient({
     setError(null);
     setMessage(null);
 
-    const result = await fetchJson<ProgramRecord>(`/api/programs/${program.id}`,
+    const result = await fetchJson<ProgramRecord>(
+      buildTenantApiUrl(tenant, `/programs/${program.id}`),
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

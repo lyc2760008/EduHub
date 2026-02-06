@@ -251,6 +251,7 @@ test.describe("[slow] [regression] Release gate", () => {
 
     if (!tutorEmail || !tutorPassword) {
       test.skip(true, "Missing tutor credentials for release gate RBAC check.");
+      return;
     }
 
     // Admin creates or finds an assigned session for Tutor1 to validate edits.
