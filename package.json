@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "x-comment": "Playwright scripts group fast and targeted E2E runs (including onboarding QA); typecheck, tenant provisioning, and go-live smoke scripts support ops readiness.",
+  "x-devops-comment": "DevOps scripts run preflight checks, safe migrations, and tenant provisioning without printing secrets.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -25,7 +26,10 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "provision:tenant": "tsx scripts/provision-tenant.ts"
+    "provision:tenant": "tsx scripts/provision-tenant.ts",
+    "devops:preflight": "node scripts/devops/preflight.mjs",
+    "devops:migrate:deploy": "node scripts/devops/migrate-deploy.mjs",
+    "devops:provision:tenant": "node scripts/devops/provision-tenant.mjs --"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.1.0",

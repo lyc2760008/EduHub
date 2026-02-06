@@ -7,11 +7,12 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
+    // Keep the DB probe lightweight; this endpoint is for deploy sanity checks only.
     await prisma.$queryRaw`SELECT 1`;
-    return NextResponse.json({ status: "ok" }, { status: 200 });
+    return NextResponse.json({ ok: true, status: "ok" }, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown";
     console.error("GET /api/health failed", { message });
-    return NextResponse.json({ status: "degraded" }, { status: 503 });
+    return NextResponse.json({ ok: false, status: "degraded" }, { status: 503 });
   }
 }
