@@ -6,7 +6,7 @@
   "x-devops-comment": "DevOps scripts run preflight checks, safe migrations, and tenant provisioning without printing secrets.",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
