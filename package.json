@@ -2,7 +2,7 @@
   "name": "edu-saas",
   "version": "0.1.0",
   "private": true,
-  "x-comment": "Playwright scripts group fast and targeted E2E runs; typecheck and tenant provisioning scripts support ops readiness.",
+  "x-comment": "Playwright scripts group fast and targeted E2E runs; typecheck, tenant provisioning, and go-live smoke scripts support ops readiness.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -16,6 +16,9 @@
     "e2e:admin": "playwright test --project=admin-chromium",
     "e2e:full": "playwright test",
     "e2e:changed": "tsx scripts/e2e-changed.ts",
+    "e2e:golden:staging": "playwright test --project=golden-chromium",
+    "e2e:golive:staging": "playwright test --project=go-live-chromium",
+    "e2e:golive:prod-safe": "playwright test --project=go-live-chromium --grep \"\\[prod-safe\\]\"",
     "e2e:seed": "tsx scripts/e2e-seed.ts",
     "e2e:clean": "tsx scripts/e2e-clean.ts",
     "prisma:generate": "prisma generate",

@@ -22,6 +22,8 @@ export default defineConfig({
     screenshot: "only-on-failure",
     video: "retain-on-failure",
   },
+  // Include HTML report output for go-live gating and operator review.
+  reporter: [["list"], ["html", { outputFolder: "playwright-report", open: "never" }]],
   // Project splits keep smoke fast while allowing portal/admin suites to reuse auth state.
   projects: [
     {
@@ -65,6 +67,11 @@ export default defineConfig({
       use: {
         storageState: PARENT_STORAGE_STATE,
       },
+    },
+    {
+      name: "go-live-chromium",
+      testDir: "./tests/e2e/go-live",
+      // Go-live specs manage auth within each test to support staging/prod runs.
     },
   ],
 });
