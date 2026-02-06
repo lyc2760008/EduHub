@@ -1,0 +1,13 @@
+packages:
+  - "."
+
+# Allow ONLY the packages that need install/build scripts to function on CI/Vercel.
+# This is safer than allowing all scripts globally.
+allowBuilds:
+  "@parcel/watcher": true
+  "@prisma/engines": true
+  "@swc/core": true
+  esbuild: true
+  prisma: true
+  sharp: true
+  unrs-resolver: true
