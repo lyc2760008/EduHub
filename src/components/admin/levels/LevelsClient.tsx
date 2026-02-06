@@ -10,6 +10,7 @@ import { useTranslations } from "next-intl";
 import AdminTable, {
   type AdminTableColumn,
 } from "@/components/admin/shared/AdminTable";
+import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
 
 type LevelRecord = {
@@ -21,6 +22,7 @@ type LevelRecord = {
 
 type LevelsClientProps = {
   initialLevels: LevelRecord[];
+  tenant: string;
 };
 
 type LevelFormState = {
@@ -43,7 +45,10 @@ function toFormState(level: LevelRecord): LevelFormState {
   };
 }
 
-export default function LevelsClient({ initialLevels }: LevelsClientProps) {
+export default function LevelsClient({
+  initialLevels,
+  tenant,
+}: LevelsClientProps) {
   const t = useTranslations();
   const [levels, setLevels] = useState<LevelRecord[]>(initialLevels);
   const [form, setForm] = useState<LevelFormState>(emptyForm);
@@ -60,7 +65,9 @@ export default function LevelsClient({ initialLevels }: LevelsClientProps) {
     setError(null);
 
     try {
-      const result = await fetchJson<LevelRecord[]>("/api/levels");
+      const result = await fetchJson<LevelRecord[]>(
+        buildTenantApiUrl(tenant, "/levels"),
+      );
 
       if (!result.ok && (result.status === 401 || result.status === 403)) {
         setError(t("admin.levels.messages.forbidden"));
@@ -83,7 +90,7 @@ export default function LevelsClient({ initialLevels }: LevelsClientProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [t]);
+  }, [t, tenant]);
 
   useEffect(() => {
     void refreshLevels();
@@ -138,7 +145,9 @@ export default function LevelsClient({ initialLevels }: LevelsClientProps) {
       payload.sortOrder = parsed;
     }
 
-    const url = isEditing ? `/api/levels/${form.id}` : "/api/levels";
+    const url = isEditing
+      ? buildTenantApiUrl(tenant, `/levels/${form.id}`)
+      : buildTenantApiUrl(tenant, "/levels");
     const method = isEditing ? "PATCH" : "POST";
     const body = isEditing ? payload : { ...payload, isActive: true };
 
@@ -185,7 +194,8 @@ export default function LevelsClient({ initialLevels }: LevelsClientProps) {
     setError(null);
     setMessage(null);
 
-    const result = await fetchJson<LevelRecord>(`/api/levels/${level.id}`,
+    const result = await fetchJson<LevelRecord>(
+      buildTenantApiUrl(tenant, `/levels/${level.id}`),
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

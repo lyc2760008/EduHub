@@ -48,7 +48,11 @@ export default async function UsersPage({ params }: PageProps) {
             maxWidth="max-w-5xl"
             testId="users-page"
           >
-            <UsersClient initialUsers={users} centers={centerOptions} />
+            <UsersClient
+              initialUsers={users}
+              centers={centerOptions}
+              tenant={tenant}
+            />
           </AdminPageShell>
         );
       }}

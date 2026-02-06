@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import AdminTable, {
   type AdminTableColumn,
 } from "@/components/admin/shared/AdminTable";
+import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
 
 type UpcomingSessionsRow = {
@@ -170,7 +171,10 @@ export default function AdminDashboardClient({
     });
 
     const result = await fetchJson<UpcomingSessionsResponse>(
-      `/api/reports/upcoming-sessions?${params.toString()}`,
+      buildTenantApiUrl(
+        tenant,
+        `/reports/upcoming-sessions?${params.toString()}`,
+      ),
     );
 
     if (!result.ok) {
@@ -181,7 +185,7 @@ export default function AdminDashboardClient({
 
     setUpcomingRows(result.data.rows);
     setUpcomingLoading(false);
-  }, [t, upcomingFrom, upcomingTo]);
+  }, [t, upcomingFrom, upcomingTo, tenant]);
 
   const loadWeekly = useCallback(async () => {
     setWeeklyLoading(true);
@@ -189,7 +193,10 @@ export default function AdminDashboardClient({
 
     const params = new URLSearchParams({ weekStart });
     const result = await fetchJson<WeeklyAttendanceResponse>(
-      `/api/reports/weekly-attendance?${params.toString()}`,
+      buildTenantApiUrl(
+        tenant,
+        `/reports/weekly-attendance?${params.toString()}`,
+      ),
     );
 
     if (!result.ok) {
@@ -200,7 +207,7 @@ export default function AdminDashboardClient({
 
     setWeeklySummary(result.data.summary);
     setWeeklyLoading(false);
-  }, [t, weekStart]);
+  }, [t, weekStart, tenant]);
 
   const loadStudentActivity = useCallback(async () => {
     setStudentLoading(true);
@@ -213,7 +220,10 @@ export default function AdminDashboardClient({
     });
 
     const result = await fetchJson<StudentActivityResponse>(
-      `/api/reports/student-activity?${params.toString()}`,
+      buildTenantApiUrl(
+        tenant,
+        `/reports/student-activity?${params.toString()}`,
+      ),
     );
 
     if (!result.ok) {
@@ -224,7 +234,7 @@ export default function AdminDashboardClient({
 
     setStudentRows(result.data.rows);
     setStudentLoading(false);
-  }, [studentFrom, studentTo, t]);
+  }, [studentFrom, studentTo, t, tenant]);
 
   useEffect(() => {
     // Load dashboard widgets once on mount to avoid chatty refetching.

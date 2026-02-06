@@ -12,6 +12,7 @@ import {
   primaryButton,
   secondaryButton,
 } from "@/components/admin/shared/adminUiClasses";
+import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
 import type { Role } from "@/generated/prisma/client";
 
@@ -332,7 +333,7 @@ export default function SessionAttendanceSection({
           resolvedAt: string | null;
           resolvedByUserId: string | null;
         };
-      }>(`/api/requests/${request.id}/resolve`, {
+      }>(buildTenantApiUrl(tenant, `/requests/${request.id}/resolve`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: nextStatus }),
@@ -378,7 +379,7 @@ export default function SessionAttendanceSection({
       setResolvingRequestId(null);
       setResolveToast(t("staff.absence.toast.resolved"));
     },
-    [t, viewerEmail, viewerName],
+    [t, tenant, viewerEmail, viewerName],
   );
 
   const handleSave = useCallback(async () => {

@@ -15,6 +15,7 @@ import {
   primaryButton,
   secondaryButton,
 } from "@/components/admin/shared/adminUiClasses";
+import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
 import SessionGeneratorModal from "@/components/admin/sessions/SessionGeneratorModal";
 import SessionOneOffModal from "@/components/admin/sessions/SessionOneOffModal";
@@ -296,8 +297,8 @@ export default function SessionsClient({
     if (startAtTo) params.set("startAtTo", startAtTo);
 
     const url = params.size
-      ? `/api/sessions?${params.toString()}`
-      : "/api/sessions";
+      ? buildTenantApiUrl(tenant, `/sessions?${params.toString()}`)
+      : buildTenantApiUrl(tenant, "/sessions");
     const result = await fetchJson<SessionsResponse>(url);
 
     if (!result.ok) {
@@ -314,7 +315,7 @@ export default function SessionsClient({
 
     setSessions(result.data.sessions);
     setIsLoading(false);
-  }, [filters.centerId, filters.from, filters.to, filters.tutorId, t]);
+  }, [filters.centerId, filters.from, filters.to, filters.tutorId, t, tenant]);
 
   const loadAdminOptions = useCallback(async () => {
     if (!isAdmin) return;
@@ -322,10 +323,14 @@ export default function SessionsClient({
 
     const [centerResult, usersResult, studentsResult, groupsResult] =
       await Promise.all([
-        fetchJson<CenterOption[]>("/api/centers?includeInactive=true"),
-        fetchJson<TutorOption[]>("/api/users"),
-        fetchJson<StudentsResponse>("/api/students?pageSize=100"),
-        fetchJson<GroupsResponse>("/api/groups"),
+        fetchJson<CenterOption[]>(
+          buildTenantApiUrl(tenant, "/centers?includeInactive=true"),
+        ),
+        fetchJson<TutorOption[]>(buildTenantApiUrl(tenant, "/users")),
+        fetchJson<StudentsResponse>(
+          buildTenantApiUrl(tenant, "/students?pageSize=100"),
+        ),
+        fetchJson<GroupsResponse>(buildTenantApiUrl(tenant, "/groups")),
       ]);
 
     if (centerResult.ok) {
@@ -354,7 +359,7 @@ export default function SessionsClient({
     }
 
     setIsLoadingOptions(false);
-  }, [isAdmin, t]);
+  }, [isAdmin, t, tenant]);
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -626,6 +631,7 @@ export default function SessionsClient({
           }}
           students={students}
           tutors={tutors.filter((user) => user.role === "Tutor")}
+          tenant={tenant}
           timezoneOptions={timezoneOptions}
         />
       ) : null}
@@ -641,6 +647,7 @@ export default function SessionsClient({
           }}
           students={students}
           tutors={tutors.filter((user) => user.role === "Tutor")}
+          tenant={tenant}
           timezoneOptions={timezoneOptions}
         />
       ) : null}

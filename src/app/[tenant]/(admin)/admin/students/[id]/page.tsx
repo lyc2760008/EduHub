@@ -31,7 +31,7 @@ export default async function StudentDetailPage({ params }: PageProps) {
           maxWidth="max-w-5xl"
           testId="student-detail-page"
         >
-          <StudentDetailClient studentId={id} />
+          <StudentDetailClient studentId={id} tenant={tenant} />
         </AdminPageShell>
       )}
     </AdminAccessGate>

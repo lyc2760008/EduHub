@@ -39,7 +39,7 @@ export default async function LevelsPage({ params }: PageProps) {
             maxWidth="max-w-5xl"
             testId="levels-page"
           >
-            <LevelsClient initialLevels={levels} />
+            <LevelsClient initialLevels={levels} tenant={tenant} />
           </AdminPageShell>
         );
       }}

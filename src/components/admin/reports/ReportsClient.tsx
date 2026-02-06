@@ -9,6 +9,7 @@ import AdminTable, {
   type AdminTableColumn,
 } from "@/components/admin/shared/AdminTable";
 import { inputBase } from "@/components/admin/shared/adminUiClasses";
+import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
 
 type CenterOption = {
@@ -87,6 +88,7 @@ type StudentActivityResponse = {
 type ReportsClientProps = {
   centers: CenterOption[];
   tutors: TutorOption[];
+  tenant: string;
 };
 
 type UpcomingFilters = {
@@ -156,7 +158,11 @@ function sessionTypeKey(type: UpcomingSessionsRow["sessionType"]) {
   }
 }
 
-export default function ReportsClient({ centers, tutors }: ReportsClientProps) {
+export default function ReportsClient({
+  centers,
+  tutors,
+  tenant,
+}: ReportsClientProps) {
   const t = useTranslations();
   const locale = typeof navigator !== "undefined" ? navigator.language : "en";
 
@@ -219,8 +225,11 @@ export default function ReportsClient({ centers, tutors }: ReportsClientProps) {
     }
 
     const url = params.size
-      ? `/api/reports/upcoming-sessions?${params.toString()}`
-      : "/api/reports/upcoming-sessions";
+      ? buildTenantApiUrl(
+          tenant,
+          `/reports/upcoming-sessions?${params.toString()}`,
+        )
+      : buildTenantApiUrl(tenant, "/reports/upcoming-sessions");
     const result = await fetchJson<UpcomingSessionsResponse>(url);
 
     if (!result.ok) {
@@ -231,7 +240,7 @@ export default function ReportsClient({ centers, tutors }: ReportsClientProps) {
 
     setUpcomingRows(result.data.rows);
     setUpcomingLoading(false);
-  }, [t, upcomingFilters]);
+  }, [t, upcomingFilters, tenant]);
 
   const loadWeekly = useCallback(async () => {
     setWeeklyLoading(true);
@@ -246,8 +255,11 @@ export default function ReportsClient({ centers, tutors }: ReportsClientProps) {
     }
 
     const url = params.size
-      ? `/api/reports/weekly-attendance?${params.toString()}`
-      : "/api/reports/weekly-attendance";
+      ? buildTenantApiUrl(
+          tenant,
+          `/reports/weekly-attendance?${params.toString()}`,
+        )
+      : buildTenantApiUrl(tenant, "/reports/weekly-attendance");
     const result = await fetchJson<WeeklyAttendanceResponse>(url);
 
     if (!result.ok) {
@@ -258,7 +270,7 @@ export default function ReportsClient({ centers, tutors }: ReportsClientProps) {
 
     setWeeklySummary(result.data.summary);
     setWeeklyLoading(false);
-  }, [t, weeklyFilters]);
+  }, [t, weeklyFilters, tenant]);
 
   const loadStudentActivity = useCallback(async () => {
     setStudentLoading(true);
@@ -272,8 +284,11 @@ export default function ReportsClient({ centers, tutors }: ReportsClientProps) {
     }
 
     const url = params.size
-      ? `/api/reports/student-activity?${params.toString()}`
-      : "/api/reports/student-activity";
+      ? buildTenantApiUrl(
+          tenant,
+          `/reports/student-activity?${params.toString()}`,
+        )
+      : buildTenantApiUrl(tenant, "/reports/student-activity");
     const result = await fetchJson<StudentActivityResponse>(url);
 
     if (!result.ok) {
@@ -284,7 +299,7 @@ export default function ReportsClient({ centers, tutors }: ReportsClientProps) {
 
     setStudentRows(result.data.rows);
     setStudentLoading(false);
-  }, [studentFilters, t]);
+  }, [studentFilters, t, tenant]);
 
   useEffect(() => {
     // Debounced auto-refresh keeps reports in sync without per-keystroke fetches.

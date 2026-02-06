@@ -11,7 +11,10 @@ test.describe("[regression] Audit log tenant isolation", () => {
     const primaryTenant = process.env.E2E_TENANT_SLUG || "e2e-testing";
     const secondaryTenant = process.env.E2E_SECOND_TENANT_SLUG;
 
-    test.skip(!secondaryTenant, "Secondary tenant not configured for E2E.");
+    if (!secondaryTenant) {
+      test.skip(true, "Secondary tenant not configured for E2E.");
+      return;
+    }
 
     if (primaryTenant !== "e2e-testing") {
       throw new Error(

@@ -12,6 +12,7 @@ import {
   primaryButton,
   secondaryButton,
 } from "@/components/admin/shared/adminUiClasses";
+import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
 
 type CenterOption = {
@@ -50,6 +51,7 @@ type SessionGeneratorModalProps = {
   defaultTimezone: string;
   onClose: () => void;
   onCommitted: (message: string) => void | Promise<void>;
+  tenant: string;
 };
 
 type SessionType = "ONE_ON_ONE" | "GROUP" | "CLASS";
@@ -111,6 +113,7 @@ export default function SessionGeneratorModal({
   defaultTimezone,
   onClose,
   onCommitted,
+  tenant,
 }: SessionGeneratorModalProps) {
   const t = useTranslations();
   const locale = typeof navigator !== "undefined" ? navigator.language : "en";
@@ -242,7 +245,7 @@ export default function SessionGeneratorModal({
     }
 
     const result = await fetchJson<GeneratorResponse>(
-      "/api/sessions/generate",
+      buildTenantApiUrl(tenant, "/sessions/generate"),
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -273,7 +276,7 @@ export default function SessionGeneratorModal({
     }
 
     const result = await fetchJson<GeneratorResponse>(
-      "/api/sessions/generate",
+      buildTenantApiUrl(tenant, "/sessions/generate"),
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

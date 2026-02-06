@@ -34,7 +34,7 @@ test.describe("[go-live][prod-safe] Admin audit access", () => {
     await expect(page.getByTestId("audit-actor-filter")).toHaveValue("parent");
 
     // Wait for rows or empty state to replace the loading placeholder.
-    const auditState = await expect
+    await expect
       .poll(async () => {
         const rowCount = await page.getByTestId("audit-row-action").count();
         if (rowCount > 0) return "rows";
@@ -46,7 +46,13 @@ test.describe("[go-live][prod-safe] Admin audit access", () => {
       })
       .toMatch(/rows|empty/);
 
-    if (auditState === "empty") {
+    const rowCount = await page.getByTestId("audit-row-action").count();
+    const emptyVisible = await page
+      .getByTestId("audit-empty-state")
+      .isVisible()
+      .catch(() => false);
+
+    if (rowCount === 0 && emptyVisible) {
       await expect(page.getByTestId("audit-empty-state")).toBeVisible();
       return;
     }

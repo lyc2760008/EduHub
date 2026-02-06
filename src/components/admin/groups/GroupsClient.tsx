@@ -10,6 +10,7 @@ import { useTranslations } from "next-intl";
 import AdminTable, {
   type AdminTableColumn,
 } from "@/components/admin/shared/AdminTable";
+import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
 
 type GroupTypeValue = "GROUP" | "CLASS";
@@ -120,7 +121,7 @@ export default function GroupsClient({
       GROUP: t("admin.groups.types.group"),
       CLASS: t("admin.groups.types.class"),
     };
-  }, [t]);
+  }, [t, tenant]);
 
   const refreshGroups = useCallback(async () => {
     setIsLoading(true);
@@ -129,10 +130,16 @@ export default function GroupsClient({
     try {
       const [groupsResult, centersResult, programsResult, levelsResult] =
         await Promise.all([
-          fetchJson<{ groups: GroupListItem[] }>("/api/groups"),
-          fetchJson<CenterOption[]>("/api/centers?includeInactive=true"),
-          fetchJson<ProgramOption[]>("/api/programs"),
-          fetchJson<LevelOption[]>("/api/levels"),
+          fetchJson<{ groups: GroupListItem[] }>(
+            buildTenantApiUrl(tenant, "/groups"),
+          ),
+          fetchJson<CenterOption[]>(
+            buildTenantApiUrl(tenant, "/centers?includeInactive=true"),
+          ),
+          fetchJson<ProgramOption[]>(
+            buildTenantApiUrl(tenant, "/programs"),
+          ),
+          fetchJson<LevelOption[]>(buildTenantApiUrl(tenant, "/levels")),
         ]);
 
       if (
@@ -248,7 +255,9 @@ export default function GroupsClient({
       notes: notesValue.length ? notesValue : null,
     };
 
-    const url = isEditing ? `/api/groups/${form.id}` : "/api/groups";
+    const url = isEditing
+      ? buildTenantApiUrl(tenant, `/groups/${form.id}`)
+      : buildTenantApiUrl(tenant, "/groups");
     const method = isEditing ? "PATCH" : "POST";
     const body = isEditing ? payload : { ...payload, isActive: true };
 
@@ -296,7 +305,7 @@ export default function GroupsClient({
     setMessage(null);
 
     const result = await fetchJson<{ group: GroupListItem }>(
-      `/api/groups/${group.id}`,
+      buildTenantApiUrl(tenant, `/groups/${group.id}`),
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

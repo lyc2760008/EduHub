@@ -10,6 +10,7 @@ import { useTranslations } from "next-intl";
 import AdminTable, {
   type AdminTableColumn,
 } from "@/components/admin/shared/AdminTable";
+import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
 
 type SubjectRecord = {
@@ -20,6 +21,7 @@ type SubjectRecord = {
 
 type SubjectsClientProps = {
   initialSubjects: SubjectRecord[];
+  tenant: string;
 };
 
 type SubjectFormState = {
@@ -41,6 +43,7 @@ function toFormState(subject: SubjectRecord): SubjectFormState {
 
 export default function SubjectsClient({
   initialSubjects,
+  tenant,
 }: SubjectsClientProps) {
   const t = useTranslations();
   const [subjects, setSubjects] = useState<SubjectRecord[]>(initialSubjects);
@@ -58,7 +61,9 @@ export default function SubjectsClient({
     setError(null);
 
     try {
-      const result = await fetchJson<SubjectRecord[]>("/api/subjects");
+      const result = await fetchJson<SubjectRecord[]>(
+        buildTenantApiUrl(tenant, "/subjects"),
+      );
 
       if (!result.ok && (result.status === 401 || result.status === 403)) {
         setError(t("admin.subjects.messages.forbidden"));
@@ -81,7 +86,7 @@ export default function SubjectsClient({
     } finally {
       setIsLoading(false);
     }
-  }, [t]);
+  }, [t, tenant]);
 
   useEffect(() => {
     void refreshSubjects();
@@ -122,7 +127,9 @@ export default function SubjectsClient({
     }
 
     const payload = { name: trimmedName };
-    const url = isEditing ? `/api/subjects/${form.id}` : "/api/subjects";
+    const url = isEditing
+      ? buildTenantApiUrl(tenant, `/subjects/${form.id}`)
+      : buildTenantApiUrl(tenant, "/subjects");
     const method = isEditing ? "PATCH" : "POST";
     const body = isEditing ? payload : { ...payload, isActive: true };
 
@@ -169,7 +176,8 @@ export default function SubjectsClient({
     setError(null);
     setMessage(null);
 
-    const result = await fetchJson<SubjectRecord>(`/api/subjects/${subject.id}`,
+    const result = await fetchJson<SubjectRecord>(
+      buildTenantApiUrl(tenant, `/subjects/${subject.id}`),
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

@@ -38,7 +38,7 @@ export default async function CentersPage({ params }: PageProps) {
             maxWidth="max-w-5xl"
             testId="centers-page"
           >
-            <CentersClient initialCenters={centers} />
+            <CentersClient initialCenters={centers} tenant={tenant} />
           </AdminPageShell>
         );
       }}

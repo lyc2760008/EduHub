@@ -55,7 +55,11 @@ export default async function ReportsPage({ params }: PageProps) {
             maxWidth="max-w-6xl"
             testId="reports-page"
           >
-            <ReportsClient centers={centerOptions} tutors={tutorOptions} />
+            <ReportsClient
+              centers={centerOptions}
+              tutors={tutorOptions}
+              tenant={tenant}
+            />
           </AdminPageShell>
         );
       }}

@@ -13,6 +13,7 @@ import {
   primaryButton,
   secondaryButton,
 } from "@/components/admin/shared/adminUiClasses";
+import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
 
 type CenterOption = {
@@ -51,6 +52,7 @@ type SessionOneOffModalProps = {
   defaultTimezone: string;
   onClose: () => void;
   onCreated: (message: string) => void | Promise<void>;
+  tenant: string;
 };
 
 type SessionType = "ONE_ON_ONE" | "GROUP" | "CLASS";
@@ -92,6 +94,7 @@ export default function SessionOneOffModal({
   defaultTimezone,
   onClose,
   onCreated,
+  tenant,
 }: SessionOneOffModalProps) {
   const t = useTranslations();
   const requiredFieldsMessage = t("admin.sessions.messages.requiredFields");
@@ -215,7 +218,7 @@ export default function SessionOneOffModal({
     };
 
     const result = await fetchJson<{ session: { id: string } }>(
-      "/api/sessions",
+      buildTenantApiUrl(tenant, "/sessions"),
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

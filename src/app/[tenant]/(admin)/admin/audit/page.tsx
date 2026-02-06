@@ -31,7 +31,7 @@ export default async function AuditLogPage({ params }: PageProps) {
           maxWidth="max-w-6xl"
           testId="audit-log-page"
         >
-          <AuditLogClient />
+          <AuditLogClient tenant={tenant} />
         </AdminPageShell>
       )}
     </AdminAccessGate>
