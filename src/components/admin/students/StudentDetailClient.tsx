@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import AdminFormField from "@/components/admin/shared/AdminFormField";
 import AdminModalShell from "@/components/admin/shared/AdminModalShell";
@@ -42,6 +42,20 @@ type ParentLink = {
   };
 };
 
+type InviteData = {
+  portalUrl: string;
+  parentEmail: string;
+  tenantDisplayName?: string | null;
+  context?: {
+    studentId: string;
+    studentName?: string | null;
+    parentId: string;
+    parentName?: string | null;
+  };
+};
+
+type InviteLocale = "en" | "zh-CN";
+
 type StudentDetailClientProps = {
   studentId: string;
 };
@@ -68,10 +82,33 @@ function formatParentName(parent: ParentLink["parent"]) {
   return `${parent.firstName} ${parent.lastName}`.trim();
 }
 
+async function copyTextToClipboard(text: string) {
+  // Shared clipboard helper keeps invite + reset-code copy flows consistent.
+  if (navigator?.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  // Fallback for non-secure contexts or older browsers without Clipboard API.
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "true");
+  textarea.style.position = "absolute";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand("copy");
+  document.body.removeChild(textarea);
+  if (!copied) {
+    throw new Error("Copy command was rejected");
+  }
+}
+
 export default function StudentDetailClient({
   studentId,
 }: StudentDetailClientProps) {
   const t = useTranslations();
+  const locale = useLocale();
   const searchParams = useSearchParams();
   // "view" mode disables edits while keeping the detail page readable.
   const isReadOnly = searchParams.get("mode") === "view";
@@ -92,7 +129,19 @@ export default function StudentDetailClient({
   const [resetError, setResetError] = useState<string | null>(null);
   const [isResetting, setIsResetting] = useState(false);
   const [hasCopiedCode, setHasCopiedCode] = useState(false);
+  const [inviteTarget, setInviteTarget] = useState<ParentLink | null>(null);
+  const [inviteData, setInviteData] = useState<InviteData | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteCopyError, setInviteCopyError] = useState<string | null>(null);
+  const [isInviteLoading, setIsInviteLoading] = useState(false);
+  const [inviteLocale, setInviteLocale] = useState<InviteLocale>("en");
+  const [inviteCopied, setInviteCopied] = useState(false);
+  const [inviteCopiedAtByParent, setInviteCopiedAtByParent] = useState<
+    Record<string, string>
+  >({});
+  const [showLinkForm, setShowLinkForm] = useState(false);
   const copyTimeoutRef = useRef<number | null>(null);
+  const inviteCopyTimeoutRef = useRef<number | null>(null);
 
   const loadStudent = useCallback(async () => {
     setIsLoading(true);
@@ -153,18 +202,18 @@ export default function StudentDetailClient({
       );
 
       if (!result.ok && (result.status === 401 || result.status === 403)) {
-        setParentsError(t("admin.students.parents.error"));
+        setParentsError(t("admin.parents.error.body"));
         return;
       }
 
       if (!result.ok && result.status === 0) {
         console.error("Failed to load parents", result.details);
-        setParentsError(t("common.error"));
+        setParentsError(t("admin.parents.error.body"));
         return;
       }
 
       if (!result.ok) {
-        setParentsError(t("admin.students.parents.error"));
+        setParentsError(t("admin.parents.error.body"));
         return;
       }
 
@@ -181,10 +230,51 @@ export default function StudentDetailClient({
   }, [loadStudent, loadLevels, loadParents]);
 
   useEffect(() => {
+    // Keep the link form visible once parents exist to encourage onboarding updates.
+    if (parents.length > 0) {
+      setShowLinkForm(true);
+    }
+  }, [parents.length]);
+
+  useEffect(() => {
+    if (!inviteTarget) return;
+
+    // Default invite language to the current UI locale when the modal opens.
+    const normalizedLocale: InviteLocale =
+      locale === "zh-CN" ? "zh-CN" : "en";
+    setInviteLocale(normalizedLocale);
+    setInviteData(null);
+    setInviteError(null);
+    setInviteCopyError(null);
+    setInviteCopied(false);
+    setIsInviteLoading(true);
+
+    const loadInviteData = async () => {
+      const result = await fetchJson<InviteData>(
+        `/api/admin/students/${studentId}/invite-data?parentId=${inviteTarget.parentId}`,
+      );
+
+      if (!result.ok) {
+        setInviteError(t("common.error"));
+        setIsInviteLoading(false);
+        return;
+      }
+
+      setInviteData(result.data);
+      setIsInviteLoading(false);
+    };
+
+    void loadInviteData();
+  }, [inviteTarget, locale, studentId, t]);
+
+  useEffect(() => {
     return () => {
-      // Clean up the copy toast timeout to avoid state updates after unmount.
+      // Clean up copy timeouts to avoid state updates after unmount.
       if (copyTimeoutRef.current) {
         window.clearTimeout(copyTimeoutRef.current);
+      }
+      if (inviteCopyTimeoutRef.current) {
+        window.clearTimeout(inviteCopyTimeoutRef.current);
       }
     };
   }, []);
@@ -260,7 +350,7 @@ export default function StudentDetailClient({
 
     const trimmedEmail = parentEmail.trim();
     if (!trimmedEmail) {
-      setParentsError(t("admin.students.parents.error"));
+      setParentsError(t("admin.parents.error.body"));
       return;
     }
 
@@ -274,18 +364,18 @@ export default function StudentDetailClient({
     );
 
     if (!result.ok && (result.status === 401 || result.status === 403)) {
-      setParentsError(t("admin.students.parents.error"));
+      setParentsError(t("admin.parents.error.body"));
       return;
     }
 
     if (!result.ok && result.status === 0) {
       console.error("Failed to link parent", result.details);
-      setParentsError(t("common.error"));
+      setParentsError(t("admin.parents.error.body"));
       return;
     }
 
     if (!result.ok) {
-      setParentsError(t("admin.students.parents.error"));
+      setParentsError(t("admin.parents.error.body"));
       return;
     }
 
@@ -305,18 +395,18 @@ export default function StudentDetailClient({
       );
 
       if (!result.ok && (result.status === 401 || result.status === 403)) {
-        setParentsError(t("admin.students.parents.error"));
+        setParentsError(t("admin.parents.error.body"));
         return;
       }
 
       if (!result.ok && result.status === 0) {
         console.error("Failed to unlink parent", result.details);
-        setParentsError(t("common.error"));
+        setParentsError(t("admin.parents.error.body"));
         return;
       }
 
       if (!result.ok) {
-        setParentsError(t("admin.students.parents.error"));
+        setParentsError(t("admin.parents.error.body"));
         return;
       }
 
@@ -334,12 +424,30 @@ export default function StudentDetailClient({
     setHasCopiedCode(false);
   }, []);
 
+  const openInviteModal = useCallback((link: ParentLink) => {
+    // Invite flow resets local state so admins always see fresh data.
+    setInviteTarget(link);
+    setInviteData(null);
+    setInviteError(null);
+    setInviteCopyError(null);
+    setInviteCopied(false);
+  }, []);
+
   const closeResetModal = useCallback(() => {
     setResetTarget(null);
     setResetCode(null);
     setResetError(null);
     setIsResetting(false);
     setHasCopiedCode(false);
+  }, []);
+
+  const closeInviteModal = useCallback(() => {
+    setInviteTarget(null);
+    setInviteData(null);
+    setInviteError(null);
+    setInviteCopyError(null);
+    setInviteCopied(false);
+    setIsInviteLoading(false);
   }, []);
 
   const handleResetAccessCode = useCallback(async () => {
@@ -369,23 +477,7 @@ export default function StudentDetailClient({
     if (!resetCode) return;
 
     try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(resetCode);
-      } else {
-        // Fallback for non-secure contexts or older browsers without Clipboard API.
-        const textarea = document.createElement("textarea");
-        textarea.value = resetCode;
-        textarea.setAttribute("readonly", "true");
-        textarea.style.position = "absolute";
-        textarea.style.left = "-9999px";
-        document.body.appendChild(textarea);
-        textarea.select();
-        const copied = document.execCommand("copy");
-        document.body.removeChild(textarea);
-        if (!copied) {
-          throw new Error("Copy command was rejected");
-        }
-      }
+      await copyTextToClipboard(resetCode);
       setHasCopiedCode(true);
       if (copyTimeoutRef.current) {
         window.clearTimeout(copyTimeoutRef.current);
@@ -397,6 +489,57 @@ export default function StudentDetailClient({
       console.error("Failed to copy parent access code", error);
     }
   }, [resetCode]);
+
+  const handleCopyInvite = useCallback(async () => {
+    if (!inviteTarget || !inviteData) return;
+
+    const templateKey =
+      inviteLocale === "zh-CN"
+        ? "admin.invite.template.zhCN"
+        : "admin.invite.template.en";
+
+    const centerName = inviteData.tenantDisplayName ?? "";
+    // Invite message intentionally excludes access codes and other secrets.
+    const inviteMessage = t(templateKey, {
+      portalUrl: inviteData.portalUrl,
+      parentEmail: inviteData.parentEmail,
+      centerName,
+    });
+
+    try {
+      await copyTextToClipboard(inviteMessage);
+      setInviteCopied(true);
+      setInviteCopyError(null);
+      setInviteCopiedAtByParent((prev) => ({
+        ...prev,
+        [inviteTarget.parentId]: new Date().toISOString(),
+      }));
+
+      if (inviteCopyTimeoutRef.current) {
+        window.clearTimeout(inviteCopyTimeoutRef.current);
+      }
+      inviteCopyTimeoutRef.current = window.setTimeout(() => {
+        setInviteCopied(false);
+      }, 2000);
+
+      // Audit invite-copy actions without persisting invite contents.
+      const auditResult = await fetchJson<{ ok: boolean }>(
+        `/api/admin/students/${studentId}/invite-copied`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ parentId: inviteTarget.parentId }),
+        },
+      );
+
+      if (!auditResult.ok) {
+        console.error("Failed to audit invite copy", auditResult.details);
+      }
+    } catch (error) {
+      console.error("Failed to copy invite message", error);
+      setInviteCopyError(t("admin.invite.modal.toast.copyError"));
+    }
+  }, [inviteData, inviteLocale, inviteTarget, studentId, t]);
 
   const parentsColumns: AdminTableColumn<ParentLink>[] = useMemo(
     () => [
@@ -417,7 +560,26 @@ export default function StudentDetailClient({
       },
       {
         header: t("admin.students.parents.parentEmail"),
-        cell: (link) => link.parent.email,
+        cell: (link) => {
+          const copiedAt = inviteCopiedAtByParent[link.parentId];
+          const formattedCopiedAt = copiedAt
+            ? new Intl.DateTimeFormat(locale, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              }).format(new Date(copiedAt))
+            : null;
+
+          return (
+            <div className="flex flex-col gap-1">
+              <span className="text-slate-700">{link.parent.email}</span>
+              {formattedCopiedAt ? (
+                <span className="text-xs text-slate-500">
+                  {t("admin.parents.meta.lastInviteCopied")}: {formattedCopiedAt}
+                </span>
+              ) : null}
+            </div>
+          );
+        },
         headClassName: "px-4 py-3",
         cellClassName: "px-4 py-3 text-slate-700",
       },
@@ -427,12 +589,21 @@ export default function StudentDetailClient({
           <div className="flex items-center justify-end gap-2">
             <button
               className="rounded border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              data-testid={`parent-invite-${link.parentId}`}
+              disabled={isReadOnly || !link.parent.email}
+              onClick={() => openInviteModal(link)}
+              type="button"
+            >
+              {t("admin.parents.action.copyInvite")}
+            </button>
+            <button
+              className="rounded border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
               data-testid={`parent-reset-${link.parentId}`}
               disabled={isReadOnly}
               onClick={() => openResetModal(link)}
               type="button"
             >
-              {t("admin.parents.resetCode.button")}
+              {t("admin.parents.action.resetCode")}
             </button>
             <button
               className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
@@ -449,10 +620,43 @@ export default function StudentDetailClient({
         cellClassName: "px-4 py-3",
       },
     ],
-    [handleUnlinkParent, isReadOnly, openResetModal, t],
+    [
+      handleUnlinkParent,
+      inviteCopiedAtByParent,
+      isReadOnly,
+      locale,
+      openInviteModal,
+      openResetModal,
+      t,
+    ],
   );
 
   const loadingState = t("admin.students.messages.loading");
+  const showEmptyParentsState =
+    !isParentsLoading && parents.length === 0 && !showLinkForm;
+  const showLinkSection = showLinkForm || parents.length > 0;
+  const inviteTemplateKey =
+    inviteLocale === "zh-CN" ? "admin.invite.template.zhCN" : "admin.invite.template.en";
+  const inviteMessage = inviteData
+    ? t(inviteTemplateKey, {
+        portalUrl: inviteData.portalUrl,
+        parentEmail: inviteData.parentEmail,
+        centerName: inviteData.tenantDisplayName ?? "",
+      })
+    : "";
+  const inviteMissingPortalUrl = Boolean(inviteData && !inviteData.portalUrl);
+  const inviteMissingEmail = Boolean(inviteData && !inviteData.parentEmail);
+  const inviteCopyDisabled =
+    isInviteLoading ||
+    !inviteData ||
+    inviteMissingPortalUrl ||
+    inviteMissingEmail ||
+    isReadOnly;
+  const inviteLanguageOptions: Array<{ value: InviteLocale; labelKey: string }> =
+    [
+      { value: "en", labelKey: "admin.invite.modal.lang.en" },
+      { value: "zh-CN", labelKey: "admin.invite.modal.lang.zhCN" },
+    ];
 
   if (isLoading) {
     return <p className="text-sm text-slate-600">{loadingState}</p>;
@@ -607,55 +811,87 @@ export default function StudentDetailClient({
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-semibold text-slate-900">
-              {t("admin.students.parents.title")}
+              {t("admin.parents.section.title")}
             </h2>
           </div>
 
-        <div className="mt-4 grid gap-4 md:grid-cols-[2fr_1fr]">
-          <AdminFormField
-            label={t("admin.students.parents.parentEmail")}
-            htmlFor="parent-link-email"
-          >
-            <input
-              className="rounded border border-slate-300 px-3 py-2"
-              data-testid="parent-link-email"
-              id="parent-link-email"
-              disabled={isReadOnly}
-              value={parentEmail}
-              onChange={(event) => setParentEmail(event.target.value)}
-            />
-          </AdminFormField>
-          <div className="flex items-end">
-            <button
-              className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-              data-testid="parent-link-submit"
-              disabled={isReadOnly}
-              onClick={handleLinkParent}
-              type="button"
-            >
-              {t("admin.students.parents.link")}
-            </button>
+        {showEmptyParentsState ? (
+          <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-semibold text-slate-900">
+              {t("admin.parents.empty.title")}
+            </p>
+            <p className="mt-1 text-sm text-slate-600">
+              {t("admin.parents.empty.body")}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {/* Link-by-email flow creates the parent record if needed, so a separate create UI isn't required. */}
+              <button
+                className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                data-testid="parents-empty-link"
+                disabled={isReadOnly}
+                onClick={() => setShowLinkForm(true)}
+                type="button"
+              >
+                {t("admin.parents.empty.cta.link")}
+              </button>
+            </div>
           </div>
-        </div>
+        ) : null}
+
+        {showLinkSection ? (
+          <div className="mt-4 grid gap-4 md:grid-cols-[2fr_1fr]">
+            <AdminFormField
+              label={t("admin.students.parents.parentEmail")}
+              htmlFor="parent-link-email"
+            >
+              <input
+                className="rounded border border-slate-300 px-3 py-2"
+                data-testid="parent-link-email"
+                id="parent-link-email"
+                disabled={isReadOnly}
+                value={parentEmail}
+                onChange={(event) => setParentEmail(event.target.value)}
+              />
+            </AdminFormField>
+            <div className="flex items-end">
+              <button
+                className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                data-testid="parent-link-submit"
+                disabled={isReadOnly}
+                onClick={handleLinkParent}
+                type="button"
+              >
+                {t("admin.parents.empty.cta.link")}
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {parentsError ? (
-          <p className="mt-3 text-sm text-red-600">{parentsError}</p>
+          <div className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2">
+            <p className="text-sm font-semibold text-red-700">
+              {t("admin.parents.error.title")}
+            </p>
+            <p className="text-xs text-red-700">{parentsError}</p>
+          </div>
         ) : null}
         {parentsMessage ? (
           <p className="mt-3 text-sm text-green-600">{parentsMessage}</p>
         ) : null}
 
-        <div className="mt-4">
-          <AdminTable
-            rows={parents}
-            columns={parentsColumns}
-            rowKey={(link) => `parent-row-${link.parentId}`}
-            testId="parents-table"
-            isLoading={isParentsLoading}
-            loadingState={loadingState}
-            emptyState={t("admin.students.parents.empty")}
-          />
-        </div>
+        {parents.length > 0 || isParentsLoading ? (
+          <div className="mt-4">
+            <AdminTable
+              rows={parents}
+              columns={parentsColumns}
+              rowKey={(link) => `parent-row-${link.parentId}`}
+              testId="parents-table"
+              isLoading={isParentsLoading}
+              loadingState={loadingState}
+              emptyState={t("admin.students.parents.empty")}
+            />
+          </div>
+        ) : null}
         </section>
       </div>
 
@@ -760,6 +996,129 @@ export default function StudentDetailClient({
                   </p>
                 </div>
               )}
+            </AdminModalShell>
+          </div>
+        </div>
+      ) : null}
+
+      {inviteTarget ? (
+        // Invite modal lives in the parents section so admins can copy onboarding messages quickly.
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded border border-slate-200 bg-white p-6 shadow-xl">
+            <AdminModalShell
+              title={t("admin.invite.modal.title")}
+              description={t("admin.invite.modal.helper")}
+              footer={
+                <>
+                  <button
+                    className="rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
+                    data-testid="parent-invite-close"
+                    onClick={closeInviteModal}
+                    type="button"
+                  >
+                    {t("actions.close")}
+                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {inviteCopied ? (
+                      <span className="text-xs text-green-600">
+                        {t("admin.invite.modal.toast.copied")}
+                      </span>
+                    ) : null}
+                    {inviteCopyError ? (
+                      <span className="text-xs text-red-600">
+                        {inviteCopyError}
+                      </span>
+                    ) : null}
+                    <button
+                      className="flex items-center gap-2 rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                      data-testid="parent-invite-copy"
+                      disabled={inviteCopyDisabled}
+                      onClick={() => void handleCopyInvite()}
+                      type="button"
+                    >
+                      {isInviteLoading ? t("common.loading") : t("admin.invite.modal.action.copy")}
+                    </button>
+                  </div>
+                </>
+              }
+              testId="parent-invite-modal"
+            >
+              {inviteError ? (
+                <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {inviteError}
+                </div>
+              ) : null}
+
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-slate-600">
+                  {t("admin.invite.modal.langToggle.label")}
+                </span>
+                <div className="flex overflow-hidden rounded border border-slate-200">
+                  {inviteLanguageOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`px-3 py-1 text-xs font-semibold ${
+                        inviteLocale === option.value
+                          ? "bg-slate-900 text-white"
+                          : "bg-white text-slate-700"
+                      }`}
+                      onClick={() => setInviteLocale(option.value)}
+                      data-testid={`invite-lang-${option.value}`}
+                    >
+                      {t(option.labelKey)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                {isInviteLoading ? (
+                  <span>{t("common.loading")}</span>
+                ) : (
+                  <pre className="whitespace-pre-wrap font-mono text-sm text-slate-700">
+                    {inviteMessage}
+                  </pre>
+                )}
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-slate-600">
+                    {t("admin.invite.modal.field.portalUrl")}
+                  </p>
+                  <p className="text-sm text-slate-700 break-all">
+                    {inviteData?.portalUrl ?? t("generic.dash")}
+                  </p>
+                  {inviteMissingPortalUrl ? (
+                    <p className="text-xs text-red-600">
+                      {t("admin.invite.modal.error.noPortalUrl")}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-slate-600">
+                    {t("admin.invite.modal.field.parentEmail")}
+                  </p>
+                  <p className="text-sm text-slate-700 break-all">
+                    {inviteData?.parentEmail ?? t("generic.dash")}
+                  </p>
+                  {inviteMissingEmail ? (
+                    <p className="text-xs text-red-600">
+                      {t("admin.invite.modal.error.noEmail")}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2">
+                <p className="text-sm font-semibold text-amber-900">
+                  {t("admin.invite.modal.warning.title")}
+                </p>
+                <p className="text-xs text-amber-900">
+                  {t("admin.invite.modal.warning.body")}
+                </p>
+              </div>
             </AdminModalShell>
           </div>
         </div>

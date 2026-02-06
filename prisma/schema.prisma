@@ -230,6 +230,8 @@ model Parent {
   accessCodeHash String?
   // Timestamp of the last access-code rotation for auditing.
   accessCodeUpdatedAt DateTime?
+  // Tracks whether the parent has dismissed the first-login welcome card in the portal.
+  hasSeenWelcome Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

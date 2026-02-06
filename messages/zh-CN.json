@@ -578,6 +578,38 @@
       }
     },
     "parents": {
+      "_comment": "家长端入驻/邀请相关文案（学生详情页面的家长模块）。",
+      "section": {
+        "title": "家长"
+      },
+      "action": {
+        "copyInvite": "复制邀请信息",
+        "resetCode": "重置访问码"
+      },
+      "accessCode": {
+        "status": {
+          "set": "已设置访问码",
+          "notSet": "未设置访问码"
+        },
+        "hint": {
+          "resetIfNeeded": "如果家长无法登录，请重置访问码。"
+        }
+      },
+      "meta": {
+        "lastInviteCopied": "上次复制邀请信息"
+      },
+      "empty": {
+        "title": "尚未关联家长",
+        "body": "关联家长后，家长即可访问家长端。",
+        "cta": {
+          "create": "创建家长账号",
+          "link": "关联已有家长"
+        }
+      },
+      "error": {
+        "title": "无法加载家长信息",
+        "body": "请稍后重试。"
+      },
       "resetCode": {
         "button": "重置访问码",
         "title": "重置访问码",
@@ -591,6 +623,44 @@
         "error": {
           "generic": "重置失败，请稍后重试。"
         }
+      }
+    },
+    "invite": {
+      "_comment": "家长邀请弹窗与模板文案。",
+      "modal": {
+        "title": "邀请家长",
+        "helper": "复制并分享给家长。访问码请通过安全方式单独发送。",
+        "langToggle": {
+          "label": "语言"
+        },
+        "lang": {
+          "en": "EN",
+          "zhCN": "中文"
+        },
+        "field": {
+          "portalUrl": "家长端链接",
+          "parentEmail": "家长邮箱"
+        },
+        "action": {
+          "copy": "复制"
+        },
+        "toast": {
+          "copied": "邀请信息已复制。",
+          "copyError": "复制邀请信息失败。"
+        },
+        "warning": {
+          "title": "安全提示",
+          "body": "请通过安全方式发送访问码，不要在公开渠道发布。"
+        },
+        "error": {
+          "noPortalUrl": "家长端链接不可用，请检查租户配置。",
+          "noEmail": "缺少家长邮箱。"
+        }
+      },
+      "template": {
+        "_comment": "模板内容为固定语言文本，用于邀请弹窗语言切换。",
+        "en": "Hi,\n\nYou\u2019ve been invited to access the Parent Portal for {centerName}.\n\nPortal link: {portalUrl}\nLogin email: {parentEmail}\n\nTo sign in, please use your email and the access code provided by your center. (Your center will share the access code securely.)\n\nIf anything looks incorrect (missing students or sessions), please contact your center admin for help.",
+        "zhCN": "您好，\n\n您已被邀请访问 {centerName} 的家长端。\n\n链接：{portalUrl}\n登录邮箱：{parentEmail}\n\n请使用您的邮箱与校区提供的访问码登录。（访问码将由校区通过安全方式发送。）\n\n如信息有误（孩子或课程缺失），请联系校区管理员协助处理。"
       }
     }
   },
@@ -913,6 +983,25 @@
       },
       "section": {
         "myStudents": "我的孩子"
+      }
+    },
+    "welcome": {
+      "_comment": "第一次登录家长端时显示的欢迎卡片。",
+      "title": "欢迎使用家长端",
+      "body": "您已关联 {count} 位孩子。可以通过下方入口快速开始。",
+      "noStudents": "您的账号尚未关联孩子，请联系校区管理员。",
+      "cta": {
+        "students": "查看孩子",
+        "sessions": "查看课程",
+        "attendance": "查看出勤",
+        "help": "帮助"
+      },
+      "more": "还有 {count} 位",
+      "action": {
+        "dismiss": "关闭"
+      },
+      "error": {
+        "body": "无法加载已关联的孩子信息。请刷新页面或联系校区。"
       }
     },
     "students": {

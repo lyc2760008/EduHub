@@ -1,10 +1,11 @@
-import { Prisma } from "@/generated/prisma/client";
+import { AuditActorType, Prisma, type Role } from "@/generated/prisma/client";
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from "@/lib/audit/constants";
+import { writeAuditEvent } from "@/lib/audit/writeAuditEvent";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
 import { requireRole } from "@/lib/rbac";
 import { createAndLinkParentSchema } from "@/lib/validation/studentParentCreate";
 import { NextRequest, NextResponse } from "next/server";
-import type { Role } from "@/generated/prisma/client";
 
 export const runtime = "nodejs";
 
@@ -54,41 +55,64 @@ export async function POST(req: NextRequest, context: Params) {
 
     const { parent, relationship } = parsed.data;
 
-    const existingParent = await prisma.parent.findUnique({
-      where: { tenantId_email: { tenantId, email: parent.email } },
-      select: parentSelect,
-    });
+    const result = await prisma.$transaction(async (tx) => {
+      const existingParent = await tx.parent.findUnique({
+        where: { tenantId_email: { tenantId, email: parent.email } },
+        select: parentSelect,
+      });
 
-    const ensuredParent =
-      existingParent ??
-      (await prisma.parent.create({
+      const ensuredParent =
+        existingParent ??
+        (await tx.parent.create({
+          data: {
+            tenantId,
+            firstName: parent.firstName,
+            lastName: parent.lastName,
+            email: parent.email,
+            phone: parent.phone,
+            notes: parent.notes,
+          },
+          select: parentSelect,
+        }));
+
+      const link = await tx.studentParent.create({
         data: {
           tenantId,
-          firstName: parent.firstName,
-          lastName: parent.lastName,
-          email: parent.email,
-          phone: parent.phone,
-          notes: parent.notes,
+          studentId,
+          parentId: ensuredParent.id,
+          relationship,
         },
-        select: parentSelect,
-      }));
+        select: {
+          id: true,
+          studentId: true,
+          parentId: true,
+          relationship: true,
+        },
+      });
 
-    const link = await prisma.studentParent.create({
-      data: {
-        tenantId,
-        studentId,
-        parentId: ensuredParent.id,
-        relationship,
-      },
-      select: {
-        id: true,
-        studentId: true,
-        parentId: true,
-        relationship: true,
-      },
+      return { parent: ensuredParent, link };
     });
 
-    return NextResponse.json({ parent: ensuredParent, link }, { status: 201 });
+    // Audit the parent-student link creation without persisting invite content.
+    await writeAuditEvent({
+      tenantId,
+      actorType: AuditActorType.USER,
+      actorId: ctx.user.id,
+      actorDisplay: ctx.user.email ?? ctx.user.name ?? null,
+      action: AUDIT_ACTIONS.PARENT_LINKED_TO_STUDENT,
+      entityType: AUDIT_ENTITY_TYPES.STUDENT,
+      entityId: studentId,
+      metadata: {
+        parentId: result.parent.id,
+        studentId,
+      },
+      request: req,
+    });
+
+    return NextResponse.json(
+      { parent: result.parent, link: result.link },
+      { status: 201 },
+    );
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&

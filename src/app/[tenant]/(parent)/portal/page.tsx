@@ -13,6 +13,7 @@ import PortalEmptyState from "@/components/parent/portal/PortalEmptyState";
 import { usePortalMe } from "@/components/parent/portal/PortalMeProvider";
 import PortalSkeletonBlock from "@/components/parent/portal/PortalSkeletonBlock";
 import PortalTimeHint from "@/components/parent/portal/PortalTimeHint";
+import PortalWelcomeCard from "@/components/parent/portal/PortalWelcomeCard";
 import StudentCard from "@/components/parent/portal/StudentCard";
 import { fetchJson } from "@/lib/api/fetchJson";
 import {
@@ -90,6 +91,9 @@ export default function PortalDashboardPage() {
   const [students, setStudents] = useState<PortalStudent[]>([]);
   const [nextSession, setNextSession] = useState<PortalSession | null>(null);
   const [attendanceCounts, setAttendanceCounts] = useState<Record<string, number>>({});
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false);
+  const [isDismissingWelcome, setIsDismissingWelcome] = useState(false);
+  const [welcomeError, setWelcomeError] = useState(false);
 
   const studentNameById = useMemo(() => {
     return new Map(
@@ -150,15 +154,43 @@ export default function PortalDashboardPage() {
     return () => clearTimeout(handle);
   }, [loadDashboard]);
 
-  const linkedStudentCount = portalMe?.students?.length ?? 0;
+  const linkedStudentCount = students.length;
   const linkedActiveStudentCount =
-    portalMe?.students?.filter((student) => student.isActive).length ?? 0;
+    students.filter((student) => student.isActive).length ?? 0;
   const hasStudents = linkedStudentCount > 0;
   const timeZone = portalMe?.tenant?.timeZone ?? undefined;
   // Favor session timezones when available to align with admin display.
   const nextSessionTimeZone = nextSession?.timezone ?? timeZone;
   const isPageLoading = isLoading || isMeLoading;
-  const hasPageError = hasError || Boolean(meError);
+  // Keep /me errors from blocking the dashboard so welcome UI can degrade gracefully.
+  const hasPageError = hasError;
+
+  const welcomeAlreadyDismissed = Boolean(portalMe?.parent?.hasSeenWelcome);
+  const shouldShowWelcome = !welcomeAlreadyDismissed && !welcomeDismissed;
+
+  const handleDismissWelcome = useCallback(async () => {
+    if (!tenant) return;
+    setIsDismissingWelcome(true);
+    setWelcomeError(false);
+
+    const result = await fetchJson<{ hasSeenWelcome: boolean }>(
+      buildPortalApiUrl(tenant, "/onboarding/dismiss"),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      },
+    );
+
+    if (!result.ok) {
+      setWelcomeError(true);
+      setIsDismissingWelcome(false);
+      return;
+    }
+
+    setWelcomeDismissed(true);
+    setIsDismissingWelcome(false);
+  }, [tenant]);
 
   const attendanceSummary = [
     { status: "PRESENT", key: "portal.attendance.status.present" },
@@ -170,6 +202,7 @@ export default function PortalDashboardPage() {
   if (isPageLoading) {
     return (
       <div className="space-y-6" data-testid="portal-dashboard-loading">
+        <PortalSkeletonBlock className="h-28" />
         <PortalSkeletonBlock className="h-8 w-40" />
         <PortalSkeletonBlock className="h-4 w-60" />
         <div className="grid gap-4 md:grid-cols-3">
@@ -248,6 +281,16 @@ export default function PortalDashboardPage() {
 
   return (
     <div className="space-y-8" data-testid="portal-dashboard-page">
+      {shouldShowWelcome ? (
+        // Welcome card is non-blocking and dismissible on first login only.
+        <PortalWelcomeCard
+          students={students}
+          tenantSlug={tenant}
+          isDismissing={isDismissingWelcome}
+          hasError={welcomeError || Boolean(meError)}
+          onDismiss={() => void handleDismissWelcome()}
+        />
+      ) : null}
       <div className="space-y-2">
         <PageHeader titleKey="portal.dashboard.title" />
         {/* Time hint reinforces the timezone rule across dashboard summaries. */}

@@ -19,6 +19,8 @@ export type PortalMe = {
     id: string;
     email: string;
     displayName?: string | null;
+    // Welcome flag controls the first-login onboarding card visibility.
+    hasSeenWelcome?: boolean;
   };
   tenant: {
     id: string;

@@ -40,7 +40,14 @@ const CATEGORY_MAP: Record<
   // "attendance" maps to parent-visible attendance note updates.
   attendance: { entityType: AUDIT_ENTITY_TYPES.ATTENDANCE },
   // "admin" is reserved for staff-driven actions outside auth/requests/attendance.
-  admin: { actions: [AUDIT_ACTIONS.PARENT_ACCESS_CODE_RESET] },
+  // Include invite-related onboarding actions so admins can filter copy/link events.
+  admin: {
+    actions: [
+      AUDIT_ACTIONS.PARENT_ACCESS_CODE_RESET,
+      AUDIT_ACTIONS.PARENT_INVITE_COPIED,
+      AUDIT_ACTIONS.PARENT_LINKED_TO_STUDENT,
+    ],
+  },
 };
 
 function buildErrorResponse(

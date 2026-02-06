@@ -25,6 +25,8 @@ export type PortalParentContext = {
     firstName: string;
     lastName: string;
     accessCodeHash: string | null;
+    // Welcome flag supports first-login onboarding in the parent portal.
+    hasSeenWelcome: boolean;
   };
 };
 
@@ -103,6 +105,7 @@ export async function requirePortalParent(
       firstName: true,
       lastName: true,
       accessCodeHash: true,
+      hasSeenWelcome: true,
     },
   });
 

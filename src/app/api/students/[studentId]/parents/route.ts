@@ -1,10 +1,11 @@
-import { Prisma } from "@/generated/prisma/client";
+import { AuditActorType, Prisma, type Role } from "@/generated/prisma/client";
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from "@/lib/audit/constants";
+import { writeAuditEvent } from "@/lib/audit/writeAuditEvent";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
 import { requireRole } from "@/lib/rbac";
 import { linkStudentParentByEmailSchema } from "@/lib/validation/studentParent";
 import { NextRequest, NextResponse } from "next/server";
-import type { Role } from "@/generated/prisma/client";
 
 export const runtime = "nodejs";
 
@@ -157,6 +158,7 @@ export async function POST(req: NextRequest, context: Params) {
         select: linkSelect,
       });
 
+      const linkCreated = !existingLink;
       const ensuredLink =
         existingLink ??
         (await tx.studentParent.create({
@@ -168,8 +170,26 @@ export async function POST(req: NextRequest, context: Params) {
           select: linkSelect,
         }));
 
-      return { parent: ensuredParent, link: ensuredLink };
+      return { parent: ensuredParent, link: ensuredLink, linkCreated };
     });
+
+    if (result.linkCreated) {
+      // Audit link creation only when a new link is created to avoid duplicates.
+      await writeAuditEvent({
+        tenantId,
+        actorType: AuditActorType.USER,
+        actorId: ctx.user.id,
+        actorDisplay: ctx.user.email ?? ctx.user.name ?? null,
+        action: AUDIT_ACTIONS.PARENT_LINKED_TO_STUDENT,
+        entityType: AUDIT_ENTITY_TYPES.STUDENT,
+        entityId: studentId,
+        metadata: {
+          parentId: result.parent.id,
+          studentId,
+        },
+        request: req,
+      });
+    }
 
     return NextResponse.json(
       { link: { ...result.link, parent: result.parent } },

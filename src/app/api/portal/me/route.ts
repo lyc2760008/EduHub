@@ -66,6 +66,8 @@ export async function GET(req: NextRequest) {
         id: ctx.parent.id,
         email: ctx.parent.email,
         displayName: parentDisplayName || null,
+        // Welcome flag powers first-login onboarding without exposing any secrets.
+        hasSeenWelcome: ctx.parent.hasSeenWelcome,
       },
       tenant: {
         id: ctx.tenant.tenantId,

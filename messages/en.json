@@ -590,6 +590,38 @@
       }
     },
     "parents": {
+      "_comment": "Admin parent onboarding labels used in student detail parents section.",
+      "section": {
+        "title": "Parents"
+      },
+      "action": {
+        "copyInvite": "Copy invite message",
+        "resetCode": "Reset access code"
+      },
+      "accessCode": {
+        "status": {
+          "set": "Access code set",
+          "notSet": "Access code not set"
+        },
+        "hint": {
+          "resetIfNeeded": "If the parent can't sign in, reset the access code."
+        }
+      },
+      "meta": {
+        "lastInviteCopied": "Last invite copied"
+      },
+      "empty": {
+        "title": "No parent linked",
+        "body": "Link a parent to give them access to the Parent Portal.",
+        "cta": {
+          "create": "Create parent",
+          "link": "Link existing parent"
+        }
+      },
+      "error": {
+        "title": "Couldn't load parents",
+        "body": "Please try again."
+      },
       "resetCode": {
         "button": "Reset access code",
         "title": "Reset access code",
@@ -603,6 +635,44 @@
         "error": {
           "generic": "Unable to reset the code. Please try again."
         }
+      }
+    },
+    "invite": {
+      "_comment": "Invite modal copy and message templates for parent onboarding.",
+      "modal": {
+        "title": "Invite parent",
+        "helper": "Copy and share this message with the parent. Share the access code securely.",
+        "langToggle": {
+          "label": "Language"
+        },
+        "lang": {
+          "en": "EN",
+          "zhCN": "中文"
+        },
+        "field": {
+          "portalUrl": "Portal link",
+          "parentEmail": "Parent email"
+        },
+        "action": {
+          "copy": "Copy"
+        },
+        "toast": {
+          "copied": "Invite message copied.",
+          "copyError": "Couldn't copy the invite message."
+        },
+        "warning": {
+          "title": "Security reminder",
+          "body": "Share the access code securely. Do not post it in public channels."
+        },
+        "error": {
+          "noPortalUrl": "Portal link is unavailable. Please check tenant configuration.",
+          "noEmail": "Parent email is missing."
+        }
+      },
+      "template": {
+        "_comment": "Templates are language-specific for the invite modal toggle.",
+        "en": "Hi,\n\nYou\u2019ve been invited to access the Parent Portal for {centerName}.\n\nPortal link: {portalUrl}\nLogin email: {parentEmail}\n\nTo sign in, please use your email and the access code provided by your center. (Your center will share the access code securely.)\n\nIf anything looks incorrect (missing students or sessions), please contact your center admin for help.",
+        "zhCN": "您好，\n\n您已被邀请访问 {centerName} 的家长端。\n\n链接：{portalUrl}\n登录邮箱：{parentEmail}\n\n请使用您的邮箱与校区提供的访问码登录。（访问码将由校区通过安全方式发送。）\n\n如信息有误（孩子或课程缺失），请联系校区管理员协助处理。"
       }
     }
   },
@@ -850,6 +920,25 @@
       },
       "section": {
         "myStudents": "My students"
+      }
+    },
+    "welcome": {
+      "_comment": "First-login welcome card shown at the top of the portal dashboard.",
+      "title": "Welcome to the Parent Portal",
+      "body": "You\u2019re linked to {count} student(s). Use the links below to get started.",
+      "noStudents": "Your account isn\u2019t linked to any students yet. Please contact your center admin.",
+      "cta": {
+        "students": "View students",
+        "sessions": "View upcoming sessions",
+        "attendance": "View attendance",
+        "help": "Help"
+      },
+      "more": "+{count} more",
+      "action": {
+        "dismiss": "Dismiss"
+      },
+      "error": {
+        "body": "We couldn\u2019t load your linked students. Please refresh the page or contact your center."
       }
     },
     "students": {
