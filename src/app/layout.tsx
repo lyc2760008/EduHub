@@ -24,6 +24,9 @@ export const metadata: Metadata = {
   description: "Education SaaS for after-school tutoring",
 };
 
+// next-intl reads cookies in the root layout; force dynamic rendering to avoid static build errors.
+export const dynamic = "force-dynamic";
+
 export default async function RootLayout({
   children,
 }: Readonly<{
