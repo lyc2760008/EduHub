@@ -9,7 +9,7 @@ import {
 import { loginAsAdmin } from "..\/helpers/auth";
 import { buildPortalPath, loginParentWithAccessCode } from "..\/helpers/portal";
 import { resolveStep206Fixtures } from "..\/helpers/step206";
-import { buildTenantPath } from "..\/helpers/tenant";
+import { buildTenantApiPath, buildTenantPath } from "..\/helpers/tenant";
 
 const REQUEST_MESSAGE = "Requesting an excused absence.";
 
@@ -77,8 +77,22 @@ test.describe("[regression] Withdraw happy path", () => {
 
     await page.goto(buildTenantPath(tenantSlug, "/admin/requests"));
     await page.getByTestId("admin-requests-status-filter").selectOption("WITHDRAWN");
+    await expect.poll(
+      async () => {
+        const response = await page.request.get(
+          buildTenantApiPath(tenantSlug, "/api/requests?status=WITHDRAWN&pageSize=100"),
+        );
+        if (response.status() !== 200) return false;
+        const payload = (await response.json()) as { items?: Array<{ id?: string }> };
+        return Boolean(payload.items?.some((item) => item.id === request.id));
+      },
+      {
+        timeout: 20000,
+        message: "Expected withdrawn request to appear in admin requests API.",
+      },
+    ).toBeTruthy();
     const row = page.getByTestId(`request-row-${request.id}`);
-    await expect(row).toBeVisible();
+    await expect(row).toBeVisible({ timeout: 20000 });
     await expect(row).toContainText("Withdrawn");
   });
 });

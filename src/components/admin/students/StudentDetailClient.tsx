@@ -1020,7 +1020,11 @@ export default function StudentDetailClient({
                   </button>
                   <div className="flex flex-wrap items-center gap-2">
                     {inviteCopied ? (
-                      <span className="text-xs text-green-600">
+                      <span
+                        className="text-xs text-green-600"
+                        // data-testid keeps invite copy feedback stable for E2E checks.
+                        data-testid="parent-invite-copied"
+                      >
                         {t("admin.invite.modal.toast.copied")}
                       </span>
                     ) : null}
@@ -1072,7 +1076,11 @@ export default function StudentDetailClient({
                 </div>
               </div>
 
-              <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              <div
+                className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"
+                // data-testid lets E2E capture the invite template without relying on i18n text.
+                data-testid="parent-invite-preview"
+              >
                 {isInviteLoading ? (
                   <span>{t("common.loading")}</span>
                 ) : (

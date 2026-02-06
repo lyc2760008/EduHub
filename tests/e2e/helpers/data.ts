@@ -55,6 +55,33 @@ function stableShortHash(value: string) {
   return hash.toString(36).slice(0, 6);
 }
 
+function isTransientNetworkError(error: unknown) {
+  // Treat connection resets as transient so helpers can retry once.
+  if (!(error instanceof Error)) return false;
+  return /ECONNRESET|socket hang up|ECONNREFUSED/i.test(error.message);
+}
+
+async function getWithRetry(
+  page: Page,
+  url: string,
+  options?: Parameters<Page["request"]["get"]>[1],
+  attempts = 2,
+) {
+  // Retry once on transient network errors to reduce flaky suite runs.
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await page.request.get(url, options);
+    } catch (error) {
+      lastError = error;
+      if (!isTransientNetworkError(error) || attempt === attempts - 1) {
+        throw error;
+      }
+    }
+  }
+  throw lastError;
+}
+
 // Per-test suffix ensures deterministic names within a test while staying unique per run.
 export function createTestSuffix(testInfo: TestInfo, label = "e2e"): string {
   const key = `${testInfo.file}-${testInfo.title}-${label}`;
@@ -75,7 +102,8 @@ export function uniqueString(prefix: string): string {
 
 // API fetch helpers avoid UI-only dependency when resolving required entities.
 export async function fetchCenters(page: Page, tenantSlug: string) {
-  const response = await page.request.get(
+  const response = await getWithRetry(
+    page,
     buildTenantApiPath(tenantSlug, "/api/centers?includeInactive=true"),
   );
   expect(response.status()).toBe(200);
@@ -83,7 +111,8 @@ export async function fetchCenters(page: Page, tenantSlug: string) {
 }
 
 export async function fetchUsers(page: Page, tenantSlug: string) {
-  const response = await page.request.get(
+  const response = await getWithRetry(
+    page,
     buildTenantApiPath(tenantSlug, "/api/users"),
   );
   expect(response.status()).toBe(200);
@@ -265,7 +294,14 @@ export async function linkParent(
   );
   await expect(page.getByTestId("student-detail-page")).toBeVisible();
 
-  await page.getByTestId("parent-link-email").fill(parentEmail);
+  const linkEmailInput = page.getByTestId("parent-link-email");
+  if ((await linkEmailInput.count()) === 0) {
+    // Empty-state CTA must be clicked before the link form appears in the new parents UI.
+    await page.getByTestId("parents-empty-link").click();
+    await expect(linkEmailInput).toBeVisible();
+  }
+
+  await linkEmailInput.fill(parentEmail);
   await page.getByTestId("parent-link-submit").click();
 
   await expect(page.getByTestId("parents-table")).toBeVisible();

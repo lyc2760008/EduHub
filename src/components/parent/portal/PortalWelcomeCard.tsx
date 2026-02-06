@@ -47,7 +47,11 @@ export default function PortalWelcomeCard({
   const helpHref = tenantSlug ? `/${tenantSlug}/portal/help` : "/portal/help";
 
   return (
-    <Card>
+    <div
+      // data-testid supports stable E2E selection of the welcome onboarding surface.
+      data-testid="portal-welcome-card"
+    >
+      <Card>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-3">
           <div className="space-y-2">
@@ -95,6 +99,7 @@ export default function PortalWelcomeCard({
           onClick={onDismiss}
           disabled={isDismissing}
           className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-semibold text-[var(--text)] disabled:opacity-60"
+          data-testid="portal-welcome-dismiss"
         >
           {t("portal.welcome.action.dismiss")}
         </button>
@@ -104,28 +109,33 @@ export default function PortalWelcomeCard({
         <Link
           href={studentsHref}
           className="rounded-full bg-[var(--primary)] px-4 py-2 text-xs font-semibold text-[var(--primary-foreground)]"
+          data-testid="portal-welcome-link-students"
         >
           {t("portal.welcome.cta.students")}
         </Link>
         <Link
           href={sessionsHref}
           className="rounded-full border border-[var(--border)] px-4 py-2 text-xs font-semibold text-[var(--text)]"
+          data-testid="portal-welcome-link-sessions"
         >
           {t("portal.welcome.cta.sessions")}
         </Link>
         <Link
           href={attendanceHref}
           className="rounded-full border border-[var(--border)] px-4 py-2 text-xs font-semibold text-[var(--text)]"
+          data-testid="portal-welcome-link-attendance"
         >
           {t("portal.welcome.cta.attendance")}
         </Link>
         <Link
           href={helpHref}
           className="rounded-full border border-[var(--border)] px-4 py-2 text-xs font-semibold text-[var(--text)]"
+          data-testid="portal-welcome-link-help"
         >
           {t("portal.welcome.cta.help")}
         </Link>
       </div>
     </Card>
+    </div>
   );
 }

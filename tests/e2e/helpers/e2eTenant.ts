@@ -519,6 +519,8 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
         lastName: parentA0Name.lastName,
         accessCodeHash,
         accessCodeUpdatedAt: now,
+        // Reset welcome flag so onboarding tests start from a known state.
+        hasSeenWelcome: false,
       },
       create: {
         tenantId: tenant.id,
@@ -527,6 +529,8 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
         email: parentA0Email,
         accessCodeHash,
         accessCodeUpdatedAt: now,
+        // Welcome flag defaults to false; set explicitly for clarity in fixtures.
+        hasSeenWelcome: false,
       },
       select: { id: true },
     });
@@ -538,6 +542,8 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
         lastName: parentA1Name.lastName,
         accessCodeHash,
         accessCodeUpdatedAt: now,
+        // Reset welcome flag so onboarding tests start from a known state.
+        hasSeenWelcome: false,
       },
       create: {
         tenantId: tenant.id,
@@ -546,6 +552,8 @@ export async function upsertE2EFixtures(prisma: PrismaClient) {
         email: parentA1Email,
         accessCodeHash,
         accessCodeUpdatedAt: now,
+        // Welcome flag defaults to false; set explicitly for clarity in fixtures.
+        hasSeenWelcome: false,
       },
       select: { id: true },
     });

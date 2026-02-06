@@ -52,7 +52,14 @@ test.describe("[regression] Students - Admin create + parent link", () => {
     );
     await expect(page.getByTestId("student-detail-page")).toBeVisible();
 
-    await page.getByTestId("parent-link-email").fill(parentEmail);
+    const linkEmailInput = page.getByTestId("parent-link-email");
+    if ((await linkEmailInput.count()) === 0) {
+      // Empty-state CTA reveals the link form in the updated parents UI.
+      await page.getByTestId("parents-empty-link").click();
+      await expect(linkEmailInput).toBeVisible();
+    }
+
+    await linkEmailInput.fill(parentEmail);
     await page.getByTestId("parent-link-submit").click();
     await expect(page.getByTestId("parents-table")).toBeVisible();
     await expect(page.getByText(parentEmail)).toBeVisible();
