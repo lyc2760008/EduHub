@@ -23,6 +23,8 @@
     "e2e:golive:prod-safe": "playwright test --project=go-live-chromium --grep \"\\[prod-safe\\]\"",
     "e2e:seed": "tsx scripts/e2e-seed.ts",
     "e2e:clean": "tsx scripts/e2e-clean.ts",
+    "db:seed": "prisma db seed",
+    "db:migrate:deploy": "node scripts/devops/migrate-deploy.mjs",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
