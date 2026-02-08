@@ -14,7 +14,30 @@ type HelpItem = {
   answerKey: string;
 };
 
-const HELP_ITEMS: HelpItem[] = [
+const QUICK_START_ITEMS: HelpItem[] = [
+  {
+    questionKey: "portal.help.q.login",
+    answerKey: "portal.help.a.login",
+  },
+  {
+    questionKey: "portal.help.q.pages",
+    answerKey: "portal.help.a.pages",
+  },
+  {
+    questionKey: "portal.help.q.scheduleAttendance",
+    answerKey: "portal.help.a.scheduleAttendance",
+  },
+  {
+    questionKey: "portal.help.q.incorrectInfo",
+    answerKey: "portal.help.a.incorrectInfo",
+  },
+  {
+    questionKey: "portal.help.q.contactSupport",
+    answerKey: "portal.help.a.contactSupport",
+  },
+];
+
+const FAQ_ITEMS: HelpItem[] = [
   {
     questionKey: "portal.help.q.gettingStarted",
     answerKey: "portal.help.a.gettingStarted",
@@ -34,10 +57,6 @@ const HELP_ITEMS: HelpItem[] = [
   {
     questionKey: "portal.help.q.absenceRequests",
     answerKey: "portal.help.a.absenceRequests",
-  },
-  {
-    questionKey: "portal.help.q.contactSupport",
-    answerKey: "portal.help.a.contactSupport",
   },
   {
     questionKey: "portal.help.q.troubleshooting",
@@ -98,46 +117,90 @@ export default function PortalHelpPage() {
 
       <Card>
         <div
-          className="space-y-3"
+          className="space-y-6"
           // Data-testid keeps the help accordion stable for E2E smoke coverage.
           data-testid="portal-help-accordion"
         >
-          {HELP_ITEMS.map((item) => (
-            <details
-              key={item.questionKey}
-              className="group rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
-            >
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-[var(--text)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
-                {t(item.questionKey)}
-                <span
-                  aria-hidden="true"
-                  className="text-lg text-[var(--muted)] transition group-open:rotate-180"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    role="img"
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold text-[var(--text)]">
+              {t("portal.help.section.quickStart")}
+            </h2>
+            {QUICK_START_ITEMS.map((item) => (
+              <details
+                key={item.questionKey}
+                className="group rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-[var(--text)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
+                  {t(item.questionKey)}
+                  <span
                     aria-hidden="true"
-                    focusable="false"
+                    className="text-lg text-[var(--muted)] transition group-open:rotate-180"
                   >
-                    <path
-                      d="M6 9l6 6 6-6"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      fill="none"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </span>
-              </summary>
-              <p className="mt-2 text-sm text-[var(--muted)]">
-                {item.answerKey === "portal.help.a.contactSupport"
-                  ? t(item.answerKey, { supportContactLine })
-                  : t(item.answerKey)}
-              </p>
-            </details>
-          ))}
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-4 w-4"
+                      role="img"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path
+                        d="M6 9l6 6 6-6"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                </summary>
+                <p className="mt-2 text-sm text-[var(--muted)]">
+                  {item.answerKey === "portal.help.a.contactSupport"
+                    ? t(item.answerKey, { supportContactLine })
+                    : t(item.answerKey)}
+                </p>
+              </details>
+            ))}
+          </div>
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold text-[var(--text)]">
+              {t("portal.help.section.moreHelp")}
+            </h2>
+            {FAQ_ITEMS.map((item) => (
+              <details
+                key={item.questionKey}
+                className="group rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-[var(--text)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
+                  {t(item.questionKey)}
+                  <span
+                    aria-hidden="true"
+                    className="text-lg text-[var(--muted)] transition group-open:rotate-180"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-4 w-4"
+                      role="img"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path
+                        d="M6 9l6 6 6-6"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                </summary>
+                <p className="mt-2 text-sm text-[var(--muted)]">
+                  {t(item.answerKey)}
+                </p>
+              </details>
+            ))}
+          </div>
         </div>
       </Card>
     </div>

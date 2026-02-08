@@ -59,6 +59,7 @@ export default function AdminNav({ tenant, userRole }: AdminNavProps) {
       href: `/${tenant}/admin/sessions`,
       labelKey: "nav.sessions",
     },
+    { id: "help", href: `/${tenant}/admin/help`, labelKey: "nav.help" },
   ];
 
   // Operations nav highlights audit-ready workflows for admin users.

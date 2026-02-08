@@ -1,0 +1,5 @@
+# Optional blackout dates (local dates in America/Edmonton).
+# Skipped sessions reduce total occurrences; no auto make-up sessions.
+# Example:
+# 2026-02-16
+# 2026-04-10

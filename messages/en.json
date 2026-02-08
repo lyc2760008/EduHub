@@ -44,6 +44,10 @@
       "title": "Access denied",
       "message": "You do not have permission to view this page."
     },
+    "help": {
+      "subtitle": "MMC pilot admin quick start.",
+      "missing": "Quick start content is unavailable. Please contact your internal support team."
+    },
     "centers": {
       "title": "Centers",
       "create": "Create Center",
@@ -757,6 +761,7 @@
     "groups": "Groups",
     "reports": "Reports",
     "sessions": "Sessions",
+    "help": "Help",
     "requests": "Requests",
     "operations": "Operations",
     "audit": "Audit log",
@@ -1144,22 +1149,34 @@
       "_comment": "Parent portal help/FAQ copy (Step 20.7).",
       "title": "Help",
       "helper": "Common questions about using the Parent Portal.",
+      "section": {
+        "quickStart": "Quick start",
+        "moreHelp": "More help"
+      },
       "q": {
+        "login": "How do I log in?",
+        "pages": "What pages are available?",
+        "scheduleAttendance": "How do I read schedules and attendance?",
+        "incorrectInfo": "What if something looks wrong?",
+        "contactSupport": "Who should I contact?",
         "gettingStarted": "What can I do in the Parent Portal?",
         "missingStudents": "Why is a student missing or incorrect?",
         "timezone": "Which timezone are session times shown in?",
         "attendanceStatuses": "What do attendance statuses mean?",
         "absenceRequests": "How do absence requests work?",
-        "contactSupport": "How do I contact support?",
         "troubleshooting": "Troubleshooting"
       },
       "a": {
+        "login": "Open the Parent Portal link from your center, enter your email, then enter the access code provided by your center. If you see too many attempts, please wait a few minutes and try again.",
+        "pages": "Dashboard, My Students, Sessions, Attendance, My Requests (if your center uses it), Account, and Help.",
+        "scheduleAttendance": "Sessions list the date/time and student name. Times are shown in the portal’s displayed timezone. Attendance is recorded by staff after sessions, and notes shown are shared with parents.",
+        "incorrectInfo": "If students, sessions, or times look wrong, please contact your center admin so they can verify your account link and schedule setup.",
+        "contactSupport": "{supportContactLine}",
         "gettingStarted": "You can view linked students, upcoming sessions, attendance history, and absence request statuses.",
         "missingStudents": "Student links are managed by your center. Please contact your center admin for help.",
         "timezone": "Times are shown in the center's timezone (shown on each page).",
         "attendanceStatuses": "Attendance is marked by staff after sessions. You may also see a parent-visible note when provided.",
         "absenceRequests": "Requests can be pending review, approved, declined, or withdrawn. Approval does not cancel or reschedule sessions.",
-        "contactSupport": "{supportContactLine}",
         "troubleshooting": "Try refreshing the page. If issues continue, log out and log back in, or contact your center."
       },
       "error": {
