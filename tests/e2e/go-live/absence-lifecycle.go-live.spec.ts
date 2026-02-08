@@ -43,12 +43,12 @@ function resolveParentAccess(tenantSlug: string) {
   return { email: fixtures.parentA1Email, accessCode: fixtures.accessCode };
 }
 
-function resolveAbsenceTargets(tenantSlug: string) {
-  // Prefer explicit go-live session/student IDs; fall back to seeded fixtures for local runs.
-  const sessionId = process.env.E2E_GO_LIVE_SESSION_ID;
+function resolveAbsenceCandidates(tenantSlug: string) {
+  // Prefer an explicit go-live session ID, then try multiple seeded sessions to avoid cross-spec collisions.
+  const preferredSessionId = process.env.E2E_GO_LIVE_SESSION_ID;
   const studentId = process.env.E2E_GO_LIVE_STUDENT_ID;
-  if (sessionId && studentId) {
-    return { sessionId, studentId };
+  if (preferredSessionId && studentId) {
+    return { studentId, sessionIds: [preferredSessionId] };
   }
 
   const fixtures = resolveStep206Fixtures();
@@ -59,9 +59,16 @@ function resolveAbsenceTargets(tenantSlug: string) {
   }
 
   return {
-    // Use approve-lock session to avoid colliding with Step 20.6 resubmit fixtures.
-    sessionId: fixtures.step206SessionIds.approveLock,
     studentId: fixtures.studentId,
+    // Order candidates from least-coupled to most commonly exercised fixture sessions.
+    sessionIds: [
+      ...(preferredSessionId ? [preferredSessionId] : []),
+      fixtures.upcomingSessionId,
+      fixtures.step206SessionIds.withdrawFuture,
+      fixtures.step206SessionIds.resubmit,
+      fixtures.step206SessionIds.approveLock,
+      fixtures.step206SessionIds.declineLock,
+    ],
   };
 }
 
@@ -79,16 +86,15 @@ async function findRequest(
   );
 }
 
-// Tagged for go-live suite filtering (staging-only; not prod-safe).
-test.describe("[go-live] Absence request lifecycle", () => {
-  test("[go-live] Parent request lifecycle + admin resolve", async ({ page }) => {
-    const tenantSlug = resolveGoLiveTenantSlug();
-    const { email: parentEmail, accessCode } = resolveParentAccess(tenantSlug);
-    const { sessionId, studentId } = resolveAbsenceTargets(tenantSlug);
-
-    await loginAsParentWithAccessCode(page, tenantSlug, parentEmail, accessCode);
-
-    let request = await ensurePortalAbsenceRequest(page, {
+async function findUsableRequest(
+  page: Parameters<typeof fetchPortalRequests>[0],
+  tenantSlug: string,
+  studentId: string,
+  sessionIds: string[],
+) {
+  // Pick the first request path that is still actionable for lifecycle checks.
+  for (const sessionId of sessionIds) {
+    const request = await ensurePortalAbsenceRequest(page, {
       tenantSlug,
       sessionId,
       studentId,
@@ -97,10 +103,32 @@ test.describe("[go-live] Absence request lifecycle", () => {
     });
 
     if (request.status === "APPROVED" || request.status === "DECLINED") {
-      throw new Error(
-        "Absence lifecycle requires a pending/withdrawn request. Use a fresh upcoming session.",
-      );
+      continue;
     }
+
+    return { sessionId, request };
+  }
+
+  throw new Error(
+    "Absence lifecycle requires at least one pending/withdrawn-capable request session.",
+  );
+}
+
+// Tagged for go-live suite filtering (staging-only; not prod-safe).
+test.describe("[go-live] Absence request lifecycle", () => {
+  test("[go-live] Parent request lifecycle + admin resolve", async ({ page }) => {
+    const tenantSlug = resolveGoLiveTenantSlug();
+    const { email: parentEmail, accessCode } = resolveParentAccess(tenantSlug);
+    const { sessionIds, studentId } = resolveAbsenceCandidates(tenantSlug);
+
+    await loginAsParentWithAccessCode(page, tenantSlug, parentEmail, accessCode);
+
+    const { sessionId, request } = await findUsableRequest(
+      page,
+      tenantSlug,
+      studentId,
+      sessionIds,
+    );
 
     if (request.status === "WITHDRAWN") {
       const resubmit = await resubmitPortalAbsenceRequest(page, {

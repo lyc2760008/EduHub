@@ -466,11 +466,23 @@
       "filters": {
         "from": "From",
         "to": "To",
-        "center": "Center",
+        "center": "Center/Location",
         "tutor": "Tutor",
         "weekStart": "Week start",
         "allCenters": "All centers",
-        "allTutors": "All tutors"
+        "allTutors": "All tutors",
+        "dateRange": "Date range",
+        "groupClass": "Group/Class",
+        "student": "Student",
+        "status": "Status",
+        "week": "Week",
+        "studentStatus": "Student status",
+        "programSubject": "Program/Subject",
+        "levelGrade": "Level/Grade",
+        "allGroups": "All groups/classes",
+        "allStudents": "All students",
+        "allPrograms": "All programs/subjects",
+        "allLevels": "All levels/grades"
       },
       "actions": {
         "apply": "Apply"
@@ -507,6 +519,169 @@
         "loading": "Loading report...",
         "error": "Unable to load report",
         "empty": "No results"
+      },
+      "nav": {
+        "title": "Reports",
+        "home": "Reports Home",
+        "upcoming": "Upcoming Sessions",
+        "attendance": "Attendance Summary",
+        "requests": "Absence Requests Queue",
+        "workload": "Tutor Workload",
+        "students": "Students Directory"
+      },
+      "index": {
+        "title": "Reports",
+        "helper": "Read-only operational reports with CSV export.",
+        "note": "Exports use current filters.",
+        "openReport": "Open report"
+      },
+      "range": {
+        "upcoming": {
+          "today": "Today",
+          "7d": "Next 7 days",
+          "14d": "Next 14 days",
+          "30d": "Next 30 days"
+        },
+        "last": {
+          "today": "Today",
+          "7d": "Last 7 days",
+          "30d": "Last 30 days",
+          "60d": "Last 60 days",
+          "90d": "Last 90 days"
+        }
+      },
+      "statusFilter": {
+        "active": "Active",
+        "inactive": "Inactive",
+        "all": "All"
+      },
+      "common": {
+        "hours": "{count}h",
+        "days": "{count}d"
+      },
+      "upcoming": {
+        "defaultRange": "Next 14 days",
+        "columns": {
+          "sessionDate": "Session date",
+          "startTime": "Start time",
+          "duration": "Duration (minutes)",
+          "sessionType": "Session title/type",
+          "groupClass": "Group/Class",
+          "students": "Student(s)",
+          "tutor": "Tutor",
+          "center": "Center/Location"
+        },
+        "export": {
+          "filename": "upcoming-sessions.csv"
+        },
+        "title": "Upcoming sessions",
+        "helper": "Sessions scheduled in the next 14 days.",
+        "empty": {
+          "title": "No upcoming sessions",
+          "body": "No sessions match the current filters.",
+          "cta": "Reset filters"
+        }
+      },
+      "attendance": {
+        "defaultRange": "Last 30 days",
+        "columns": {
+          "studentName": "Student name",
+          "programLevel": "Program/Level",
+          "groupClass": "Group/Class",
+          "totalSessions": "Total sessions",
+          "presentCount": "Present count",
+          "absentCount": "Absent count",
+          "lateCount": "Late count",
+          "excusedCount": "Excused absent count",
+          "absenceRate": "Absence rate %"
+        },
+        "export": {
+          "filename": "attendance-summary.csv"
+        },
+        "title": "Attendance summary",
+        "helper": "Totals by student for the last 30 days.",
+        "empty": {
+          "title": "No attendance records",
+          "body": "No records match the current filters.",
+          "cta": "Reset filters"
+        }
+      },
+      "requests": {
+        "defaultRange": "Last 30 days",
+        "columns": {
+          "createdTime": "Created time",
+          "sessionDateTime": "Session date/time",
+          "studentName": "Student name",
+          "parent": "Parent",
+          "status": "Status",
+          "age": "Age",
+          "resolvedBy": "Resolved by",
+          "lastUpdated": "Last updated"
+        },
+        "export": {
+          "filename": "absence-requests.csv"
+        },
+        "title": "Absence requests",
+        "helper": "Track request status and aging. Approvals do not change the schedule.",
+        "empty": {
+          "title": "No requests",
+          "body": "No requests match the current filters.",
+          "cta": "Clear status filter"
+        }
+      },
+      "workload": {
+        "defaultRange": "This week",
+        "week": {
+          "thisWeek": "This week",
+          "nextWeek": "Next week"
+        },
+        "columns": {
+          "tutorName": "Tutor name",
+          "totalSessions": "Total sessions",
+          "totalMinutes": "Total minutes",
+          "distinctStudents": "Distinct students",
+          "distinctGroups": "Distinct groups/classes",
+          "firstSession": "First session time",
+          "lastSession": "Last session time"
+        },
+        "export": {
+          "filename": "tutor-workload.csv"
+        },
+        "title": "Tutor workload",
+        "helper": "Sessions and minutes by tutor for this week.",
+        "empty": {
+          "title": "No workload data",
+          "body": "No sessions match the current filters."
+        }
+      },
+      "students": {
+        "defaultRange": "Directory",
+        "columns": {
+          "studentName": "Student name",
+          "status": "Status",
+          "gradeLevel": "Grade/Level",
+          "programSubject": "Program/Subject",
+          "groupClass": "Group/Class",
+          "primaryTutor": "Primary tutor",
+          "parents": "Parent(s)"
+        },
+        "export": {
+          "filename": "students-directory.csv"
+        },
+        "title": "Students directory",
+        "helper": "Find students and see placement details.",
+        "empty": {
+          "title": "No students found",
+          "body": "Try adjusting your search or filters.",
+          "cta": "Clear filters"
+        },
+        "filters": {
+          "parents": {
+            "any": "Any",
+            "linked": "Linked",
+            "unlinked": "Unlinked"
+          }
+        }
       }
     },
     "users": {
@@ -567,7 +742,8 @@
         "grade": "Grade",
         "parentCount": "Parents",
         "status": "Status",
-        "actions": "Actions"
+        "actions": "Actions",
+        "createdAt": "Created"
       },
       "messages": {
         "loading": "Loading students...",
@@ -675,9 +851,49 @@
       },
       "template": {
         "_comment": "Templates are language-specific for the invite modal toggle.",
-        "en": "Hi,\n\nYou\u2019ve been invited to access the Parent Portal for {centerName}.\n\nPortal link: {portalUrl}\nLogin email: {parentEmail}\n\nTo sign in, please use your email and the access code provided by your center. (Your center will share the access code securely.)\n\nIf anything looks incorrect (missing students or sessions), please contact your center admin for help.",
-        "zhCN": "您好，\n\n您已被邀请访问 {centerName} 的家长端。\n\n链接：{portalUrl}\n登录邮箱：{parentEmail}\n\n请使用您的邮箱与校区提供的访问码登录。（访问码将由校区通过安全方式发送。）\n\n如信息有误（孩子或课程缺失），请联系校区管理员协助处理。"
+        "en": "Hi,\n\nYou've been invited to access the Parent Portal for {centerName}.\n\nPortal link: {portalUrl}\nLogin email: {parentEmail}\n\nTo sign in, please use your email and the access code provided by your center. (Your center will share the access code securely.)\n\nIf anything looks incorrect (missing students or sessions), please contact your center admin for help.",
+        "zhCN": "您好，\n\n您已被邀请访问 {centerName} 的家长端。\n\n链接:{portalUrl}\n登录邮箱:{parentEmail}\n\n请使用您的邮箱与校区提供的访问码登录。(访问码将由校区通过安全方式发送。）\n\n如信息有误(孩子或课程缺失），请联系校区管理员协助处理。"
       }
+    },
+    "table": {
+      "search": {
+        "label": "Search",
+        "placeholder": "Search..."
+      },
+      "filters": {
+        "clearAll": "Clear all",
+        "reset": "Reset",
+        "label": "Filters"
+      },
+      "pagination": {
+        "rowsPerPage": "Rows per page",
+        "of": "{from}-{to} of {total}",
+        "prev": "Prev",
+        "next": "Next"
+      },
+      "exportCsv": "Export CSV",
+      "export": {
+        "preparing": "Preparing CSV...",
+        "warning": "Exports use the current filters and may contain personal data. Handle securely."
+      },
+      "state": {
+        "loading": "Loading...",
+        "error": {
+          "title": "Couldn't load data",
+          "body": "Please try again.",
+          "retry": "Try again"
+        }
+      },
+      "sort": {
+        "sortedAscending": "Sorted ascending",
+        "sortedDescending": "Sorted descending"
+      }
+    },
+    "status": {
+      "pending": "Pending review",
+      "approved": "Approved",
+      "declined": "Declined",
+      "withdrawn": "Withdrawn"
     }
   },
   "staff": {
@@ -930,8 +1146,8 @@
     "welcome": {
       "_comment": "First-login welcome card shown at the top of the portal dashboard.",
       "title": "Welcome to the Parent Portal",
-      "body": "You\u2019re linked to {count} student(s). Use the links below to get started.",
-      "noStudents": "Your account isn\u2019t linked to any students yet. Please contact your center admin.",
+      "body": "You're linked to {count} student(s). Use the links below to get started.",
+      "noStudents": "Your account isn't linked to any students yet. Please contact your center admin.",
       "cta": {
         "students": "View students",
         "sessions": "View upcoming sessions",
@@ -943,7 +1159,7 @@
         "dismiss": "Dismiss"
       },
       "error": {
-        "body": "We couldn\u2019t load your linked students. Please refresh the page or contact your center."
+        "body": "We couldn't load your linked students. Please refresh the page or contact your center."
       }
     },
     "students": {
@@ -1075,7 +1291,7 @@
         "body": "Please try again. If the problem continues, contact your center."
       },
       "ineligible": {
-        "past": "This session has already started or ended. You can’t report an absence here."
+        "past": "This session has already started or ended. You can't report an absence here."
       },
       "past": {
         "noActions": "This session has started or ended. Requests can no longer be changed."
@@ -1099,7 +1315,7 @@
     "requests": {
       "_comment": "Parent portal requests list (Step 20.4B + 20.6).",
       "title": "My requests",
-      "helper": "Track the status of absence requests you’ve submitted.",
+      "helper": "Track the status of absence requests you've submitted.",
       "filter": {
         "_comment": "Status filter labels for the parent requests list.",
         "status": {
@@ -1169,7 +1385,7 @@
       "a": {
         "login": "Open the Parent Portal link from your center, enter your email, then enter the access code provided by your center. If you see too many attempts, please wait a few minutes and try again.",
         "pages": "Dashboard, My Students, Sessions, Attendance, My Requests (if your center uses it), Account, and Help.",
-        "scheduleAttendance": "Sessions list the date/time and student name. Times are shown in the portal’s displayed timezone. Attendance is recorded by staff after sessions, and notes shown are shared with parents.",
+        "scheduleAttendance": "Sessions list the date/time and student name. Times are shown in the portal's displayed timezone. Attendance is recorded by staff after sessions, and notes shown are shared with parents.",
         "incorrectInfo": "If students, sessions, or times look wrong, please contact your center admin so they can verify your account link and schedule setup.",
         "contactSupport": "{supportContactLine}",
         "gettingStarted": "You can view linked students, upcoming sessions, attendance history, and absence request statuses.",
@@ -1239,7 +1455,7 @@
         "emailRequired": "Email is required.",
         "emailInvalid": "Enter a valid email address.",
         "codeRequired": "Access code is required.",
-        "invalidCredentials": "We couldn’t sign you in. Please check your email and access code.",
+        "invalidCredentials": "We couldn't sign you in. Please check your email and access code.",
         "throttled": "Too many attempts. Try again in {minutes} minutes.",
         "generic": "Something went wrong. Please try again."
       }
@@ -1255,7 +1471,7 @@
     "empty": {
       "upcoming": {
         "title": "No upcoming sessions",
-        "body": "When sessions are scheduled, they’ll appear here."
+        "body": "When sessions are scheduled, they'll appear here."
       },
       "children": {
         "title": "No children linked",
@@ -1263,7 +1479,7 @@
       },
       "notes": {
         "title": "No notes yet",
-        "body": "Notes will show after your child’s sessions."
+        "body": "Notes will show after your child's sessions."
       }
     }
   },

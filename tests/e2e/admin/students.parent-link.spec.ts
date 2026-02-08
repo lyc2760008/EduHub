@@ -22,6 +22,7 @@ test.describe("[regression] Students - Admin create + parent link", () => {
     const firstName = `Test${uniqueToken}`;
     const lastName = "ParentLink";
     const fullName = `${firstName} ${lastName}`;
+    const searchTerm = firstName;
     const parentEmail = `e2e.parent+${uniqueToken}@example.com`;
 
     await loginViaUI(page, { email, password, tenantSlug });
@@ -35,12 +36,24 @@ test.describe("[regression] Students - Admin create + parent link", () => {
     await page.getByTestId("save-student-button").click();
 
     await expect(page.getByTestId("students-table")).toBeVisible();
-    await expect(page.getByText(fullName)).toBeVisible();
-
+    // Server-side sorting can place new records on later pages, so narrow by search first.
+    const searchResponsePromise = page.waitForResponse((response) => {
+      if (!response.url().includes("/api/students")) return false;
+      if (response.request().method() !== "GET") return false;
+      try {
+        const requestUrl = new URL(response.url());
+        return (requestUrl.searchParams.get("q") ?? "").trim() === searchTerm;
+      } catch {
+        return false;
+      }
+    });
+    await page.getByTestId("students-list-search-input").fill(searchTerm);
+    await searchResponsePromise;
     const studentRow = page.locator('tr[data-testid^="students-row-"]', {
       hasText: fullName,
     });
-    const rowTestId = await studentRow.getAttribute("data-testid");
+    await expect(studentRow.first()).toBeVisible();
+    const rowTestId = await studentRow.first().getAttribute("data-testid");
     if (!rowTestId) {
       throw new Error("Expected a student row data-testid to be present.");
     }

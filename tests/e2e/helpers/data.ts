@@ -265,11 +265,26 @@ export async function createStudent(
   expect(createResponse.ok()).toBeTruthy();
 
   const fullName = `${input.firstName} ${input.lastName}`;
-  await expect(page.getByTestId("students-table")).toContainText(fullName);
+  const searchTerm = input.firstName;
+  // Student list is server-sorted/paginated, so narrow by search before locating the row.
+  const searchInput = page.getByTestId("students-list-search-input");
+  const listResponsePromise = page.waitForResponse((response) => {
+    if (!response.url().includes("/api/students")) return false;
+    if (response.request().method() !== "GET") return false;
+    try {
+      const requestUrl = new URL(response.url());
+      return (requestUrl.searchParams.get("q") ?? "").trim() === searchTerm;
+    } catch {
+      return false;
+    }
+  });
+  await searchInput.fill(searchTerm);
+  await listResponsePromise;
 
   const studentRow = page.locator('tr[data-testid^="students-row-"]', {
     hasText: fullName,
   });
+  await expect(studentRow.first()).toBeVisible();
   const rowTestId = await studentRow.getAttribute("data-testid");
   if (!rowTestId) {
     throw new Error("Expected a students row data-testid to be present.");
@@ -383,6 +398,19 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+async function waitForSessionsListRefresh(page: Page, timeoutMs = 5_000) {
+  try {
+    await page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/sessions") &&
+        response.request().method() === "GET",
+      { timeout: timeoutMs },
+    );
+  } catch {
+    // Some filter updates can be no-ops when value is unchanged; do not fail helper flow.
+  }
+}
+
 export async function assignTutorAndRoster(
   page: Page,
   tenantSlug: string,
@@ -436,22 +464,15 @@ export async function createOneOffSession(
 ): Promise<CreatedSession> {
   await page.goto(buildTenantPath(tenantSlug, "/admin/sessions"));
   await expect(page.getByTestId("sessions-list-page")).toBeVisible();
+  await page.getByTestId("sessions-list-search-filters-button").click();
+  await expect(page.getByTestId("admin-filters-sheet")).toBeVisible();
 
-  const centerFilterResponse = page.waitForResponse(
-    (response) =>
-      response.url().includes("/api/sessions") &&
-      response.request().method() === "GET",
-  );
   await page.getByTestId("sessions-filter-center").selectOption(input.centerId);
-  await centerFilterResponse;
+  await waitForSessionsListRefresh(page);
 
-  const tutorFilterResponse = page.waitForResponse(
-    (response) =>
-      response.url().includes("/api/sessions") &&
-      response.request().method() === "GET",
-  );
   await page.getByTestId("sessions-filter-tutor").selectOption(input.tutorId);
-  await tutorFilterResponse;
+  await waitForSessionsListRefresh(page);
+  await page.getByTestId("admin-filters-sheet-close").click();
 
   await page.getByTestId("sessions-create-button").click();
 
@@ -532,11 +553,14 @@ export async function generateRecurringSessions(
 ) {
   await page.goto(buildTenantPath(tenantSlug, "/admin/sessions"));
   await expect(page.getByTestId("sessions-list-page")).toBeVisible();
+  await page.getByTestId("sessions-list-search-filters-button").click();
+  await expect(page.getByTestId("admin-filters-sheet")).toBeVisible();
 
   await page.getByTestId("sessions-filter-center").selectOption(input.centerId);
-  await page.waitForLoadState("networkidle");
+  await waitForSessionsListRefresh(page);
   await page.getByTestId("sessions-filter-tutor").selectOption(input.tutorId);
-  await page.waitForLoadState("networkidle");
+  await waitForSessionsListRefresh(page);
+  await page.getByTestId("admin-filters-sheet-close").click();
 
   await page.getByTestId("sessions-generate-button").click();
   const modalHeading = page.getByRole("heading", {
@@ -604,10 +628,17 @@ export async function saveNotes(
   page: Page,
   input: { internalNote: string; parentVisibleNote: string },
 ) {
+  const saveResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/sessions/") &&
+      response.url().includes("/notes") &&
+      response.request().method() === "PUT",
+  );
   await page.getByTestId("notes-internal-input").fill(input.internalNote);
   await page
     .getByTestId("notes-parent-visible-input")
     .fill(input.parentVisibleNote);
   await page.getByTestId("notes-save-button").click();
+  await saveResponsePromise;
   await expect(page.getByTestId("notes-saved-toast")).toBeVisible();
 }

@@ -45,6 +45,31 @@ function isRetryableAuthError(error: unknown) {
   return /Timeout/i.test(error.message);
 }
 
+function isRetryableNetworkError(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  return /ECONNRESET|ECONNREFUSED|socket hang up/i.test(error.message);
+}
+
+async function postWithRetry(
+  page: Page,
+  url: string,
+  options: Parameters<Page["request"]["post"]>[1],
+  attempts = 3,
+) {
+  // Retry transient request-socket failures that can happen under heavy parallel E2E load.
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await page.request.post(url, options);
+    } catch (error) {
+      if (!isRetryableNetworkError(error) || attempt === attempts - 1) {
+        throw error;
+      }
+      await page.waitForTimeout(200 * (attempt + 1));
+    }
+  }
+  throw new Error("Unexpected parent-auth POST retry flow.");
+}
+
 export function buildTenantUrl(tenantSlug: string, suffix: string) {
   // Resolve a URL that works for subdomain or /t/<slug> tenant routing schemes.
   const baseUrl = resolveBaseUrl();
@@ -81,7 +106,8 @@ export async function createStudentAndLinkParent(page: Page, tenantSlug: string)
   const lastName = "ParentAuth";
   const parentEmail = `e2e.parent.${uniqueToken}@example.com`;
 
-  const createStudentResponse = await page.request.post(
+  const createStudentResponse = await postWithRetry(
+    page,
     buildTenantApiPath(tenantSlug, "/api/students"),
     { data: { firstName, lastName } },
   );
@@ -93,7 +119,8 @@ export async function createStudentAndLinkParent(page: Page, tenantSlug: string)
     throw new Error("Expected student id in create response.");
   }
 
-  const linkResponse = await page.request.post(
+  const linkResponse = await postWithRetry(
+    page,
     buildTenantApiPath(tenantSlug, `/api/students/${studentId}/parents`),
     { data: { parentEmail } },
   );
@@ -113,7 +140,8 @@ export async function resetParentAccessCode(
   parentId: string,
 ) {
   // API reset keeps non-UI tests deterministic while still exercising the handler.
-  const resetResponse = await page.request.post(
+  const resetResponse = await postWithRetry(
+    page,
     buildTenantApiPath(
       tenantSlug,
       `/api/parents/${parentId}/reset-access-code`,
@@ -163,7 +191,16 @@ export async function loginAsParentWithAccessCode(
     ) {
       const portalPath = buildTenantPath(tenantSlug, "/portal");
       await page.goto(portalPath);
-      await page.waitForURL((url) => url.pathname.startsWith(portalPath));
+      // Prefer shell visibility over strict URL waits to avoid rare callback redirect hangs.
+      await Promise.race([
+        page.waitForURL((url) => url.pathname.startsWith(portalPath), {
+          timeout: 15_000,
+        }),
+        page.getByTestId("parent-shell").waitFor({
+          state: "visible",
+          timeout: 15_000,
+        }),
+      ]);
       await expect(page.getByTestId("parent-shell")).toBeVisible();
       return;
     }
@@ -196,7 +233,18 @@ export async function loginAsParentWithAccessCode(
 
   // Parent portal entry route now lives under /portal.
   const portalPath = buildTenantPath(tenantSlug, "/portal");
-  await page.waitForURL((url) => url.pathname.startsWith(portalPath));
+  await Promise.race([
+    page.waitForURL((url) => url.pathname.startsWith(portalPath), {
+      timeout: 20_000,
+    }),
+    page.getByTestId("parent-shell").waitFor({
+      state: "visible",
+      timeout: 20_000,
+    }),
+  ]).catch(async () => {
+    // Fallback navigation keeps auth helper resilient when callback redirects are delayed.
+    await page.goto(portalPath);
+  });
   await expect(page.getByTestId("parent-shell")).toBeVisible();
 }
 

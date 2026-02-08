@@ -80,6 +80,40 @@ export default function AdminNav({ tenant, userRole }: AdminNavProps) {
       : []),
   ];
 
+  const reportItems: AdminNavItem[] = [
+    {
+      id: "reports-home",
+      href: `/${tenant}/admin/reports`,
+      labelKey: "admin.reports.nav.home",
+    },
+    {
+      id: "reports-upcoming",
+      href: `/${tenant}/admin/reports/upcoming-sessions`,
+      labelKey: "admin.reports.nav.upcoming",
+    },
+    {
+      id: "reports-attendance",
+      href: `/${tenant}/admin/reports/attendance-summary`,
+      labelKey: "admin.reports.nav.attendance",
+    },
+    {
+      id: "reports-requests",
+      href: `/${tenant}/admin/reports/absence-requests`,
+      labelKey: "admin.reports.nav.requests",
+    },
+    {
+      id: "reports-workload",
+      href: `/${tenant}/admin/reports/tutor-workload`,
+      labelKey: "admin.reports.nav.workload",
+    },
+    {
+      id: "reports-students",
+      href: `/${tenant}/admin/reports/students-directory`,
+      labelKey: "admin.reports.nav.students",
+    },
+  ];
+  const showReportItems = isAdmin;
+
   return (
     <div className="border-b border-slate-200 bg-white">
       <nav
@@ -123,6 +157,33 @@ export default function AdminNav({ tenant, userRole }: AdminNavProps) {
             </span>
             {operationsItems.map((item) => {
               const isActive = pathname.startsWith(item.href);
+              const linkClassName = isActive
+                ? "rounded bg-slate-100 px-2 py-1 font-semibold text-slate-900"
+                : "rounded px-2 py-1 text-slate-600 hover:text-slate-900";
+              return (
+                <Link
+                  key={item.id}
+                  className={linkClassName}
+                  href={item.href}
+                  data-testid={`nav-link-${item.id}`}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  {t(item.labelKey)}
+                </Link>
+              );
+            })}
+          </div>
+        ) : null}
+        {showReportItems ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs font-semibold uppercase text-slate-500">
+              {t("admin.reports.nav.title")}
+            </span>
+            {reportItems.map((item) => {
+              const isActive =
+                item.id === "reports-home"
+                  ? pathname === item.href
+                  : pathname.startsWith(item.href);
               const linkClassName = isActive
                 ? "rounded bg-slate-100 px-2 py-1 font-semibold text-slate-900"
                 : "rounded px-2 py-1 text-slate-600 hover:text-slate-900";

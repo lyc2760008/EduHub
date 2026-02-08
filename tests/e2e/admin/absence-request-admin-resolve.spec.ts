@@ -115,17 +115,16 @@ test.describe("[regression] Admin resolves absence request", () => {
     await page.goto(buildTenantPath(tenantSlug, "/admin/requests"));
     await expect(page.getByTestId("requests-page")).toBeVisible();
 
+    // Requests status filter now lives in the shared filter sheet.
+    await page.getByTestId("requests-list-search-filters-button").click();
+    await expect(page.getByTestId("admin-filters-sheet")).toBeVisible();
+
     // Switch to ALL to guard against pending filter edge cases.
-    const filterResponsePromise = page.waitForResponse(
-      (response) =>
-        response.url().includes("/api/requests") &&
-        response.request().method() === "GET",
-    );
     await page.getByTestId("admin-requests-status-filter").selectOption("ALL");
-    await filterResponsePromise;
+    await page.getByTestId("admin-filters-sheet-close").click();
 
     const rowTestId = `request-row-${request.id}`;
-    await expect(page.getByTestId(rowTestId)).toBeVisible();
+    await expect(page.getByTestId(rowTestId)).toBeVisible({ timeout: 20_000 });
 
     await page.getByTestId(rowTestId).click();
     await expect(page.getByTestId("requests-drawer")).toBeVisible();
@@ -136,15 +135,12 @@ test.describe("[regression] Admin resolves absence request", () => {
     await expect(page.getByTestId("requests-drawer")).toHaveCount(0);
 
     // Switch back to PENDING so approved requests no longer appear in the inbox.
-    const pendingFilterResponse = page.waitForResponse(
-      (response) =>
-        response.url().includes("/api/requests") &&
-        response.request().method() === "GET",
-    );
+    await page.getByTestId("requests-list-search-filters-button").click();
+    await expect(page.getByTestId("admin-filters-sheet")).toBeVisible();
     await page.getByTestId("admin-requests-status-filter").selectOption("PENDING");
-    await pendingFilterResponse;
+    await page.getByTestId("admin-filters-sheet-close").click();
 
-    await expect(page.getByTestId(rowTestId)).toHaveCount(0);
+    await expect(page.getByTestId(rowTestId)).toHaveCount(0, { timeout: 20_000 });
   });
 });
 

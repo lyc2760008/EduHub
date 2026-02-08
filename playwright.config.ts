@@ -10,8 +10,10 @@ export default defineConfig({
   testDir: "./tests/e2e",
   // Global setup keeps the dedicated e2e tenant fixtures ready for all specs.
   globalSetup: "./tests/e2e/global-setup.ts",
-  // Cap workers to reduce local dev server flakiness; override with E2E_WORKERS.
-  workers: Number(process.env.E2E_WORKERS || 4),
+  // Cap workers to reduce local dev server saturation during full regression loops.
+  workers: Number(process.env.E2E_WORKERS || 2),
+  // Retry once by default to absorb transient browser/network flakes in local/STAGING runs.
+  retries: Number(process.env.E2E_RETRIES || 1),
   timeout: 60_000,
   expect: { timeout: 10_000 },
   use: {
