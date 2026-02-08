@@ -48,6 +48,29 @@ pnpm pilot:mmc:prod -- --dry-run --confirm-prod
 pnpm pilot:mmc:prod -- --confirm-prod
 ```
 
+## Production Parent/Student Import (Allowlist Only)
+```powershell
+$env:DATABASE_URL = "<NEON_PRODUCTION_DATABASE_URL>"
+
+# Dry run import (no writes)
+pnpm pilot:mmc:import-students-parents -- `
+  --tenantSlug mmc `
+  --xlsxPath "scripts/pilot/mmc/Student Record.xlsx" `
+  --sheetName "学员登记" `
+  --allowlistPath "scripts/pilot/mmc/allowlist.generated.txt" `
+  --dryRun
+
+# Apply import
+pnpm pilot:mmc:import-students-parents -- `
+  --tenantSlug mmc `
+  --xlsxPath "scripts/pilot/mmc/Student Record.xlsx" `
+  --sheetName "学员登记" `
+  --allowlistPath "scripts/pilot/mmc/allowlist.generated.txt"
+```
+- The importer normalizes English/Chinese headers into a standard row shape before upserts.
+- Keep allowlist files local and out of git commits because they contain real parent emails.
+- Use `enrollments.json` for exact group mapping; otherwise only conservative auto-enroll rules apply.
+
 ## Optional Overrides
 - `--tenantSlug <slug>` to override the default `mmc` tenant slug.
 - `--schedule <path>` to point at a different schedule file.

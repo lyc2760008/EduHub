@@ -15,12 +15,12 @@ import {
   buildGroupName,
 } from "./mmc-schedule";
 
-const USAGE = `\nUsage: pnpm pilot:mmc:import-students-parents [options]\n\nOptions:\n  --tenantSlug <slug>        Tenant slug (default: mmc)\n  --xlsxPath <path>          XLSX path (default: scripts/pilot/mmc/Student Record.xlsx)\n  --sheetName <name>         Sheet name (default: ????)\n  --allowlistPath <path>     Allowlist file (default: scripts/pilot/mmc/allowlist.txt)\n  --enrollmentsPath <path>   Optional JSON mapping (default: scripts/pilot/mmc/enrollments.json if exists)\n  --autoEnrollProgram <key>  Program key for conservative auto-enroll (default: singapore-math)\n  --dryRun                   Print actions without writing to the database\n  --help                     Show this help text\n`;
+const USAGE = `\nUsage: pnpm pilot:mmc:import-students-parents [options]\n\nOptions:\n  --tenantSlug <slug>        Tenant slug (default: mmc)\n  --xlsxPath <path>          XLSX path (default: scripts/pilot/mmc/Student Record.xlsx)\n  --sheetName <name>         Optional sheet name (default: auto-detect from supported headers)\n  --allowlistPath <path>     Allowlist file (default: scripts/pilot/mmc/allowlist.txt)\n  --enrollmentsPath <path>   Optional JSON mapping (default: scripts/pilot/mmc/enrollments.json if exists)\n  --autoEnrollProgram <key>  Program key for conservative auto-enroll (default: singapore-math)\n  --dryRun                   Print actions without writing to the database\n  --help                     Show this help text\n`;
 
 type Args = {
   tenantSlug: string;
   xlsxPath: string;
-  sheetName: string;
+  sheetName?: string;
   allowlistPath: string;
   enrollmentsPath?: string;
   autoEnrollProgram: string;
@@ -30,6 +30,15 @@ type Args = {
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
 type EnrollmentOverrides = Record<string, Record<string, string[]>>;
+
+type NormalizedImportRow = {
+  studentName: string;
+  parentEmail: string;
+  parentName: string;
+  parentPhone: string;
+  grade: string;
+  dateOfBirthRaw: unknown;
+};
 
 type Summary = {
   parentsCreated: number;
@@ -47,13 +56,42 @@ type Summary = {
 const DEFAULT_ARGS: Args = {
   tenantSlug: "mmc",
   xlsxPath: "scripts/pilot/mmc/Student Record.xlsx",
-  sheetName: "????",
+  sheetName: undefined,
   allowlistPath: "scripts/pilot/mmc/allowlist.txt",
   autoEnrollProgram: "singapore-math",
   dryRun: false,
 };
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+// Support both setup flows: `mmc/setup-spring-2026.ts` and `mmc-setup.ts`.
+const GROUP_CODE_NAME_ALIASES: Record<string, string[]> = {
+  "sm-kg1-mon-1630": ["K-G1 Singapore Math", "K–G1 Singapore Math"],
+  "sm-g7b-tue-1630": ["Grade 7B Singapore Math"],
+  "sm-g2-tue-1830": ["Grade 2 Singapore Math"],
+  "sm-g8-tue-1930": ["Grade 8 Singapore Math"],
+  "sm-g5b-wed-1645": ["Grade 5B Singapore Math"],
+  "sm-g6b-7a-wed-1830": ["Grade 6B-7A Singapore Math", "Grade 6B–7A Singapore Math"],
+  "sm-g4-thu-1630": ["Grade 4 Singapore Math"],
+  "sm-g5a-thu-1830": ["Grade 5A Singapore Math"],
+  "wr-g6-7-mon-1800": ["Grade 6-7 Academic Writing & PAT", "Grade 6–7 Academic Writing & PAT"],
+  "wr-g11-12-mon-1800": [
+    "Grade 11-12 University Prep Writing",
+    "Grade 11–12 University Prep Writing",
+  ],
+  "wr-g6-8-tue-1700": ["Grade 6-8 Literature & Writing", "Grade 6–8 Literature & Writing"],
+  "wr-g9-10-tue-1845": ["Grade 9-10 Academic Writing & PAT", "Grade 9–10 Academic Writing & PAT"],
+  "wr-g4-6-wed-1830": ["Grade 4-6 Creative Writing", "Grade 4–6 Creative Writing"],
+  "wr-g8-9-wed-1830": ["Grade 8-9 Academic Writing & PAT", "Grade 8–9 Academic Writing & PAT"],
+  "en-g2-3-fri-1745": [
+    "Grade 2-3 English LSRW",
+    "Grade 2–3 English LSRW",
+    "English LSRW Grade 2-3",
+    "English LSRW Grade 2–3",
+  ],
+  "en-g4-fri-1915": ["Grade 4 English LSRW", "English LSRW Grade 4"],
+  "en-g5-sat-1730": ["Grade 5 English LSRW", "English LSRW Grade 5"],
+  "en-g7-sat-1900": ["Grade 7 English LSRW", "English LSRW Grade 7"],
+};
 
 function parseArgs(argv: string[]): Args {
   const raw: Record<string, string | boolean> = {};
@@ -87,7 +125,7 @@ function parseArgs(argv: string[]): Args {
       .trim()
       .toLowerCase(),
     xlsxPath: String(raw.xlsxPath ?? DEFAULT_ARGS.xlsxPath).trim(),
-    sheetName: String(raw.sheetName ?? DEFAULT_ARGS.sheetName).trim(),
+    sheetName: raw.sheetName ? String(raw.sheetName).trim() : undefined,
     allowlistPath: String(raw.allowlistPath ?? DEFAULT_ARGS.allowlistPath).trim(),
     enrollmentsPath: raw.enrollmentsPath
       ? String(raw.enrollmentsPath).trim()
@@ -99,12 +137,97 @@ function parseArgs(argv: string[]): Args {
   };
 }
 
+const STUDENT_NAME_HEADERS = ["学生名字", "Student Name"] as const;
+const PARENT_EMAIL_HEADERS = ["家长邮箱", "parent email"] as const;
+const PARENT_NAME_HEADERS = ["家长称呼", "parent name (wechat name)"] as const;
+const PARENT_PHONE_HEADERS = ["家长电话", "parent phone"] as const;
+const GRADE_HEADERS = ["在读年级", "Grade"] as const;
+const DOB_HEADERS = ["出生日期", "Date of Birth"] as const;
+
+function pickFirstNonEmptyValue(
+  row: Record<string, unknown>,
+  keys: readonly string[],
+): string {
+  for (const key of keys) {
+    const raw = row[key];
+    if (raw === undefined || raw === null) continue;
+    const value = String(raw).trim();
+    if (value) return value;
+  }
+  return "";
+}
+
+function pickFirstRawValue(
+  row: Record<string, unknown>,
+  keys: readonly string[],
+): unknown {
+  for (const key of keys) {
+    const raw = row[key];
+    if (raw === undefined || raw === null) continue;
+    if (typeof raw === "string" && !raw.trim()) continue;
+    return raw;
+  }
+  return null;
+}
+
+function normalizeRow(row: Record<string, unknown>): NormalizedImportRow {
+  return {
+    studentName: pickFirstNonEmptyValue(row, STUDENT_NAME_HEADERS),
+    parentEmail: pickFirstNonEmptyValue(row, PARENT_EMAIL_HEADERS),
+    parentName: pickFirstNonEmptyValue(row, PARENT_NAME_HEADERS),
+    parentPhone: pickFirstNonEmptyValue(row, PARENT_PHONE_HEADERS),
+    grade: pickFirstNonEmptyValue(row, GRADE_HEADERS),
+    dateOfBirthRaw: pickFirstRawValue(row, DOB_HEADERS),
+  };
+}
+
+function detectSheetName(
+  workbook: XLSX.WorkBook,
+  preferredSheetName?: string,
+): string {
+  if (preferredSheetName) {
+    if (!workbook.Sheets[preferredSheetName]) {
+      throw new Error(`Sheet not found: ${preferredSheetName}`);
+    }
+    return preferredSheetName;
+  }
+
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    if (!sheet) continue;
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+      defval: "",
+      raw: true,
+    });
+    const hasSupportedRows = rows.some((row) => {
+      const normalized = normalizeRow(row);
+      return Boolean(normalized.studentName && normalized.parentEmail);
+    });
+    if (hasSupportedRows) {
+      return sheetName;
+    }
+  }
+
+  throw new Error(
+    "No sheet with supported headers was found. Expected Student Name/parent email or 学生名字/家长邮箱.",
+  );
+}
+
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
 function normalizeName(name: string) {
   return name.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function normalizeGroupLabel(value: string) {
+  return value
+    .normalize("NFKC")
+    .replace(/[–—]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 function derivePersonName(rawName: string | null | undefined, fallback: string) {
@@ -222,9 +345,31 @@ function buildGroupMap(groups: { id: string; name: string; notes: string | null 
 
   if (groupByCode.size) return groupByCode;
 
+  // Fallback when groups were created by scripts that do not persist code in `notes`.
+  const groupsByNormalizedName = new Map<string, { id: string; name: string }>();
+  for (const group of groups) {
+    groupsByNormalizedName.set(normalizeGroupLabel(group.name), {
+      id: group.id,
+      name: group.name,
+    });
+  }
+
   for (const item of MMC_SCHEDULE) {
-    const expectedName = buildGroupName(item);
-    const matched = groups.find((group) => group.name === expectedName);
+    const candidateNames = new Set<string>([
+      buildGroupName(item),
+      item.displayName,
+      ...(GROUP_CODE_NAME_ALIASES[item.code] ?? []),
+    ]);
+
+    let matched: { id: string; name: string } | undefined;
+    for (const candidateName of candidateNames) {
+      const byName = groupsByNormalizedName.get(normalizeGroupLabel(candidateName));
+      if (byName) {
+        matched = byName;
+        break;
+      }
+    }
+
     if (matched) {
       groupByCode.set(item.code, { id: matched.id, name: matched.name });
     }
@@ -513,15 +658,17 @@ async function main() {
     : null;
 
   const workbook = XLSX.readFile(xlsxAbsolute, { cellDates: true });
-  const sheet = workbook.Sheets[args.sheetName];
+  const sheetName = detectSheetName(workbook, args.sheetName);
+  const sheet = workbook.Sheets[sheetName];
   if (!sheet) {
-    throw new Error(`Sheet not found: ${args.sheetName}`);
+    throw new Error(`Sheet not found: ${sheetName}`);
   }
 
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+  const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
     defval: "",
     raw: true,
   });
+  const rows = rawRows.map((row) => normalizeRow(row));
 
   const tenant = await prisma.tenant.findUnique({
     where: { slug: args.tenantSlug },
@@ -571,9 +718,13 @@ async function main() {
     enrollmentWarnings: [],
   };
 
-  const processRow = async (client: DbClient, row: Record<string, unknown>) => {
-    const studentNameRaw = String(row["学生名字"] ?? "").trim();
-    const parentEmailRaw = String(row["家长邮箱"] ?? "").trim();
+  const processRow = async (
+    client: DbClient,
+    row: NormalizedImportRow,
+    rowIndex: number,
+  ) => {
+    const studentNameRaw = row.studentName.trim();
+    const parentEmailRaw = row.parentEmail.trim();
 
     if (!studentNameRaw || !parentEmailRaw) {
       summary.rowsSkipped += 1;
@@ -586,10 +737,10 @@ async function main() {
       return;
     }
 
-    const parentNameRaw = String(row["家长称呼"] ?? "").trim();
-    const parentPhoneRaw = String(row["家长电话"] ?? "").trim();
-    const gradeRaw = String(row["在读年级"] ?? "").trim();
-    const dobRaw = row["出生日期"];
+    const parentNameRaw = row.parentName.trim();
+    const parentPhoneRaw = row.parentPhone.trim();
+    const gradeRaw = row.grade.trim();
+    const dobRaw = row.dateOfBirthRaw;
 
     const { date: dateOfBirth } = parseDateOnly(dobRaw);
 
@@ -620,6 +771,8 @@ async function main() {
     await ensureStudentParentLink(client, args, summary, tenant.id, student.id, parent.id);
 
     const enrollmentCodes: string[] = [];
+    // Keep warning output non-sensitive; use row index only (no names/emails).
+    const rowLabel = `row ${rowIndex + 2}`;
     if (enrollmentMap) {
       const studentOverrides = enrollmentMap[normalizedParentEmail];
       const overrideCodes = studentOverrides?.[normalizeName(studentNameRaw)] ?? null;
@@ -627,14 +780,14 @@ async function main() {
         enrollmentCodes.push(...overrideCodes);
       } else {
         summary.enrollmentWarnings.push(
-          `${studentNameRaw} (${normalizedParentEmail}) has no enrollment override; add to enrollments.json.`,
+          `${rowLabel} has no enrollment override; add to enrollments.json.`,
         );
       }
     } else if (args.autoEnrollProgram === "singapore-math" && autoEnrollCode) {
       enrollmentCodes.push(autoEnrollCode);
     } else {
       summary.enrollmentWarnings.push(
-        `${studentNameRaw} (${normalizedParentEmail}) not auto-enrolled; add enrollments.json if needed.`,
+        `${rowLabel} not auto-enrolled; add enrollments.json if needed.`,
       );
     }
 
@@ -643,7 +796,7 @@ async function main() {
       const group = groupByCode.get(code);
       if (!group) {
         summary.enrollmentWarnings.push(
-          `Enrollment group not found for code ${code} (student ${studentNameRaw}).`,
+          `Enrollment group not found for code ${code} (${rowLabel}).`,
         );
         continue;
       }
@@ -656,18 +809,19 @@ async function main() {
   };
 
   if (args.dryRun) {
-    for (const row of rows) {
-      await processRow(prisma, row);
+    for (const [index, row] of rows.entries()) {
+      await processRow(prisma, row, index);
     }
   } else {
-    for (const row of rows) {
+    for (const [index, row] of rows.entries()) {
       await prisma.$transaction(async (tx) => {
-        await processRow(tx, row);
+        await processRow(tx, row, index);
       });
     }
   }
 
   console.log("MMC pilot import complete.");
+  console.log(`Sheet used: ${sheetName}`);
   console.log(`Tenant ID: ${tenant.id}`);
   console.log(`Dry run: ${args.dryRun ? "yes" : "no"}`);
   console.log("Summary:");
