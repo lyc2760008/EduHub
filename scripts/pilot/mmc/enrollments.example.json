@@ -1,0 +1,6 @@
+{
+  "_comment": "Map parent email -> student name -> group codes",
+  "parent@example.com": {
+    "Student Name": ["sm-g2-tue-1830", "en-g2-3-fri-1745"]
+  }
+}

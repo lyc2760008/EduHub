@@ -44,6 +44,10 @@
       "title": "访问受限",
       "message": "您没有权限查看此页面。"
     },
+    "help": {
+      "subtitle": "MMC 试点管理员快速上手。",
+      "missing": "快速上手内容暂不可用，请联系内部支持团队。"
+    },
     "centers": {
       "title": "中心管理",
       "create": "创建中心",
@@ -745,6 +749,7 @@
     "groups": "分组",
     "reports": "报表",
     "sessions": "课次",
+    "help": "帮助",
     "requests": "申请",
     "operations": "运营",
     "audit": "审计日志",
@@ -1235,22 +1240,34 @@
       "_comment": "Parent portal help/FAQ copy (Step 20.7).",
       "title": "帮助",
       "helper": "关于家长端的常见问题。",
+      "section": {
+        "quickStart": "快速上手",
+        "moreHelp": "更多帮助"
+      },
       "q": {
+        "login": "如何登录？",
+        "pages": "有哪些页面？",
+        "scheduleAttendance": "如何查看课程与出勤？",
+        "incorrectInfo": "如果信息不正确怎么办？",
+        "contactSupport": "联系谁？",
         "gettingStarted": "家长端可以做什么？",
         "missingStudents": "为什么孩子信息缺失或不正确？",
         "timezone": "课程时间按哪个时区显示？",
         "attendanceStatuses": "出勤状态代表什么？",
         "absenceRequests": "请假申请如何运作？",
-        "contactSupport": "???????",
         "troubleshooting": "问题排查"
       },
       "a": {
+        "login": "打开校区分享的家长端链接，输入邮箱与校区提供的访问码即可登录。如果提示尝试次数过多，请稍等几分钟后再试。",
+        "pages": "首页、我的孩子、课程、出勤、我的申请（如校区启用）、账号信息、帮助。",
+        "scheduleAttendance": "课程会显示日期/时间与孩子姓名，时间以页面提示的时区显示。出勤由工作人员在课程后记录，家长端看到的留言为家长可见留言。",
+        "incorrectInfo": "如果孩子、课程或时间不正确，请联系校区管理员核对账号关联与排课信息。",
+        "contactSupport": "{supportContactLine}",
         "gettingStarted": "您可以查看已关联的孩子、即将到来的课程、出勤记录以及请假申请状态。",
         "missingStudents": "孩子关联由校区管理。如需帮助，请联系校区管理员。",
         "timezone": "课程时间按校区时区显示（每个页面都会提示）。",
         "attendanceStatuses": "出勤由工作人员在课程后记录。如有家长可见留言，也会在相应位置显示。",
         "absenceRequests": "申请状态可能为待处理、已批准、已拒绝或已撤回。批准不会取消或改期课程。",
-        "contactSupport": "{supportContactLine}",
         "troubleshooting": "请尝试刷新页面。如仍有问题，可退出后重新登录，或联系校区。"
       },
       "error": {

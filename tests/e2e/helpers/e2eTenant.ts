@@ -11,11 +11,24 @@ function isPrismaClient(client: DbClient): client is PrismaClient {
   return "$transaction" in client;
 }
 
+function resolveTxOption(envName: string, fallbackMs: number) {
+  const raw = process.env[envName];
+  if (!raw) return fallbackMs;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallbackMs;
+}
+
 async function withTransaction<T>(
   client: DbClient,
   handler: (tx: Prisma.TransactionClient) => Promise<T>,
 ) {
-  return isPrismaClient(client) ? client.$transaction(handler) : handler(client);
+  // E2E seeding does many upserts/deletes, so raise interactive tx limits above Prisma defaults.
+  const maxWait = resolveTxOption("E2E_TX_MAX_WAIT_MS", 10_000);
+  const timeout = resolveTxOption("E2E_TX_TIMEOUT_MS", 60_000);
+
+  return isPrismaClient(client)
+    ? client.$transaction(handler, { maxWait, timeout })
+    : handler(client);
 }
 
 const DEFAULT_E2E_TENANT_SLUG = "e2e-testing";
