@@ -141,3 +141,70 @@
 
 - Schedule source: scripts/pilot/mmc-spring-2026.schedule.ts
 - Term range: 2026-02-09 to 2026-06-13 (America/Edmonton)
+
+## Run - 2026-02-07 22:23
+
+- Timestamp (local): 2026-02-07 22:23
+- Timestamp (UTC): 2026-02-08 05:23
+- Environment: production
+- Dry run: yes
+- Replace existing in range: no
+- Git commit: d5380ba14e79dba657b3823f28ad28fc6dc2bcdc
+- Tenant slug: mmc
+- Tenant ID: cmlbs9dmu0000bsn0p5hhc038
+
+### Staff
+- hanka.ilott@gmail.com -> cmld9nxjh0000s0n0nn4arm38 (role: Tutor, created: no, updated: no)
+- nicolemacarthur@mywic.ca -> cmld9nxqr0002s0n03p3aalxl (role: Tutor, created: no, updated: no)
+- mmceducationcalgary@gmail.com -> cmlbs9dqt0001bsn01zawsxyx (role: Admin, created: no, updated: no)
+
+### Groups & Sessions
+- K-G1 Singapore Math (groupId: cmld9nz44000bs0n04rm9ffwh): sessions created 0, skipped 18
+- Grade 7B Singapore Math (groupId: cmld9nzl7000es0n0gty3bf85): sessions created 0, skipped 18
+- Grade 2 Singapore Math (groupId: cmld9o020000hs0n0447yunnn): sessions created 0, skipped 18
+- Grade 8 Singapore Math (groupId: cmld9o0ib000ks0n0w7q3fneq): sessions created 0, skipped 18
+- Grade 5B Singapore Math (groupId: cmld9o0z0000ns0n0hisnpjy8): sessions created 0, skipped 18
+- Grade 6B-7A Singapore Math (groupId: cmld9o1fo000qs0n05nwflk5n): sessions created 0, skipped 18
+- Grade 4 Singapore Math (groupId: cmld9o1ws000ts0n0af4yiyjv): sessions created 0, skipped 18
+- Grade 5A Singapore Math (groupId: cmld9o2dv000ws0n0kc20y78r): sessions created 0, skipped 18
+- Grade 11-12 University Prep Writing (groupId: cmld9o2y10010s0n0a1nj7exc): sessions created 0, skipped 18
+- Grade 6-8 Literature & Writing (groupId: cmld9o3em0013s0n05rzv0pf0): sessions created 0, skipped 18
+- Grade 9-10 Academic Writing & PAT (groupId: cmld9o3vs0016s0n0itiwh3z0): sessions created 0, skipped 18
+- Grade 4-6 Creative Writing (groupId: cmld9o4cq0019s0n09zef37x2): sessions created 0, skipped 18
+- Grade 8-9 Academic Writing & PAT (groupId: cmld9o4tk001cs0n0tcvq4wzu): sessions created 0, skipped 0
+- Grade 2-3 English LSRW (groupId: cmld9o5ee001gs0n0jyryhvo3): sessions created 0, skipped 18
+- Grade 4 English LSRW (groupId: cmld9o5r7001is0n0zuqm1j8f): sessions created 0, skipped 18
+- Grade 5 English LSRW (groupId: cmld9o67q001ls0n07v4x3e7f): sessions created 0, skipped 18
+- Grade 7 English LSRW (groupId: cmld9o6nu001os0n09rtrjlvf): sessions created 0, skipped 18
+
+### Session Conflicts
+- Overlap for cmld9nxqr0002s0n03p3aalxl-cmld9ny050005s0n0fhbnjm2e-1770859800000 (group: Grade 8-9 Academic Writing & PAT).
+- Overlap for cmld9nxqr0002s0n03p3aalxl-cmld9ny050005s0n0fhbnjm2e-1771464600000 (group: Grade 8-9 Academic Writing & PAT).
+- Overlap for cmld9nxqr0002s0n03p3aalxl-cmld9ny050005s0n0fhbnjm2e-1772069400000 (group: Grade 8-9 Academic Writing & PAT).
+- Overlap for cmld9nxqr0002s0n03p3aalxl-cmld9ny050005s0n0fhbnjm2e-1772674200000 (group: Grade 8-9 Academic Writing & PAT).
+- Overlap for cmld9nxqr0002s0n03p3aalxl-cmld9ny050005s0n0fhbnjm2e-1773275400000 (group: Grade 8-9 Academic Writing & PAT).
+- Overlap for cmld9nxqr0002s0n03p3aalxl-cmld9ny050005s0n0fhbnjm2e-1773880200000 (group: Grade 8-9 Academic Writing & PAT).
+- Overlap for cmld9nxqr0002s0n03p3aalxl-cmld9ny050005s0n0fhbnjm2e-1774485000000 (group: Grade 8-9 Academic Writing & PAT).
+- Overlap for cmld9nxqr0002s0n03p3aalxl-cmld9ny050005s0n0fhbnjm2e-1775089800000 (group: Grade 8-9 Academic Writing & PAT).
+- Overlap for cmld9nxqr0002s0n03p3aalxl-cmld9ny050005s0n0fhbnjm2e-1775694600000 (group: Grade 8-9 Academic Writing & PAT).
+- Overlap for cmld9nxqr0002s0n03p3aalxl-cmld9ny050005s0n0fhbnjm2e-1776299400000 (group: Grade 8-9 Academic Writing & PAT).
+- Overlap for cmld9nxqr0002s0n03p3aalxl-cmld9ny050005s0n0fhbnjm2e-1776904200000 (group: Grade 8-9 Academic Writing & PAT).
+- Overlap for cmld9nxqr0002s0n03p3aalxl-cmld9ny050005s0n0fhbnjm2e-1777509000000 (group: Grade 8-9 Academic Writing & PAT).
+- Overlap for cmld9nxqr0002s0n03p3aalxl-cmld9ny050005s0n0fhbnjm2e-1778113800000 (group: Grade 8-9 Academic Writing & PAT).
+- Overlap for cmld9nxqr0002s0n03p3aalxl-cmld9ny050005s0n0fhbnjm2e-1778718600000 (group: Grade 8-9 Academic Writing & PAT).
+- Overlap for cmld9nxqr0002s0n03p3aalxl-cmld9ny050005s0n0fhbnjm2e-1779323400000 (group: Grade 8-9 Academic Writing & PAT).
+- Overlap for cmld9nxqr0002s0n03p3aalxl-cmld9ny050005s0n0fhbnjm2e-1779928200000 (group: Grade 8-9 Academic Writing & PAT).
+- Overlap for cmld9nxqr0002s0n03p3aalxl-cmld9ny050005s0n0fhbnjm2e-1780533000000 (group: Grade 8-9 Academic Writing & PAT).
+- Overlap for cmld9nxqr0002s0n03p3aalxl-cmld9ny050005s0n0fhbnjm2e-1781137800000 (group: Grade 8-9 Academic Writing & PAT).
+
+### Totals
+- Sessions deleted: 0
+- Sessions created: 0
+- Sessions skipped: 288
+
+### Test Parents/Students (staging-only)
+- Test parent IDs: none
+- Test student IDs: none
+
+- Schedule source: scripts/pilot/mmc-spring-2026.schedule.ts
+- Term range: 2026-02-09 to 2026-06-13 (America/Edmonton)

@@ -66,7 +66,7 @@ Default:
 pnpm pilot:mmc:import-students-parents -- \
   --tenantSlug mmc \
   --xlsxPath "scripts/pilot/mmc/Student Record.xlsx" \
-  --sheetName "????" \
+  --sheetName "学员登记" \
   --allowlistPath "scripts/pilot/mmc/allowlist.txt"
 ```
 
