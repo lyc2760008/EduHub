@@ -1,16 +1,26 @@
+// Admin requests inbox uses shared table toolkit while preserving existing resolve drawer behavior.
 "use client";
 
-// Admin requests inbox client handles list filtering and resolve actions.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
-import AdminTable, {
-  type AdminTableColumn,
-} from "@/components/admin/shared/AdminTable";
+import AdminDataTable, {
+  type AdminDataTableColumn,
+} from "@/components/admin/shared/AdminDataTable";
+import AdminFiltersSheet from "@/components/admin/shared/AdminFiltersSheet";
+import AdminPagination from "@/components/admin/shared/AdminPagination";
+import AdminTableToolbar, {
+  type AdminFilterChip,
+} from "@/components/admin/shared/AdminTableToolbar";
+import {
+  AdminErrorPanel,
+  type AdminEmptyState,
+} from "@/components/admin/shared/AdminTableStatePanels";
 import { inputBase, primaryButton, secondaryButton } from "@/components/admin/shared/adminUiClasses";
 import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
 import { getSessionTypeLabelKey } from "@/lib/portal/format";
+import { useAdminTableQueryState, useDebouncedValue } from "@/lib/admin-table/useAdminTableQueryState";
 
 type RequestStatus = "PENDING" | "APPROVED" | "DECLINED" | "WITHDRAWN";
 
@@ -79,33 +89,17 @@ const ABSENCE_REASON_LABELS: Record<string, string> = {
 };
 
 function getRequestStatusLabelKey(status: RequestStatus) {
-  switch (status) {
-    case "PENDING":
-      return "admin.requests.status.pending";
-    case "APPROVED":
-      return "admin.requests.status.approved";
-    case "DECLINED":
-      return "admin.requests.status.declined";
-    case "WITHDRAWN":
-      return "admin.requests.status.withdrawn";
-    default:
-      return "generic.dash";
-  }
+  if (status === "PENDING") return "admin.requests.status.pending";
+  if (status === "APPROVED") return "admin.requests.status.approved";
+  if (status === "DECLINED") return "admin.requests.status.declined";
+  return "admin.requests.status.withdrawn";
 }
 
 function getRequestStatusTone(status: RequestStatus) {
-  switch (status) {
-    case "APPROVED":
-      return "border-green-600 text-green-700";
-    case "DECLINED":
-      return "border-red-600 text-red-600";
-    case "PENDING":
-      return "border-amber-600 text-amber-700";
-    case "WITHDRAWN":
-      return "border-slate-300 text-slate-600";
-    default:
-      return "border-slate-300 text-slate-600";
-  }
+  if (status === "APPROVED") return "border-green-600 text-green-700";
+  if (status === "DECLINED") return "border-red-600 text-red-600";
+  if (status === "PENDING") return "border-amber-600 text-amber-700";
+  return "border-slate-300 text-slate-600";
 }
 
 function formatDateTime(value: string, locale: string) {
@@ -126,7 +120,8 @@ export default function RequestsClient({ tenant }: RequestsClientProps) {
   const locale = useLocale();
 
   const [requests, setRequests] = useState<RequestRecord[]>([]);
-  const [statusFilter, setStatusFilter] = useState<RequestStatus | "ALL">("PENDING");
+  const [totalCount, setTotalCount] = useState(0);
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [resolveError, setResolveError] = useState<string | null>(null);
@@ -134,27 +129,46 @@ export default function RequestsClient({ tenant }: RequestsClientProps) {
   const [selected, setSelected] = useState<RequestRecord | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isResolving, setIsResolving] = useState(false);
-  // Surface the latest status change (withdraw/resubmit/resolve) in the detail panel.
-  const selectedUpdatedLabel = selected
-    ? formatDateTime(
-        selected.resubmittedAt ??
-          selected.withdrawnAt ??
-          selected.updatedAt ??
-          selected.resolvedAt ??
-          selected.createdAt,
-        locale,
-      ) || t("generic.dash")
-    : "";
-  const selectedIsWithdrawn = selected?.status === "WITHDRAWN";
+  const [reloadNonce, setReloadNonce] = useState(0);
+
+  const { state, setSearch, setFilter, clearFilters, setSort, setPage, setPageSize } =
+    useAdminTableQueryState({
+      defaultSortField: "createdAt",
+      defaultSortDir: "desc",
+      defaultPageSize: 25,
+      maxPageSize: 100,
+      allowedPageSizes: [25, 50, 100],
+      allowedFilterKeys: ["status"],
+    });
+
+  // Pending-first default mirrors the existing operational queue behavior.
+  useEffect(() => {
+    const status =
+      typeof state.filters.status === "string" ? state.filters.status : "";
+    if (!status) {
+      setFilter("status", "PENDING");
+    }
+  }, [setFilter, state.filters.status]);
+
+  const [searchInput, setSearchInput] = useState(() => state.search);
+  const debouncedSearch = useDebouncedValue(searchInput, 400);
+  useEffect(() => {
+    if (debouncedSearch === state.search) return;
+    setSearch(debouncedSearch);
+  }, [debouncedSearch, setSearch, state.search]);
 
   const loadRequests = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
-    const url = buildTenantApiUrl(
-      tenant,
-      `/requests?status=${statusFilter}`,
-    );
+    const status =
+      typeof state.filters.status === "string" ? state.filters.status : "PENDING";
+    const params = new URLSearchParams({
+      status,
+      page: String(state.page),
+      pageSize: String(state.pageSize),
+    });
+    const url = buildTenantApiUrl(tenant, `/requests?${params.toString()}`);
     const result = await fetchJson<RequestsResponse>(url);
 
     if (!result.ok) {
@@ -164,16 +178,52 @@ export default function RequestsClient({ tenant }: RequestsClientProps) {
     }
 
     setRequests(result.data.items ?? []);
+    setTotalCount(result.data.total ?? 0);
     setIsLoading(false);
-  }, [statusFilter, t, tenant]);
+  }, [state.filters.status, state.page, state.pageSize, t, tenant]);
 
   useEffect(() => {
-    // Defer load to avoid setState directly inside the effect body.
     const handle = setTimeout(() => {
       void loadRequests();
     }, 0);
     return () => clearTimeout(handle);
-  }, [loadRequests]);
+  }, [loadRequests, reloadNonce]);
+
+  const filteredRequests = useMemo(() => {
+    const search = state.search.trim().toLowerCase();
+    const withSearch = search
+      ? requests.filter((item) => {
+          const text = [
+            item.student.firstName,
+            item.student.lastName,
+            item.parent.email,
+            item.session.group?.name ?? "",
+          ]
+            .join(" ")
+            .toLowerCase();
+          return text.includes(search);
+        })
+      : requests;
+
+    const sortField = state.sortField ?? "createdAt";
+    const direction = state.sortDir === "asc" ? 1 : -1;
+    const sorted = [...withSearch].sort((left, right) => {
+      if (sortField === "status") {
+        return left.status.localeCompare(right.status) * direction;
+      }
+      if (sortField === "updatedAt") {
+        return (
+          (new Date(left.updatedAt).getTime() - new Date(right.updatedAt).getTime()) *
+          direction
+        );
+      }
+      return (
+        (new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()) *
+        direction
+      );
+    });
+    return sorted;
+  }, [requests, state.search, state.sortDir, state.sortField]);
 
   const handleRowClick = useCallback((request: RequestRecord) => {
     setSelected(request);
@@ -191,7 +241,6 @@ export default function RequestsClient({ tenant }: RequestsClientProps) {
   const handleResolve = useCallback(
     async (nextStatus: RequestStatus) => {
       if (!selected) return;
-      // Guard the resolve action to pending requests only (backend enforces too).
       if (selected.status !== "PENDING") return;
 
       const confirmKey =
@@ -224,81 +273,178 @@ export default function RequestsClient({ tenant }: RequestsClientProps) {
       setIsDrawerOpen(false);
       setSelected(null);
       setToast(t("admin.requests.state.resolvedToast"));
-      void loadRequests();
+      setReloadNonce((current) => current + 1);
     },
-    [loadRequests, selected, t, tenant],
+    [selected, t, tenant],
   );
 
-  const columns: AdminTableColumn<RequestRecord>[] = [
-    {
-      header: t("admin.requests.field.submittedAt"),
-      cell: (request) => formatDateTime(request.createdAt, locale) || t("generic.dash"),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3 text-slate-700",
-    },
-    {
-      header: t("admin.requests.field.session"),
-      cell: (request) => {
-        const sessionTypeKey = getSessionTypeLabelKey(request.session.sessionType);
-        const sessionTypeLabel = sessionTypeKey ? t(sessionTypeKey) : t("generic.dash");
-        return (
-          <div className="flex flex-col">
-            <span className="font-medium text-slate-900">
-              {formatDateTime(request.session.startAt, locale) || t("generic.dash")}
-            </span>
-            <span className="text-xs text-slate-500">
-              {request.session.group?.name?.trim()
-                ? request.session.group.name
-                : sessionTypeLabel}
-            </span>
-          </div>
-        );
+  const filterChips = useMemo<AdminFilterChip[]>(() => {
+    const chips: AdminFilterChip[] = [];
+    const status =
+      typeof state.filters.status === "string" ? state.filters.status : "PENDING";
+    if (status !== "PENDING") {
+      chips.push({
+        key: "status",
+        label: t("admin.requests.filter.status"),
+        value: t(
+          STATUS_OPTIONS.find((option) => option.value === status)?.labelKey ??
+            "admin.requests.status.pending",
+        ),
+        onRemove: () => setFilter("status", "PENDING"),
+      });
+    }
+    if (state.search.trim()) {
+      chips.unshift({
+        key: "search",
+        label: t("admin.table.search.label"),
+        value: state.search.trim(),
+        onRemove: () => setSearch(""),
+      });
+    }
+    return chips;
+  }, [setFilter, setSearch, state.filters.status, state.search, t]);
+
+  const columns: AdminDataTableColumn<RequestRecord>[] = useMemo(
+    () => [
+      {
+        key: "createdAt",
+        label: t("admin.requests.field.submittedAt"),
+        sortable: true,
+        sortField: "createdAt",
+        renderCell: (request) => formatDateTime(request.createdAt, locale) || t("generic.dash"),
       },
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3",
-    },
-    {
-      header: t("admin.requests.field.student"),
-      cell: (request) => `${request.student.firstName} ${request.student.lastName}`,
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3 text-slate-700",
-    },
-    {
-      header: t("admin.requests.field.parent"),
-      cell: (request) =>
-        `${request.parent.firstName} ${request.parent.lastName} (${request.parent.email})`,
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3 text-slate-700",
-    },
-    {
-      header: t("admin.requests.field.status"),
-      cell: (request) => (
-        <span
-          className={`inline-flex items-center rounded-full border px-2 py-1 text-xs font-medium ${getRequestStatusTone(
-            request.status,
-          )}`}
-        >
-          {t(getRequestStatusLabelKey(request.status))}
-        </span>
-      ),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3",
-    },
-  ];
+      {
+        key: "session",
+        label: t("admin.requests.field.session"),
+        renderCell: (request) => {
+          const sessionTypeKey = getSessionTypeLabelKey(request.session.sessionType);
+          const sessionTypeLabel = sessionTypeKey ? t(sessionTypeKey) : t("generic.dash");
+          return (
+            <div className="flex flex-col">
+              <span className="font-medium text-slate-900">
+                {formatDateTime(request.session.startAt, locale) || t("generic.dash")}
+              </span>
+              <span className="text-xs text-slate-500">
+                {request.session.group?.name?.trim()
+                  ? request.session.group.name
+                  : sessionTypeLabel}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        key: "student",
+        label: t("admin.requests.field.student"),
+        renderCell: (request) => `${request.student.firstName} ${request.student.lastName}`,
+      },
+      {
+        key: "parent",
+        label: t("admin.requests.field.parent"),
+        renderCell: (request) =>
+          `${request.parent.firstName} ${request.parent.lastName} (${request.parent.email})`,
+      },
+      {
+        key: "status",
+        label: t("admin.requests.field.status"),
+        sortable: true,
+        sortField: "status",
+        renderCell: (request) => (
+          <span
+            className={`inline-flex items-center rounded-full border px-2 py-1 text-xs font-medium ${getRequestStatusTone(
+              request.status,
+            )}`}
+          >
+            {t(getRequestStatusLabelKey(request.status))}
+          </span>
+        ),
+      },
+      {
+        key: "updatedAt",
+        label: t("admin.requests.field.updatedAt"),
+        sortable: true,
+        sortField: "updatedAt",
+        renderCell: (request) => formatDateTime(request.updatedAt, locale) || t("generic.dash"),
+      },
+    ],
+    [locale, t],
+  );
+
+  const emptyState: AdminEmptyState = useMemo(
+    () => ({
+      title: t("admin.requests.empty"),
+      body: t("admin.reports.requests.empty.body"),
+    }),
+    [t],
+  );
+
+  const clearAll = () => {
+    clearFilters();
+    setFilter("status", "PENDING");
+    setSearch("");
+    setSearchInput("");
+  };
+
+  const selectedUpdatedLabel = selected
+    ? formatDateTime(
+        selected.resubmittedAt ??
+          selected.withdrawnAt ??
+          selected.updatedAt ??
+          selected.resolvedAt ??
+          selected.createdAt,
+        locale,
+      ) || t("generic.dash")
+    : "";
+  const selectedIsWithdrawn = selected?.status === "WITHDRAWN";
 
   return (
-    // Data-testid keeps the admin requests inbox wrapper stable for E2E.
     <div className="flex flex-col gap-4" data-testid="requests-inbox">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <AdminTableToolbar
+        searchId="requests-list-search"
+        searchValue={searchInput}
+        onSearchChange={setSearchInput}
+        onOpenFilters={() => setIsFilterSheetOpen(true)}
+        filterChips={filterChips}
+        onClearAllFilters={clearAll}
+      />
+
+      {error ? <AdminErrorPanel onRetry={() => setReloadNonce((current) => current + 1)} /> : null}
+      {toast ? <p className="text-sm text-green-600">{toast}</p> : null}
+
+      {!error ? (
+        <>
+          <AdminDataTable<RequestRecord>
+            columns={columns}
+            rows={filteredRequests}
+            rowKey={(request) => `request-row-${request.id}`}
+            isLoading={isLoading}
+            emptyState={emptyState}
+            sortField={state.sortField}
+            sortDir={state.sortDir}
+            onSortChange={(field, dir) => setSort(field, dir ?? "asc")}
+            onRowClick={handleRowClick}
+          />
+          <AdminPagination
+            page={state.page}
+            pageSize={state.pageSize}
+            totalCount={totalCount}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        </>
+      ) : null}
+
+      <AdminFiltersSheet
+        isOpen={isFilterSheetOpen}
+        onClose={() => setIsFilterSheetOpen(false)}
+        onReset={clearAll}
+      >
         <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">
           {t("admin.requests.filter.status")}
           <select
             className={inputBase}
-            value={statusFilter}
-            onChange={(event) =>
-              setStatusFilter(event.target.value as RequestStatus | "ALL")
-            }
-            // Data-testid keeps the status filter stable for E2E coverage.
+            value={typeof state.filters.status === "string" ? state.filters.status : "PENDING"}
+            onChange={(event) => setFilter("status", event.target.value)}
             data-testid="admin-requests-status-filter"
           >
             {STATUS_OPTIONS.map((option) => (
@@ -308,21 +454,7 @@ export default function RequestsClient({ tenant }: RequestsClientProps) {
             ))}
           </select>
         </label>
-      </div>
-
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
-      {toast ? <p className="text-sm text-green-600">{toast}</p> : null}
-
-      <AdminTable
-        rows={requests}
-        columns={columns}
-        rowKey={(request) => `request-row-${request.id}`}
-        testId="requests-table"
-        isLoading={isLoading}
-        loadingState={t("common.loading")}
-        emptyState={t("admin.requests.empty")}
-        onRowClick={handleRowClick}
-      />
+      </AdminFiltersSheet>
 
       {isDrawerOpen ? (
         <div
@@ -373,9 +505,7 @@ export default function RequestsClient({ tenant }: RequestsClientProps) {
                       {t("admin.requests.field.reason")}
                     </span>
                     <span>
-                      {t(
-                        ABSENCE_REASON_LABELS[selected.reasonCode] ?? "generic.dash",
-                      )}
+                      {t(ABSENCE_REASON_LABELS[selected.reasonCode] ?? "generic.dash")}
                     </span>
                   </div>
                   {selected.message ? (

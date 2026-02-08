@@ -8,8 +8,65 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Role } from "@/generated/prisma/client";
 
 export const runtime = "nodejs";
+// Student list responses should always be fresh because admins can create/edit records rapidly.
+export const dynamic = "force-dynamic";
 
 const ADMIN_ROLES: Role[] = ["Owner", "Admin"];
+
+type StudentSortField = "name" | "status" | "parentCount" | "createdAt";
+type StudentSortDir = "asc" | "desc";
+
+const STUDENT_SORT_FIELDS: StudentSortField[] = [
+  "name",
+  "status",
+  "parentCount",
+  "createdAt",
+];
+
+function parseSortDir(value: string | null): StudentSortDir {
+  return value === "desc" ? "desc" : "asc";
+}
+
+function parseSortField(value: string | null): StudentSortField {
+  // Keep legacy default ordering for callers that do not send explicit sort params.
+  if (!value) return "createdAt";
+  if (STUDENT_SORT_FIELDS.includes(value as StudentSortField)) {
+    return value as StudentSortField;
+  }
+  return "createdAt";
+}
+
+function buildStudentOrderBy(
+  field: StudentSortField,
+  dir: StudentSortDir,
+): Prisma.Enumerable<Prisma.StudentOrderByWithRelationInput> {
+  // Sorting must happen in SQL before skip/take so pagination stays stable across pages.
+  if (field === "status") {
+    return [
+      { status: dir },
+      { firstName: "asc" },
+      { lastName: "asc" },
+      { id: "asc" },
+    ];
+  }
+  if (field === "parentCount") {
+    return [
+      { parents: { _count: dir } },
+      { firstName: "asc" },
+      { lastName: "asc" },
+      { id: "asc" },
+    ];
+  }
+  if (field === "createdAt") {
+    return [
+      { createdAt: dir },
+      { firstName: "asc" },
+      { lastName: "asc" },
+      { id: "asc" },
+    ];
+  }
+  return [{ firstName: dir }, { lastName: dir }, { id: dir }];
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -22,6 +79,9 @@ export async function GET(req: NextRequest) {
     const q = url.searchParams.get("q")?.trim();
     const statusParam = url.searchParams.get("status") as StudentStatus | null;
     const gradeParam = url.searchParams.get("grade")?.trim() || undefined;
+    const sortField = parseSortField(url.searchParams.get("sortField"));
+    const sortDir = parseSortDir(url.searchParams.get("sortDir"));
+    const orderBy = buildStudentOrderBy(sortField, sortDir);
 
     const filters: Prisma.StudentWhereInput[] = [];
 
@@ -52,7 +112,7 @@ export async function GET(req: NextRequest) {
     const [students, total] = await Promise.all([
       prisma.student.findMany({
         where,
-        orderBy: { createdAt: "desc" },
+        orderBy,
         skip,
         take,
         select: {
@@ -75,7 +135,13 @@ export async function GET(req: NextRequest) {
       parentCount: _count.parents,
     }));
 
-    return NextResponse.json({ students: payload, page, pageSize, total });
+    return NextResponse.json(
+      { students: payload, page, pageSize, total },
+      {
+        // Ensure browser and edge caches do not serve stale paginated slices.
+        headers: { "Cache-Control": "no-store" },
+      },
+    );
   } catch (error) {
     console.error("GET /api/students failed", error);
     return jsonError(500, "Internal server error");

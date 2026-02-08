@@ -1,26 +1,36 @@
-// Client-side sessions list UI with filters and admin-only create/generate modals.
+// Sessions list keeps existing scheduling actions while adopting shared admin table toolkit primitives.
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-import AdminTable, {
-  type AdminTableColumn,
-} from "@/components/admin/shared/AdminTable";
-// Shared classes keep focus-visible and hover states consistent in Sessions UI.
+import type { Role } from "@/generated/prisma/client";
+import AdminDataTable, {
+  type AdminDataTableColumn,
+} from "@/components/admin/shared/AdminDataTable";
+import AdminFiltersSheet from "@/components/admin/shared/AdminFiltersSheet";
+import AdminFormField from "@/components/admin/shared/AdminFormField";
+import AdminPagination from "@/components/admin/shared/AdminPagination";
+import AdminTableToolbar, {
+  type AdminFilterChip,
+} from "@/components/admin/shared/AdminTableToolbar";
+import {
+  AdminErrorPanel,
+  type AdminEmptyState,
+} from "@/components/admin/shared/AdminTableStatePanels";
 import {
   inputBase,
   primaryButton,
   secondaryButton,
 } from "@/components/admin/shared/adminUiClasses";
-import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
-import { fetchJson } from "@/lib/api/fetchJson";
 import SessionGeneratorModal from "@/components/admin/sessions/SessionGeneratorModal";
 import SessionOneOffModal from "@/components/admin/sessions/SessionOneOffModal";
+import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
+import { fetchJson } from "@/lib/api/fetchJson";
+import { useAdminTableQueryState, useDebouncedValue } from "@/lib/admin-table/useAdminTableQueryState";
 
-type RoleValue = "Owner" | "Admin" | "Tutor" | "Parent" | "Student";
+type RoleValue = Role;
 
 type CenterOption = {
   id: string;
@@ -78,13 +88,6 @@ type SessionsResponse = {
   sessions: SessionListItem[];
 };
 
-type SessionFilters = {
-  centerId: string;
-  tutorId: string;
-  from: string;
-  to: string;
-};
-
 type StudentsResponse = {
   students: StudentOption[];
 };
@@ -96,14 +99,9 @@ type GroupsResponse = {
 const DEFAULT_TIMEZONE = "America/Edmonton";
 
 function sessionTypeLabelKey(type: SessionListItem["sessionType"]) {
-  switch (type) {
-    case "ONE_ON_ONE":
-      return "admin.sessions.types.oneOnOne";
-    case "GROUP":
-      return "admin.sessions.types.group";
-    case "CLASS":
-      return "admin.sessions.types.class";
-  }
+  if (type === "ONE_ON_ONE") return "admin.sessions.types.oneOnOne";
+  if (type === "GROUP") return "admin.sessions.types.group";
+  return "admin.sessions.types.class";
 }
 
 function buildStartOfDayISO(date: string) {
@@ -121,7 +119,6 @@ function buildEndOfDayISO(date: string) {
 function formatSessionDateTime(iso: string, timezone: string, locale: string) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
-
   return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
@@ -138,161 +135,65 @@ export default function SessionsClient({
   const t = useTranslations();
   const isAdmin = viewerRole === "Owner" || viewerRole === "Admin";
   const locale = typeof navigator !== "undefined" ? navigator.language : "en";
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  // URL contract: centerId, tutorId, from, to (YYYY-MM-DD); only non-empty values are persisted.
-  // Tutor lock: non-admins always scope tutorId to self, ignoring URL overrides.
-  const filters = useMemo<SessionFilters>(() => {
-    const centerId = searchParams.get("centerId") ?? "";
-    const urlTutorId = searchParams.get("tutorId") ?? "";
-    const from = searchParams.get("from") ?? "";
-    const to = searchParams.get("to") ?? "";
-    return {
-      centerId,
-      tutorId: isAdmin ? urlTutorId : viewerId,
-      from,
-      to,
-    };
-  }, [isAdmin, searchParams, viewerId]);
 
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [centers, setCenters] = useState<CenterOption[]>([]);
   const [tutors, setTutors] = useState<TutorOption[]>([]);
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [groups, setGroups] = useState<GroupOption[]>([]);
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingOptions, setIsLoadingOptions] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   const [isOneOffOpen, setIsOneOffOpen] = useState(false);
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
 
-  // Serialize filters in a stable order to avoid URL churn when nothing changed.
-  const serializeFiltersToQueryString = useCallback(
-    (filters: SessionFilters) => {
-      const params = new URLSearchParams();
-      if (filters.centerId) params.set("centerId", filters.centerId);
-      if (filters.tutorId) params.set("tutorId", filters.tutorId);
-      if (filters.from) params.set("from", filters.from);
-      if (filters.to) params.set("to", filters.to);
-      return params.toString();
-    },
-    [],
-  );
-
-  // Helper to update the URL without pushing history entries.
-  const updateFiltersInUrl = useCallback(
-    (nextFilters: Partial<SessionFilters>) => {
-      const merged: SessionFilters = {
-        centerId: nextFilters.centerId ?? filters.centerId,
-        tutorId: nextFilters.tutorId ?? filters.tutorId,
-        from: nextFilters.from ?? filters.from,
-        to: nextFilters.to ?? filters.to,
-      };
-      const sanitized = isAdmin ? merged : { ...merged, tutorId: viewerId };
-      const nextQuery = serializeFiltersToQueryString(sanitized);
-      const currentQuery = searchParams.toString();
-      // Loop prevention: only replace when the query string actually changes.
-      if (nextQuery === currentQuery) return;
-      const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
-      router.replace(nextUrl);
-    },
-    [
-      filters.centerId,
-      filters.from,
-      filters.to,
-      filters.tutorId,
-      isAdmin,
-      pathname,
-      router,
-      searchParams,
-      serializeFiltersToQueryString,
-      viewerId,
-    ],
-  );
-
-  useEffect(() => {
-    // Tutor lock: non-admins always persist their own tutorId, stripping overrides.
-    if (isAdmin) return;
-    const nextQuery = serializeFiltersToQueryString({
-      centerId: filters.centerId,
-      tutorId: viewerId,
-      from: filters.from,
-      to: filters.to,
+  const { state, setSearch, setFilter, clearFilters, setSort, setPage, setPageSize } =
+    useAdminTableQueryState({
+      defaultSortField: "startAt",
+      defaultSortDir: "asc",
+      defaultPageSize: 25,
+      maxPageSize: 100,
+      allowedPageSizes: [25, 50, 100],
+      allowedFilterKeys: ["centerId", "tutorId", "from", "to"],
     });
-    const currentQuery = searchParams.toString();
-    if (nextQuery === currentQuery) return;
-    const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
-    router.replace(nextUrl);
-  }, [
-    filters.centerId,
-    filters.from,
-    filters.to,
-    isAdmin,
-    pathname,
-    router,
-    searchParams,
-    serializeFiltersToQueryString,
-    viewerId,
-  ]);
 
-  const derivedCenters = useMemo(() => {
-    if (isAdmin) return centers;
-    const map = new Map<string, CenterOption>();
-    for (const session of sessions) {
-      map.set(session.centerId, {
-        id: session.centerId,
-        name: session.centerName,
-        timezone: session.timezone,
-      });
+  // Tutor lock prevents URL edits from escaping role-scoped visibility for non-admin users.
+  useEffect(() => {
+    if (isAdmin) return;
+    const tutorId =
+      typeof state.filters.tutorId === "string" ? state.filters.tutorId : "";
+    if (tutorId !== viewerId) {
+      setFilter("tutorId", viewerId);
     }
-    return Array.from(map.values());
-  }, [centers, isAdmin, sessions]);
+  }, [isAdmin, setFilter, state.filters.tutorId, viewerId]);
 
-  const availableTutors = useMemo(() => {
-    if (!isAdmin) return [];
-    if (!filters.centerId) {
-      return tutors.filter((user) => user.role === "Tutor");
-    }
-    return tutors.filter(
-      (user) =>
-        user.role === "Tutor" &&
-        user.centers.some((center) => center.id === filters.centerId),
-    );
-  }, [filters.centerId, isAdmin, tutors]);
-
-  const timezoneOptions = useMemo(() => {
-    const unique = new Set<string>();
-    for (const center of centers) {
-      if (center.timezone) {
-        unique.add(center.timezone);
-      }
-    }
-    unique.add(DEFAULT_TIMEZONE);
-    return Array.from(unique);
-  }, [centers]);
-
-  const defaultTimezone = useMemo(() => {
-    if (filters.centerId) {
-      const center = centers.find((option) => option.id === filters.centerId);
-      if (center?.timezone) return center.timezone;
-    }
-    return timezoneOptions[0] ?? DEFAULT_TIMEZONE;
-  }, [centers, filters.centerId, timezoneOptions]);
+  const [searchInput, setSearchInput] = useState(() => state.search);
+  const debouncedSearch = useDebouncedValue(searchInput, 400);
+  useEffect(() => {
+    if (debouncedSearch === state.search) return;
+    setSearch(debouncedSearch);
+  }, [debouncedSearch, setSearch, state.search]);
 
   const loadSessions = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     const params = new URLSearchParams();
-    if (filters.centerId) params.set("centerId", filters.centerId);
-    if (filters.tutorId) params.set("tutorId", filters.tutorId);
+    const centerId =
+      typeof state.filters.centerId === "string" ? state.filters.centerId : "";
+    const tutorId =
+      typeof state.filters.tutorId === "string" ? state.filters.tutorId : "";
+    const from = typeof state.filters.from === "string" ? state.filters.from : "";
+    const to = typeof state.filters.to === "string" ? state.filters.to : "";
+    if (centerId) params.set("centerId", centerId);
+    if (tutorId) params.set("tutorId", tutorId);
 
-    const startAtFrom = buildStartOfDayISO(filters.from);
-    const startAtTo = buildEndOfDayISO(filters.to);
+    const startAtFrom = buildStartOfDayISO(from);
+    const startAtTo = buildEndOfDayISO(to);
     if (startAtFrom) params.set("startAtFrom", startAtFrom);
     if (startAtTo) params.set("startAtTo", startAtTo);
 
@@ -313,9 +214,9 @@ export default function SessionsClient({
       return;
     }
 
-    setSessions(result.data.sessions);
+    setSessions(result.data.sessions ?? []);
     setIsLoading(false);
-  }, [filters.centerId, filters.from, filters.to, filters.tutorId, t, tenant]);
+  }, [state.filters.centerId, state.filters.from, state.filters.to, state.filters.tutorId, t, tenant]);
 
   const loadAdminOptions = useCallback(async () => {
     if (!isAdmin) return;
@@ -328,26 +229,20 @@ export default function SessionsClient({
         ),
         fetchJson<TutorOption[]>(buildTenantApiUrl(tenant, "/users")),
         fetchJson<StudentsResponse>(
-          buildTenantApiUrl(tenant, "/students?pageSize=100"),
+          // Keep modal option lists fresh and biased to most recently created students for admin flows.
+          buildTenantApiUrl(
+            tenant,
+            "/students?pageSize=100&sortField=createdAt&sortDir=desc",
+          ),
+          { cache: "no-store" },
         ),
         fetchJson<GroupsResponse>(buildTenantApiUrl(tenant, "/groups")),
       ]);
 
-    if (centerResult.ok) {
-      setCenters(centerResult.data);
-    }
-
-    if (usersResult.ok) {
-      setTutors(usersResult.data);
-    }
-
-    if (studentsResult.ok) {
-      setStudents(studentsResult.data.students);
-    }
-
-    if (groupsResult.ok) {
-      setGroups(groupsResult.data.groups);
-    }
+    if (centerResult.ok) setCenters(centerResult.data);
+    if (usersResult.ok) setTutors(usersResult.data);
+    if (studentsResult.ok) setStudents(studentsResult.data.students);
+    if (groupsResult.ok) setGroups(groupsResult.data.groups);
 
     if (
       !centerResult.ok ||
@@ -365,259 +260,399 @@ export default function SessionsClient({
     const handle = setTimeout(() => {
       void loadSessions();
     }, 0);
-
     return () => clearTimeout(handle);
-  }, [loadSessions]);
+  }, [loadSessions, reloadNonce]);
 
   useEffect(() => {
     const handle = setTimeout(() => {
       void loadAdminOptions();
     }, 0);
-
     return () => clearTimeout(handle);
   }, [loadAdminOptions]);
 
-  function handleFilterCenterChange(value: string) {
-    // Reset tutor filter when the center filter changes for admins.
-    updateFiltersInUrl({ centerId: value, tutorId: isAdmin ? "" : viewerId });
-  }
+  const derivedCenters = useMemo(() => {
+    if (isAdmin) return centers;
+    const map = new Map<string, CenterOption>();
+    for (const session of sessions) {
+      map.set(session.centerId, {
+        id: session.centerId,
+        name: session.centerName,
+        timezone: session.timezone,
+      });
+    }
+    return Array.from(map.values());
+  }, [centers, isAdmin, sessions]);
 
-  function openOneOffModal() {
+  const availableTutors = useMemo(() => {
+    if (!isAdmin) return [];
+    const centerId =
+      typeof state.filters.centerId === "string" ? state.filters.centerId : "";
+    if (!centerId) {
+      return tutors.filter((user) => user.role === "Tutor");
+    }
+    return tutors.filter(
+      (user) =>
+        user.role === "Tutor" &&
+        user.centers.some((center) => center.id === centerId),
+    );
+  }, [isAdmin, state.filters.centerId, tutors]);
+
+  const timezoneOptions = useMemo(() => {
+    const unique = new Set<string>();
+    for (const center of centers) {
+      if (center.timezone) unique.add(center.timezone);
+    }
+    unique.add(DEFAULT_TIMEZONE);
+    return Array.from(unique);
+  }, [centers]);
+
+  const defaultTimezone = useMemo(() => {
+    const centerId =
+      typeof state.filters.centerId === "string" ? state.filters.centerId : "";
+    if (centerId) {
+      const center = centers.find((option) => option.id === centerId);
+      if (center?.timezone) return center.timezone;
+    }
+    return timezoneOptions[0] ?? DEFAULT_TIMEZONE;
+  }, [centers, state.filters.centerId, timezoneOptions]);
+
+  // Search/sort/pagination are local transforms over a server-filtered dataset from /api/sessions.
+  const visibleSessions = useMemo(() => {
+    const search = state.search.trim().toLowerCase();
+    const filtered = search
+      ? sessions.filter((session) => {
+          const haystack = [
+            session.centerName,
+            session.tutorName ?? "",
+            session.groupName ?? "",
+            t(sessionTypeLabelKey(session.sessionType)),
+          ]
+            .join(" ")
+            .toLowerCase();
+          return haystack.includes(search);
+        })
+      : sessions;
+
+    const sortField = state.sortField ?? "startAt";
+    const direction = state.sortDir === "asc" ? 1 : -1;
+    const sorted = [...filtered].sort((left, right) => {
+      if (sortField === "centerName") {
+        return left.centerName.localeCompare(right.centerName) * direction;
+      }
+      if (sortField === "tutorName") {
+        return (left.tutorName ?? "").localeCompare(right.tutorName ?? "") * direction;
+      }
+      if (sortField === "endAt") {
+        return (
+          (new Date(left.endAt).getTime() - new Date(right.endAt).getTime()) *
+          direction
+        );
+      }
+      return (
+        (new Date(left.startAt).getTime() - new Date(right.startAt).getTime()) *
+        direction
+      );
+    });
+
+    const start = (state.page - 1) * state.pageSize;
+    return {
+      total: sorted.length,
+      rows: sorted.slice(start, start + state.pageSize),
+    };
+  }, [sessions, state.page, state.pageSize, state.search, state.sortDir, state.sortField, t]);
+
+  const openOneOffModal = () => {
     setIsOneOffOpen(true);
     setMessage(null);
-  }
+  };
 
-  function openGeneratorModal() {
+  const openGeneratorModal = () => {
     setIsGeneratorOpen(true);
     setMessage(null);
-  }
+  };
 
-  const columns: AdminTableColumn<SessionListItem>[] = [
-    {
-      header: t("admin.sessions.fields.center"),
-      cell: (session) => (
-        <div className="flex flex-col gap-1">
-          <span
-            className="text-sm font-medium text-slate-900"
-            data-testid="sessions-row"
-          >
-            {session.centerName}
-          </span>
-          <span className="text-xs text-slate-500">{session.centerId}</span>
-        </div>
-      ),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3",
-    },
-    {
-      header: t("admin.sessions.fields.tutor"),
-      cell: (session) => (
-        <div className="flex flex-col gap-1 text-slate-700">
-          <span>
-            {session.tutorName ?? t("admin.sessions.messages.noTutor")}
-          </span>
-          <span className="text-xs text-slate-500">{session.tutorId}</span>
-        </div>
-      ),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3",
-    },
-    {
-      header: t("admin.sessions.fields.type"),
-      cell: (session) => (
-        <span className="text-sm text-slate-700">
-          {t(sessionTypeLabelKey(session.sessionType))}
-        </span>
-      ),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3",
-    },
-    {
-      header: t("admin.sessions.fields.group"),
-      cell: (session) =>
-        session.groupName ? (
-          <span className="text-sm text-slate-700">{session.groupName}</span>
-        ) : (
-          <span className="text-xs text-slate-400">
-            {t("admin.sessions.messages.noGroup")}
-          </span>
+  const clearAll = () => {
+    clearFilters();
+    setSearch("");
+    setSearchInput("");
+    if (!isAdmin) {
+      setFilter("tutorId", viewerId);
+    }
+  };
+
+  const filterChips = useMemo<AdminFilterChip[]>(() => {
+    const chips: AdminFilterChip[] = [];
+    const centerId =
+      typeof state.filters.centerId === "string" ? state.filters.centerId : "";
+    const tutorId =
+      typeof state.filters.tutorId === "string" ? state.filters.tutorId : "";
+    const from = typeof state.filters.from === "string" ? state.filters.from : "";
+    const to = typeof state.filters.to === "string" ? state.filters.to : "";
+
+    if (centerId) {
+      chips.push({
+        key: "centerId",
+        label: t("admin.sessions.filters.center"),
+        value: derivedCenters.find((center) => center.id === centerId)?.name ?? centerId,
+        onRemove: () => setFilter("centerId", ""),
+      });
+    }
+    if (tutorId && isAdmin) {
+      chips.push({
+        key: "tutorId",
+        label: t("admin.sessions.filters.tutor"),
+        value: tutors.find((user) => user.id === tutorId)?.name ?? tutorId,
+        onRemove: () => setFilter("tutorId", ""),
+      });
+    }
+    if (from) {
+      chips.push({
+        key: "from",
+        label: t("admin.sessions.filters.from"),
+        value: from,
+        onRemove: () => setFilter("from", ""),
+      });
+    }
+    if (to) {
+      chips.push({
+        key: "to",
+        label: t("admin.sessions.filters.to"),
+        value: to,
+        onRemove: () => setFilter("to", ""),
+      });
+    }
+    if (state.search.trim()) {
+      chips.unshift({
+        key: "search",
+        label: t("admin.table.search.label"),
+        value: state.search.trim(),
+        onRemove: () => setSearch(""),
+      });
+    }
+    return chips;
+  }, [derivedCenters, isAdmin, setFilter, setSearch, state.filters, state.search, t, tutors]);
+
+  const columns: AdminDataTableColumn<SessionListItem>[] = useMemo(
+    () => [
+      {
+        key: "centerName",
+        label: t("admin.sessions.fields.center"),
+        sortable: true,
+        sortField: "centerName",
+        renderCell: (session) => (
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-slate-900">{session.centerName}</span>
+            <span className="text-xs text-slate-500">{session.centerId}</span>
+          </div>
         ),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3",
-    },
-    {
-      header: t("admin.sessions.fields.startAt"),
-      cell: (session) => (
-        <div className="flex flex-col gap-1">
-          <span className="text-sm text-slate-700">
-            {formatSessionDateTime(session.startAt, session.timezone, locale)}
-          </span>
-          {/* Badge stays minimal and text-only to avoid implying schedule changes. */}
-          {session.pendingAbsenceCount > 0 ? (
-            <span
-              className="inline-flex w-fit items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
-              // Data-testid anchors pending absence badge for staff E2E coverage.
-              data-testid={`absence-badge-${session.id}`}
-            >
-              {t("staff.absence.badge.pending")}
-            </span>
-          ) : null}
-        </div>
-      ),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3",
-    },
-    {
-      header: t("admin.sessions.fields.endAt"),
-      cell: (session) => (
-        <span className="text-sm text-slate-700">
-          {formatSessionDateTime(session.endAt, session.timezone, locale)}
-        </span>
-      ),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3",
-    },
-    {
-      header: t("admin.sessions.fields.actions"),
-      cell: (session) => (
-        <Link
-          className={`${secondaryButton} px-3 py-1 text-xs`}
-          data-testid="sessions-open-detail"
-          href={`/${tenant}/admin/sessions/${session.id}`}
-        >
-          {t("admin.sessions.actions.view")}
-        </Link>
-      ),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3",
-    },
-  ];
+      },
+      {
+        key: "tutorName",
+        label: t("admin.sessions.fields.tutor"),
+        sortable: true,
+        sortField: "tutorName",
+        renderCell: (session) => (
+          <div className="flex flex-col gap-1 text-slate-700">
+            <span>{session.tutorName ?? t("admin.sessions.messages.noTutor")}</span>
+            <span className="text-xs text-slate-500">{session.tutorId}</span>
+          </div>
+        ),
+      },
+      {
+        key: "sessionType",
+        label: t("admin.sessions.fields.type"),
+        renderCell: (session) => t(sessionTypeLabelKey(session.sessionType)),
+      },
+      {
+        key: "groupName",
+        label: t("admin.sessions.fields.group"),
+        renderCell: (session) =>
+          session.groupName ? session.groupName : t("admin.sessions.messages.noGroup"),
+      },
+      {
+        key: "startAt",
+        label: t("admin.sessions.fields.startAt"),
+        sortable: true,
+        sortField: "startAt",
+        renderCell: (session) => (
+          <div className="flex flex-col gap-1">
+            <span>{formatSessionDateTime(session.startAt, session.timezone, locale)}</span>
+            {session.pendingAbsenceCount > 0 ? (
+              <span
+                className="inline-flex w-fit items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
+                data-testid={`absence-badge-${session.id}`}
+              >
+                {t("staff.absence.badge.pending")}
+              </span>
+            ) : null}
+          </div>
+        ),
+      },
+      {
+        key: "endAt",
+        label: t("admin.sessions.fields.endAt"),
+        sortable: true,
+        sortField: "endAt",
+        renderCell: (session) =>
+          formatSessionDateTime(session.endAt, session.timezone, locale),
+      },
+      {
+        key: "actions",
+        label: t("admin.sessions.fields.actions"),
+        renderCell: (session) => (
+          <Link
+            className={`${secondaryButton} px-3 py-1 text-xs`}
+            href={`/${tenant}/admin/sessions/${session.id}`}
+            data-testid="sessions-open-detail"
+          >
+            {t("admin.sessions.actions.view")}
+          </Link>
+        ),
+      },
+    ],
+    [locale, t, tenant],
+  );
 
-  const loadingState = t("common.loading");
-  const emptyState = t("admin.sessions.messages.empty");
+  const emptyState: AdminEmptyState = useMemo(
+    () => ({
+      title: t("admin.sessions.messages.empty"),
+      body: t("admin.reports.upcoming.empty.body"),
+    }),
+    [t],
+  );
+
+  const rightSlot = isAdmin ? (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        className={primaryButton}
+        data-testid="sessions-create-button"
+        disabled={isLoadingOptions}
+        onClick={openOneOffModal}
+        type="button"
+      >
+        {t("admin.sessions.actions.createOneOff")}
+      </button>
+      <button
+        className={secondaryButton}
+        data-testid="sessions-generate-button"
+        disabled={isLoadingOptions}
+        onClick={openGeneratorModal}
+        type="button"
+      >
+        {t("admin.sessions.actions.generateRecurring")}
+      </button>
+    </div>
+  ) : null;
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-end gap-4">
-          <label className="flex flex-col gap-2 text-sm">
-            <span className="text-slate-700">
-              {t("admin.sessions.filters.center")}
-            </span>
+      <AdminTableToolbar
+        searchId="sessions-list-search"
+        searchValue={searchInput}
+        onSearchChange={setSearchInput}
+        onOpenFilters={() => setIsFilterSheetOpen(true)}
+        filterChips={filterChips}
+        onClearAllFilters={clearAll}
+        rightSlot={rightSlot}
+      />
+
+      {error ? <AdminErrorPanel onRetry={() => setReloadNonce((current) => current + 1)} /> : null}
+      {message ? <p className="text-sm text-green-600">{message}</p> : null}
+
+      {!error ? (
+        <>
+          <AdminDataTable<SessionListItem>
+            columns={columns}
+            rows={visibleSessions.rows}
+            rowKey={(session) => `sessions-row-${session.id}`}
+            isLoading={isLoading}
+            emptyState={emptyState}
+            sortField={state.sortField}
+            sortDir={state.sortDir}
+            onSortChange={(field, dir) => setSort(field, dir ?? "asc")}
+          />
+          <AdminPagination
+            page={state.page}
+            pageSize={state.pageSize}
+            totalCount={visibleSessions.total}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        </>
+      ) : null}
+
+      <AdminFiltersSheet
+        isOpen={isFilterSheetOpen}
+        onClose={() => setIsFilterSheetOpen(false)}
+        onReset={clearAll}
+      >
+        <AdminFormField
+          label={t("admin.sessions.filters.center")}
+          htmlFor="sessions-filter-center"
+        >
+          <select
+            id="sessions-filter-center"
+            className={`${inputBase} min-w-[180px]`}
+            data-testid="sessions-filter-center"
+            value={typeof state.filters.centerId === "string" ? state.filters.centerId : ""}
+            onChange={(event) => setFilter("centerId", event.target.value)}
+          >
+            <option value="">{t("admin.sessions.filters.allCenters")}</option>
+            {derivedCenters.map((center) => (
+              <option key={center.id} value={center.id}>
+                {center.name}
+              </option>
+            ))}
+          </select>
+        </AdminFormField>
+        <AdminFormField label={t("admin.sessions.filters.from")} htmlFor="sessions-filter-from">
+          <input
+            id="sessions-filter-from"
+            className={inputBase}
+            type="date"
+            data-testid="sessions-filter-from"
+            value={typeof state.filters.from === "string" ? state.filters.from : ""}
+            onChange={(event) => setFilter("from", event.target.value)}
+          />
+        </AdminFormField>
+        <AdminFormField label={t("admin.sessions.filters.to")} htmlFor="sessions-filter-to">
+          <input
+            id="sessions-filter-to"
+            className={inputBase}
+            type="date"
+            data-testid="sessions-filter-to"
+            value={typeof state.filters.to === "string" ? state.filters.to : ""}
+            onChange={(event) => setFilter("to", event.target.value)}
+          />
+        </AdminFormField>
+        {isAdmin ? (
+          <AdminFormField label={t("admin.sessions.filters.tutor")} htmlFor="sessions-filter-tutor">
             <select
+              id="sessions-filter-tutor"
               className={`${inputBase} min-w-[180px]`}
-              data-testid="sessions-filter-center"
-              value={filters.centerId}
-              onChange={(event) => handleFilterCenterChange(event.target.value)}
+              data-testid="sessions-filter-tutor"
+              value={typeof state.filters.tutorId === "string" ? state.filters.tutorId : ""}
+              onChange={(event) => setFilter("tutorId", event.target.value)}
             >
-              <option value="">{t("admin.sessions.filters.allCenters")}</option>
-              {derivedCenters.map((center) => (
-                <option key={center.id} value={center.id}>
-                  {center.name}
+              <option value="">{t("admin.sessions.filters.allTutors")}</option>
+              {availableTutors.map((tutor) => (
+                <option key={tutor.id} value={tutor.id}>
+                  {tutor.name ?? tutor.email}
                 </option>
               ))}
             </select>
-          </label>
-          <label className="flex flex-col gap-2 text-sm">
-            <span className="text-slate-700">
-              {t("admin.sessions.filters.from")}
-            </span>
+          </AdminFormField>
+        ) : (
+          <AdminFormField label={t("admin.sessions.filters.tutor")} htmlFor="sessions-filter-self">
             <input
-              className={inputBase}
-              data-testid="sessions-filter-from"
-              type="date"
-              value={filters.from}
-              onChange={(event) =>
-                updateFiltersInUrl({ from: event.target.value })
-              }
+              id="sessions-filter-self"
+              className={`${inputBase} bg-slate-100 text-slate-600`}
+              value={viewerLabel}
+              disabled
             />
-          </label>
-          <label className="flex flex-col gap-2 text-sm">
-            <span className="text-slate-700">
-              {t("admin.sessions.filters.to")}
-            </span>
-            <input
-              className={inputBase}
-              data-testid="sessions-filter-to"
-              type="date"
-              value={filters.to}
-              onChange={(event) =>
-                updateFiltersInUrl({ to: event.target.value })
-              }
-            />
-          </label>
-          {isAdmin ? (
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="text-slate-700">
-                {t("admin.sessions.filters.tutor")}
-              </span>
-              <select
-                className={`${inputBase} min-w-[180px]`}
-                data-testid="sessions-filter-tutor"
-                value={filters.tutorId}
-                onChange={(event) =>
-                  updateFiltersInUrl({ tutorId: event.target.value })
-                }
-              >
-                <option value="">
-                  {t("admin.sessions.filters.allTutors")}
-                </option>
-                {availableTutors.map((tutor) => (
-                  <option key={tutor.id} value={tutor.id}>
-                    {tutor.name ?? tutor.email}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : (
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="text-slate-700">
-                {t("admin.sessions.filters.tutor")}
-              </span>
-              <input
-                className={`${inputBase} bg-slate-100 text-slate-600`}
-                disabled
-                value={viewerLabel}
-              />
-            </label>
-          )}
-        </div>
-        {isAdmin ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              className={primaryButton}
-              data-testid="sessions-create-button"
-              disabled={isLoadingOptions}
-              onClick={openOneOffModal}
-              type="button"
-            >
-              {t("admin.sessions.actions.createOneOff")}
-            </button>
-            <button
-              className={secondaryButton}
-              data-testid="sessions-generate-button"
-              disabled={isLoadingOptions}
-              onClick={openGeneratorModal}
-              type="button"
-            >
-              {t("admin.sessions.actions.generateRecurring")}
-            </button>
-          </div>
-        ) : null}
-      </div>
-
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
-      {message ? <p className="text-sm text-green-600">{message}</p> : null}
-
-      <AdminTable
-        rows={sessions}
-        columns={columns}
-        rowKey={(session) => `sessions-row-${session.id}`}
-        testId="sessions-table"
-        isLoading={isLoading}
-        loadingState={loadingState}
-        emptyState={emptyState}
-      />
+          </AdminFormField>
+        )}
+      </AdminFiltersSheet>
 
       {isAdmin && isOneOffOpen ? (
         <SessionOneOffModal
@@ -627,7 +662,7 @@ export default function SessionsClient({
           onClose={() => setIsOneOffOpen(false)}
           onCreated={async (messageText) => {
             setMessage(messageText);
-            await loadSessions();
+            setReloadNonce((current) => current + 1);
           }}
           students={students}
           tutors={tutors.filter((user) => user.role === "Tutor")}
@@ -643,7 +678,7 @@ export default function SessionsClient({
           onClose={() => setIsGeneratorOpen(false)}
           onCommitted={async (messageText) => {
             setMessage(messageText);
-            await loadSessions();
+            setReloadNonce((current) => current + 1);
           }}
           students={students}
           tutors={tutors.filter((user) => user.role === "Tutor")}

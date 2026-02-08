@@ -16,6 +16,7 @@
     "e2e:golden": "playwright test --project=golden-chromium",
     "e2e:portal": "playwright test --project=portal-chromium",
     "e2e:admin": "playwright test --project=admin-chromium",
+    "e2e:reports": "playwright test tests/e2e/admin/reports",
     "e2e:full": "playwright test",
     "e2e:onboarding": "playwright test tests/e2e/portal/onboarding",
     "e2e:changed": "tsx scripts/e2e-changed.ts",

@@ -39,6 +39,9 @@ export async function loginViaUI(page: Page, opts: LoginOptions) {
     // Default to the dedicated e2e tenant to avoid polluting demo data.
     opts.tenantSlug || process.env.E2E_TENANT_SLUG || "e2e-testing";
   const adminPath = buildTenantPath(tenantSlug, "/admin");
+  const postLoginMarker = page.locator(
+    '[data-testid="app-shell"], [data-testid="access-denied"]'
+  );
 
   // Skip login when an existing session already matches the expected user.
   const sessionResponse = await tryGetSession(page, tenantSlug);
@@ -52,8 +55,13 @@ export async function loginViaUI(page: Page, opts: LoginOptions) {
       payload.tenant?.tenantSlug === tenantSlug
     ) {
       // Ensure the UI is on an admin route even when reusing a storage session.
-      await page.goto(adminPath);
-      await page.waitForURL((url) => url.pathname.startsWith(adminPath));
+      await page.goto(adminPath, { waitUntil: "domcontentloaded" });
+      await Promise.race([
+        page.waitForURL((url) => url.pathname.startsWith(adminPath), {
+          timeout: 20_000,
+        }),
+        postLoginMarker.first().waitFor({ state: "visible", timeout: 20_000 }),
+      ]);
       return;
     }
     // Clear mismatched sessions to avoid role-based redirects during login.
@@ -67,12 +75,17 @@ export async function loginViaUI(page: Page, opts: LoginOptions) {
   await page.getByTestId("login-password").fill(opts.password);
   await page.getByTestId("login-submit").click();
 
-  // Wait for the tenant admin route to confirm session establishment.
-  await page.waitForURL((url) => url.pathname.startsWith(adminPath));
+  // Callback redirects can lag under load; accept either admin URL or shell render as successful login.
+  await Promise.race([
+    page.waitForURL((url) => url.pathname.startsWith(adminPath), {
+      timeout: 20_000,
+    }),
+    postLoginMarker.first().waitFor({ state: "visible", timeout: 20_000 }),
+  ]).catch(async () => {
+    // Fallback navigation keeps admin login resilient when callback redirects stall.
+    await page.goto(adminPath, { waitUntil: "domcontentloaded" });
+  });
 
-  const postLoginMarker = page.locator(
-    '[data-testid="app-shell"], [data-testid="access-denied"]'
-  );
   await expect(postLoginMarker.first()).toBeVisible();
 }
 

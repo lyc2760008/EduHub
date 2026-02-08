@@ -13,6 +13,8 @@ export const AUDIT_ACTIONS = {
   ABSENCE_REQUEST_RESOLVED: "ABSENCE_REQUEST_RESOLVED",
   ATTENDANCE_PARENT_VISIBLE_NOTE_UPDATED:
     "ATTENDANCE_PARENT_VISIBLE_NOTE_UPDATED",
+  // Reporting export action for admin CSV downloads.
+  REPORT_EXPORTED: "REPORT_EXPORTED",
 } as const;
 
 // Entity types are intentionally minimal and filter-friendly for admin audit queries.
@@ -22,6 +24,8 @@ export const AUDIT_ENTITY_TYPES = {
   ATTENDANCE: "ATTENDANCE",
   SESSION: "SESSION",
   STUDENT: "STUDENT",
+  // REPORT entity type scopes audit entries to reporting exports.
+  REPORT: "REPORT",
 } as const;
 
 // Auth-related actions are grouped for category filtering on admin audit endpoints.

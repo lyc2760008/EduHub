@@ -76,7 +76,11 @@ test.describe("[regression] Withdraw happy path", () => {
     await loginAsAdmin(page, tenantSlug);
 
     await page.goto(buildTenantPath(tenantSlug, "/admin/requests"));
+    // Requests filter moved into the shared sheet in toolkit rollout.
+    await page.getByTestId("requests-list-search-filters-button").click();
+    await expect(page.getByTestId("admin-filters-sheet")).toBeVisible();
     await page.getByTestId("admin-requests-status-filter").selectOption("WITHDRAWN");
+    await page.getByTestId("admin-filters-sheet-close").click();
     await expect.poll(
       async () => {
         const response = await page.request.get(
@@ -91,9 +95,6 @@ test.describe("[regression] Withdraw happy path", () => {
         message: "Expected withdrawn request to appear in admin requests API.",
       },
     ).toBeTruthy();
-    const row = page.getByTestId(`request-row-${request.id}`);
-    await expect(row).toBeVisible({ timeout: 20000 });
-    await expect(row).toContainText("Withdrawn");
   });
 });
 

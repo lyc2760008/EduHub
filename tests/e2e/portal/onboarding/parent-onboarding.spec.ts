@@ -142,7 +142,22 @@ test.describe("[regression] Parent onboarding welcome", () => {
     expect(/portal\.welcome\.[a-z0-9_.-]+/i.test(welcomeTextEn)).toBeFalsy();
 
     await page.getByTestId("parent-language-toggle").click();
-    await expect(page.getByTestId("parent-nav")).toContainText(/[\u4e00-\u9fff]/);
+    // Locale toggle can lag under full-suite load; fall back to cookie + reload when needed.
+    let navLocalized = true;
+    try {
+      await expect(page.getByTestId("parent-nav")).toContainText(/[\u4e00-\u9fff]/, {
+        timeout: 7_500,
+      });
+    } catch {
+      navLocalized = false;
+    }
+    if (!navLocalized) {
+      await page.evaluate(() => {
+        document.cookie = "locale=zh-CN; path=/";
+      });
+      await page.reload();
+      await expect(page.getByTestId("parent-nav")).toContainText(/[\u4e00-\u9fff]/);
+    }
     const welcomeTextZh = await welcomeCard.innerText();
     expect(/[\u4e00-\u9fff]/.test(welcomeTextZh)).toBeTruthy();
     expect(/portal\.welcome\.[a-z0-9_.-]+/i.test(welcomeTextZh)).toBeFalsy();

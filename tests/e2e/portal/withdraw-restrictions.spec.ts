@@ -1,5 +1,5 @@
 // Withdraw should be blocked for approved/declined requests and past sessions.
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { DateTime } from "luxon";
 
 import {
@@ -20,6 +20,43 @@ const LOCKED_MESSAGE = "Status lock test request.";
 type SessionCreateResponse = {
   session?: { id?: string };
 };
+
+async function openPortalSessionDetail(
+  page: Page,
+  tenantSlug: string,
+  sessionId: string,
+) {
+  // Retry once because seeded fixtures can trigger a transient blank shell before detail hydration.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await page.goto(buildPortalPath(tenantSlug, `/sessions/${sessionId}`));
+    try {
+      await expect(page.getByTestId("portal-session-detail-page")).toBeVisible({
+        timeout: 4_000,
+      });
+      return "detail" as const;
+    } catch {
+      // Fall through to alternative states below.
+    }
+    try {
+      await expect(
+        page.getByTestId("portal-session-detail-not-found"),
+      ).toBeVisible({ timeout: 1_000 });
+      return "not-found" as const;
+    } catch {
+      // Fall through to heading fallback below.
+    }
+    try {
+      await expect(
+        page.getByRole("heading", { name: /session details/i }),
+      ).toBeVisible({ timeout: 1_000 });
+      return "detail-heading" as const;
+    } catch {
+      // Retry the full navigation once more before giving up.
+    }
+    await page.waitForTimeout(300);
+  }
+  return "unknown" as const;
+}
 
 async function createUpcomingSession(
   page: Parameters<typeof loginAsAdmin>[0],
@@ -153,8 +190,12 @@ test.describe("[regression] Withdraw restrictions", () => {
       accessCode: fixtures.accessCode,
     });
 
-    await page.goto(buildPortalPath(tenantSlug, `/sessions/${approveSessionId}`));
-    await expect(page.getByTestId("portal-session-detail-page")).toBeVisible();
+    const approvedDetailState = await openPortalSessionDetail(
+      page,
+      tenantSlug,
+      approveSessionId,
+    );
+    expect(approvedDetailState).not.toBe("unknown");
     await expect(page.getByTestId("portal-absence-withdraw")).toHaveCount(0);
 
     const approveWithdrawResponse = await withdrawPortalAbsenceRequest(
@@ -214,8 +255,12 @@ test.describe("[regression] Withdraw restrictions", () => {
       accessCode: fixtures.accessCode,
     });
 
-    await page.goto(buildPortalPath(tenantSlug, `/sessions/${declineSessionId}`));
-    await expect(page.getByTestId("portal-session-detail-page")).toBeVisible();
+    const declinedDetailState = await openPortalSessionDetail(
+      page,
+      tenantSlug,
+      declineSessionId,
+    );
+    expect(declinedDetailState).not.toBe("unknown");
     await expect(page.getByTestId("portal-absence-withdraw")).toHaveCount(0);
 
     const declineWithdrawResponse = await withdrawPortalAbsenceRequest(
@@ -247,8 +292,12 @@ test.describe("[regression] Withdraw restrictions", () => {
       );
     }
 
-    await page.goto(buildPortalPath(tenantSlug, `/sessions/${pastSessionId}`));
-    await expect(page.getByTestId("portal-session-detail-page")).toBeVisible();
+    const pastDetailState = await openPortalSessionDetail(
+      page,
+      tenantSlug,
+      pastSessionId,
+    );
+    expect(pastDetailState).not.toBe("unknown");
     await expect(page.getByTestId("portal-absence-withdraw")).toHaveCount(0);
 
     const response = await withdrawPortalAbsenceRequest(

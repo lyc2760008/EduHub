@@ -454,11 +454,23 @@
       "filters": {
         "from": "开始日期",
         "to": "结束日期",
-        "center": "中心",
-        "tutor": "老师",
+        "center": "??/??",
+        "tutor": "??",
         "weekStart": "周开始日",
-        "allCenters": "全部中心",
-        "allTutors": "全部老师"
+        "allCenters": "????",
+        "allTutors": "????",
+        "dateRange": "????",
+        "groupClass": "??/??",
+        "student": "??",
+        "status": "??",
+        "week": "?",
+        "studentStatus": "????",
+        "programSubject": "??/??",
+        "levelGrade": "??/??",
+        "allGroups": "????/??",
+        "allStudents": "????",
+        "allPrograms": "????/??",
+        "allLevels": "????/??"
       },
       "actions": {
         "apply": "应用"
@@ -495,6 +507,169 @@
         "loading": "报表加载中...",
         "error": "无法加载报表",
         "empty": "暂无结果"
+      },
+      "nav": {
+        "title": "??",
+        "home": "????",
+        "upcoming": "???????",
+        "attendance": "????",
+        "requests": "??????",
+        "workload": "?????",
+        "students": "????"
+      },
+      "index": {
+        "title": "??",
+        "helper": "??????????? CSV?",
+        "note": "????????????",
+        "openReport": "????"
+      },
+      "range": {
+        "upcoming": {
+          "today": "??",
+          "7d": "?? 7 ?",
+          "14d": "?? 14 ?",
+          "30d": "?? 30 ?"
+        },
+        "last": {
+          "today": "??",
+          "7d": "?? 7 ?",
+          "30d": "?? 30 ?",
+          "60d": "?? 60 ?",
+          "90d": "?? 90 ?"
+        }
+      },
+      "statusFilter": {
+        "active": "??",
+        "inactive": "??",
+        "all": "??"
+      },
+      "common": {
+        "hours": "{count}??",
+        "days": "{count}?"
+      },
+      "upcoming": {
+        "defaultRange": "?? 14 ?",
+        "columns": {
+          "sessionDate": "????",
+          "startTime": "????",
+          "duration": "??????",
+          "sessionType": "????",
+          "groupClass": "??/??",
+          "students": "??",
+          "tutor": "??",
+          "center": "??/??"
+        },
+        "export": {
+          "filename": "upcoming-sessions.csv"
+        },
+        "title": "???????",
+        "helper": "?? 14 ????????",
+        "empty": {
+          "title": "?????????",
+          "body": "????????????",
+          "cta": "????"
+        }
+      },
+      "attendance": {
+        "defaultRange": "?? 30 ?",
+        "columns": {
+          "studentName": "????",
+          "programLevel": "??/??",
+          "groupClass": "??/??",
+          "totalSessions": "????",
+          "presentCount": "????",
+          "absentCount": "????",
+          "lateCount": "????",
+          "excusedCount": "??????",
+          "absenceRate": "??? %"
+        },
+        "export": {
+          "filename": "attendance-summary.csv"
+        },
+        "title": "????",
+        "helper": "??????? 30 ??????",
+        "empty": {
+          "title": "??????",
+          "body": "????????????",
+          "cta": "????"
+        }
+      },
+      "requests": {
+        "defaultRange": "?? 30 ?",
+        "columns": {
+          "createdTime": "????",
+          "sessionDateTime": "????",
+          "studentName": "????",
+          "parent": "??",
+          "status": "??",
+          "age": "????",
+          "resolvedBy": "???",
+          "lastUpdated": "????"
+        },
+        "export": {
+          "filename": "absence-requests.csv"
+        },
+        "title": "????",
+        "helper": "???????????????????????",
+        "empty": {
+          "title": "????",
+          "body": "????????????",
+          "cta": "??????"
+        }
+      },
+      "workload": {
+        "defaultRange": "??",
+        "week": {
+          "thisWeek": "??",
+          "nextWeek": "??"
+        },
+        "columns": {
+          "tutorName": "????",
+          "totalSessions": "????",
+          "totalMinutes": "????",
+          "distinctStudents": "?????",
+          "distinctGroups": "??/?????",
+          "firstSession": "??????",
+          "lastSession": "??????"
+        },
+        "export": {
+          "filename": "tutor-workload.csv"
+        },
+        "title": "?????",
+        "helper": "???????????????",
+        "empty": {
+          "title": "???????",
+          "body": "????????????"
+        }
+      },
+      "students": {
+        "defaultRange": "??",
+        "columns": {
+          "studentName": "????",
+          "status": "??",
+          "gradeLevel": "??/??",
+          "programSubject": "??/??",
+          "groupClass": "??/??",
+          "primaryTutor": "???",
+          "parents": "??"
+        },
+        "export": {
+          "filename": "students-directory.csv"
+        },
+        "title": "????",
+        "helper": "???????????/?????",
+        "empty": {
+          "title": "?????",
+          "body": "??????????????",
+          "cta": "????"
+        },
+        "filters": {
+          "parents": {
+            "any": "??",
+            "linked": "???",
+            "unlinked": "???"
+          }
+        }
       }
     },
     "users": {
@@ -555,7 +730,8 @@
         "grade": "年级",
         "parentCount": "家长",
         "status": "状态",
-        "actions": "操作"
+        "actions": "操作",
+        "createdAt": "????"
       },
       "messages": {
         "loading": "正在加载学生...",
@@ -663,9 +839,49 @@
       },
       "template": {
         "_comment": "模板内容为固定语言文本，用于邀请弹窗语言切换。",
-        "en": "Hi,\n\nYou\u2019ve been invited to access the Parent Portal for {centerName}.\n\nPortal link: {portalUrl}\nLogin email: {parentEmail}\n\nTo sign in, please use your email and the access code provided by your center. (Your center will share the access code securely.)\n\nIf anything looks incorrect (missing students or sessions), please contact your center admin for help.",
+        "en": "Hi,\n\nYou’ve been invited to access the Parent Portal for {centerName}.\n\nPortal link: {portalUrl}\nLogin email: {parentEmail}\n\nTo sign in, please use your email and the access code provided by your center. (Your center will share the access code securely.)\n\nIf anything looks incorrect (missing students or sessions), please contact your center admin for help.",
         "zhCN": "您好，\n\n您已被邀请访问 {centerName} 的家长端。\n\n链接：{portalUrl}\n登录邮箱：{parentEmail}\n\n请使用您的邮箱与校区提供的访问码登录。（访问码将由校区通过安全方式发送。）\n\n如信息有误（孩子或课程缺失），请联系校区管理员协助处理。"
       }
+    },
+    "table": {
+      "search": {
+        "label": "??",
+        "placeholder": "???"
+      },
+      "filters": {
+        "clearAll": "????",
+        "reset": "??",
+        "label": "??"
+      },
+      "pagination": {
+        "rowsPerPage": "????",
+        "of": "? {from}–{to} ??? {total} ?",
+        "prev": "???",
+        "next": "???"
+      },
+      "exportCsv": "?? CSV",
+      "export": {
+        "preparing": "???? CSV?",
+        "warning": "?????????????????????????????"
+      },
+      "state": {
+        "loading": "????",
+        "error": {
+          "title": "??????",
+          "body": "??????",
+          "retry": "??"
+        }
+      },
+      "sort": {
+        "sortedAscending": "??????",
+        "sortedDescending": "??????"
+      }
+    },
+    "status": {
+      "pending": "???",
+      "approved": "???",
+      "declined": "???",
+      "withdrawn": "???"
     }
   },
   "staff": {
