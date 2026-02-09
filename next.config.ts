@@ -33,6 +33,15 @@ const nextConfig: NextConfig = {
     // Explicitly set the project root to avoid Turbopack picking a higher-level lockfile
     root: __dirname,
   },
+  async rewrites() {
+    // Map private debug routes to a public path without exposing internal folder names.
+    return [
+      {
+        source: "/api/__debug/sentry-test",
+        destination: "/api/debug/sentry-test",
+      },
+    ];
+  },
 };
 
 // Apply next-intl to enable request-based message loading via src/i18n/request.ts.

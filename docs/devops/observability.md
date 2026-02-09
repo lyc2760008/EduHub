@@ -41,6 +41,7 @@ Optional tuning:
 1. Set `APP_ENV=staging` and `SENTRY_DSN` in the staging environment.
 2. Sign in as an Owner/Admin.
 3. Call `GET /api/__debug/sentry-test`.
+   Note: `__debug` is routed to `/api/debug/sentry-test` via a rewrite.
 4. Confirm a `Sentry staging test error` event appears in Sentry.
 5. Validate tags:
    - `environment` matches `staging`.
