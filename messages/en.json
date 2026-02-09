@@ -44,9 +44,126 @@
       "title": "Access denied",
       "message": "You do not have permission to view this page."
     },
+    "table": {
+      "_comment": "Shared admin table toolkit labels (search/filter/sort/pagination/state).",
+      "search": {
+        "label": "Search",
+        "placeholder": "Search\u2026"
+      },
+      "filters": {
+        "label": "Filters",
+        "clearAll": "Clear all"
+      },
+      "pagination": {
+        "rowsPerPage": "Rows per page",
+        "of": "{from}\u2013{to} of {total}",
+        "prev": "Prev",
+        "next": "Next"
+      },
+      "sort": {
+        "sortedAscending": "Sorted ascending",
+        "sortedDescending": "Sorted descending"
+      },
+      "state": {
+        "error": {
+          "title": "Couldn't load data",
+          "body": "Please try again.",
+          "retry": "Try again"
+        }
+      },
+      "export": {
+        "preparing": "Preparing export...",
+        "warning": "Exports use the current filters."
+      },
+      "exportCsv": "Export CSV"
+    },
+    "nav": {
+      "_comment": "Admin navigation labels for Step 24.1C sidebar groups.",
+      "dashboard": "Dashboard",
+      "people": "People",
+      "operations": "Operations",
+      "setup": "Setup",
+      "reports": "Reports",
+      "group": {
+        "people": "People",
+        "setup": "Setup",
+        "operations": "Operations",
+        "reports": "Reports"
+      },
+      "students": "Students",
+      "parents": "Parents",
+      "staff": "Staff",
+      "centers": "Centers",
+      "groups": "Groups / Classes",
+      "programs": "Programs",
+      "subjects": "Subjects",
+      "levels": "Levels",
+      "sessions": "Sessions",
+      "requests": "Requests",
+      "audit": "Audit log",
+      "help": "Help",
+      "reportsHome": "Reports home",
+      "report": {
+        "upcomingSessions": "Upcoming sessions",
+        "attendanceSummary": "Attendance summary",
+        "absenceRequests": "Absence requests",
+        "tutorWorkload": "Tutor workload",
+        "studentsDirectory": "Students directory"
+      }
+    },
+    "shell": {
+      "_comment": "Admin shell labels for sidebar/drawer accessibility.",
+      "topbar": {
+        "menu": {
+          "open": "Open menu",
+          "close": "Close menu"
+        }
+      },
+      "sidebar": {
+        "toggleCollapse": "Collapse sidebar",
+        "toggleExpand": "Expand sidebar"
+      },
+      "nav": {
+        "title": "Menu"
+      },
+      "group": {
+        "collapse": "Collapse {groupName}",
+        "expand": "Expand {groupName}"
+      },
+      "breadcrumbs": {
+        "label": "Breadcrumbs"
+      }
+    },
     "help": {
       "subtitle": "MMC pilot admin quick start.",
       "missing": "Quick start content is unavailable. Please contact your internal support team."
+    },
+    "parents": {
+      "error": {
+        "body": "You do not have permission to view parents."
+      }
+    },
+    "parentsList": {
+      "title": "Parents",
+      "helper": "View parent accounts and linked students.",
+      "columns": {
+        "parent": "Parent",
+        "email": "Email",
+        "students": "Linked students",
+        "createdAt": "Created date"
+      },
+      "filters": {
+        "hasStudents": {
+          "label": "Has linked students",
+          "any": "All",
+          "yes": "Yes",
+          "no": "No"
+        }
+      },
+      "empty": {
+        "title": "No parents found",
+        "body": "No parent accounts match the current search or filters."
+      }
     },
     "centers": {
       "title": "Centers",
@@ -93,6 +210,7 @@
       "fields": {
         "name": "Name",
         "status": "Status",
+        "updatedAt": "Updated",
         "actions": "Actions"
       },
       "messages": {
@@ -104,6 +222,20 @@
         "empty": "No subjects yet"
       }
     },
+    "subjectsList": {
+      "title": "Subjects",
+      "helper": "Manage subjects.",
+      "action": {
+        "create": "Create subject"
+      },
+      "empty": {
+        "title": "No subjects",
+        "body": "Create a subject to categorize programs.",
+        "cta": {
+          "create": "Create subject"
+        }
+      }
+    },
     "levels": {
       "title": "Levels",
       "create": "Create Level",
@@ -112,6 +244,7 @@
         "name": "Name",
         "sortOrder": "Sort order",
         "status": "Status",
+        "updatedAt": "Updated",
         "actions": "Actions"
       },
       "messages": {
@@ -123,6 +256,20 @@
         "empty": "No levels yet"
       }
     },
+    "levelsList": {
+      "title": "Levels",
+      "helper": "Manage levels and grades.",
+      "action": {
+        "create": "Create level"
+      },
+      "empty": {
+        "title": "No levels",
+        "body": "Create levels to organize student placement.",
+        "cta": {
+          "create": "Create level"
+        }
+      }
+    },
     "programs": {
       "title": "Programs",
       "create": "Create Program",
@@ -131,6 +278,7 @@
         "name": "Name",
         "subject": "Subject",
         "status": "Status",
+        "updatedAt": "Updated",
         "actions": "Actions"
       },
       "messages": {
@@ -141,6 +289,20 @@
         "forbidden": "You do not have permission to manage programs",
         "empty": "No programs yet",
         "noSubject": "No subject"
+      }
+    },
+    "programsList": {
+      "title": "Programs",
+      "helper": "Manage programs.",
+      "action": {
+        "create": "Create program"
+      },
+      "empty": {
+        "title": "No programs",
+        "body": "Create a program to organize groups and sessions.",
+        "cta": {
+          "create": "Create program"
+        }
       }
     },
     "groups": {
@@ -195,6 +357,31 @@
         "studentsUpdated": "Roster updated",
         "filterStudents": "Filter students by name",
         "notFound": "Group not found"
+      }
+    },
+    "groupsList": {
+      "title": "Groups / Classes",
+      "helper": "Manage groups and view enrollment details.",
+      "empty": {
+        "title": "No groups found",
+        "body": "No groups match the current search or filters.",
+        "cta": {
+          "create": "Create group"
+        }
+      }
+    },
+    "staffList": {
+      "title": "Staff",
+      "helper": "View staff accounts and assignments.",
+      "action": {
+        "create": "Create staff"
+      },
+      "empty": {
+        "title": "No staff found",
+        "body": "No staff accounts match the current search or filters.",
+        "cta": {
+          "create": "Create staff"
+        }
       }
     },
     "sessions": {
@@ -383,6 +570,9 @@
       "_comment": "Admin audit log UI copy (Step 20.8) for security and operational events.",
       "title": "Audit log",
       "helper": "A read-only record of important actions in this tenant.",
+      "search": {
+        "placeholder": "Search audit events\u2026"
+      },
       "filter": {
         "range": {
           "label": "Date range",

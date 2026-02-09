@@ -15,6 +15,8 @@ export type Step204Fixtures = {
   parentA1Email: string;
   studentId: string;
   unlinkedStudentId: string;
+  // Keep Step 20.3 upcoming session IDs available to later fixture layers.
+  upcomingSessionId: string;
   pastSessionId: string;
   unlinkedSessionId: string;
   absenceSessionIds: AbsenceSessionIds;
@@ -38,6 +40,7 @@ export function resolveStep204Fixtures(): Step204Fixtures {
     parentA1Email: base.parentA1Email,
     studentId: base.studentId,
     unlinkedStudentId: base.unlinkedStudentId,
+    upcomingSessionId: base.upcomingSessionId,
     pastSessionId: base.pastSessionId,
     unlinkedSessionId: base.unlinkedSessionId,
     absenceSessionIds: {

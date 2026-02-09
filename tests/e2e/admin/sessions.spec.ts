@@ -17,6 +17,21 @@ type User = {
 type Student = { id: string };
 type StudentCreateResponse = { student?: Student };
 
+function unwrapList<T>(payload: unknown): T[] {
+  // Admin list endpoints may return either a raw array or the Step 21.3 table contract (rows/totalCount/...).
+  // Keep sessions tests resilient across these backend upgrades.
+  if (Array.isArray(payload)) return payload as T[];
+  if (payload && typeof payload === "object") {
+    const maybeRows = (payload as { rows?: unknown }).rows;
+    if (Array.isArray(maybeRows)) return maybeRows as T[];
+    const maybeItems = (payload as { items?: unknown }).items;
+    if (Array.isArray(maybeItems)) return maybeItems as T[];
+    const maybeStudents = (payload as { students?: unknown }).students;
+    if (Array.isArray(maybeStudents)) return maybeStudents as T[];
+  }
+  return [];
+}
+
 function nextWeekRange(timezone: string) {
   const start = DateTime.now()
     .setZone(timezone)
@@ -82,7 +97,8 @@ async function fetchUsers(page: Page, tenant: string) {
     buildTenantApiPath(tenant, "/api/users"),
   );
   expect(response.status()).toBe(200);
-  return (await response.json()) as User[];
+  const payload = (await response.json()) as unknown;
+  return unwrapList<User>(payload);
 }
 
 async function fetchStudents(page: Page, tenant: string) {
@@ -90,8 +106,8 @@ async function fetchStudents(page: Page, tenant: string) {
     buildTenantApiPath(tenant, "/api/students?pageSize=50"),
   );
   expect(response.status()).toBe(200);
-  const payload = (await response.json()) as { students: Student[] };
-  return payload.students;
+  const payload = (await response.json()) as unknown;
+  return unwrapList<Student>(payload);
 }
 
 async function applySessionsListFilters(

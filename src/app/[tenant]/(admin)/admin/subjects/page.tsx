@@ -1,11 +1,10 @@
-// Admin subjects page that relies on shared RBAC gate + shell and delegates UI to a client component.
+// Admin subjects page that uses shared admin table toolkit contracts.
 import { getTranslations } from "next-intl/server";
 
 import type { Role } from "@/generated/prisma/client";
 import SubjectsClient from "@/components/admin/subjects/SubjectsClient";
 import AdminAccessGate from "@/components/admin/shared/AdminAccessGate";
 import AdminPageShell from "@/components/admin/shared/AdminPageShell";
-import { prisma } from "@/lib/db/prisma";
 
 export const runtime = "nodejs";
 
@@ -25,24 +24,16 @@ export default async function SubjectsPage({ params }: PageProps) {
 
   return (
     <AdminAccessGate tenant={tenant} roles={ADMIN_ROLES} maxWidth="max-w-5xl">
-      {async (access) => {
-        const tenantId = access.tenant.tenantId;
-        // Tenant-scoped initial load keeps client render fast and isolated.
-        const subjects = await prisma.subject.findMany({
-          where: { tenantId },
-          orderBy: { name: "asc" },
-        });
-
-        return (
-          <AdminPageShell
-            title={t("admin.subjects.title")}
-            maxWidth="max-w-5xl"
-            testId="subjects-page"
-          >
-            <SubjectsClient initialSubjects={subjects} tenant={tenant} />
-          </AdminPageShell>
-        );
-      }}
+      {() => (
+        <AdminPageShell
+          title={t("admin.subjectsList.title")}
+          subtitle={t("admin.subjectsList.helper")}
+          maxWidth="max-w-5xl"
+          testId="subjects-page"
+        >
+          <SubjectsClient tenant={tenant} />
+        </AdminPageShell>
+      )}
     </AdminAccessGate>
   );
 }

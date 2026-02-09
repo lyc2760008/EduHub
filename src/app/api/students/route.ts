@@ -1,10 +1,21 @@
 import { Prisma, StudentStatus } from "@/generated/prisma/client";
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
-import { parsePagination } from "@/lib/http/pagination";
 import { requireRole } from "@/lib/rbac";
+import {
+  parseAdminTableQuery,
+  runAdminTableQuery,
+} from "@/lib/reports/adminTableQuery";
+import {
+  ReportApiError,
+  normalizeRoleError,
+  toReportErrorResponse,
+} from "@/lib/reports/adminReportErrors";
+import { REPORT_LIMITS } from "@/lib/reports/reportConfigs";
 import { createStudentSchema } from "@/lib/validation/student";
-import { NextRequest, NextResponse } from "next/server";
 import type { Role } from "@/generated/prisma/client";
 
 export const runtime = "nodejs";
@@ -14,7 +25,6 @@ export const dynamic = "force-dynamic";
 const ADMIN_ROLES: Role[] = ["Owner", "Admin"];
 
 type StudentSortField = "name" | "status" | "parentCount" | "createdAt";
-type StudentSortDir = "asc" | "desc";
 
 const STUDENT_SORT_FIELDS: StudentSortField[] = [
   "name",
@@ -23,128 +33,157 @@ const STUDENT_SORT_FIELDS: StudentSortField[] = [
   "createdAt",
 ];
 
-function parseSortDir(value: string | null): StudentSortDir {
-  return value === "desc" ? "desc" : "asc";
-}
+const studentFilterSchema = z
+  .object({
+    status: z.enum(["ACTIVE", "INACTIVE", "ALL"]).optional(),
+    levelId: z.string().trim().min(1).optional(),
+  })
+  .strict();
 
-function parseSortField(value: string | null): StudentSortField {
-  // Keep legacy default ordering for callers that do not send explicit sort params.
-  if (!value) return "createdAt";
-  if (STUDENT_SORT_FIELDS.includes(value as StudentSortField)) {
-    return value as StudentSortField;
-  }
-  return "createdAt";
-}
+type StudentListRow = Prisma.StudentGetPayload<{
+  select: {
+    id: true;
+    firstName: true;
+    lastName: true;
+    preferredName: true;
+    grade: true;
+    level: { select: { id: true; name: true } };
+    status: true;
+    createdAt: true;
+    _count: { select: { parents: true } };
+  };
+}>;
 
 function buildStudentOrderBy(
   field: StudentSortField,
-  dir: StudentSortDir,
+  dir: "asc" | "desc",
 ): Prisma.Enumerable<Prisma.StudentOrderByWithRelationInput> {
   // Sorting must happen in SQL before skip/take so pagination stays stable across pages.
   if (field === "status") {
     return [
       { status: dir },
-      { firstName: "asc" },
       { lastName: "asc" },
+      { firstName: "asc" },
       { id: "asc" },
     ];
   }
   if (field === "parentCount") {
     return [
       { parents: { _count: dir } },
-      { firstName: "asc" },
       { lastName: "asc" },
+      { firstName: "asc" },
       { id: "asc" },
     ];
   }
   if (field === "createdAt") {
     return [
       { createdAt: dir },
-      { firstName: "asc" },
       { lastName: "asc" },
+      { firstName: "asc" },
       { id: "asc" },
     ];
   }
-  return [{ firstName: dir }, { lastName: dir }, { id: dir }];
+  return [{ lastName: dir }, { firstName: dir }, { id: dir }];
 }
 
 export async function GET(req: NextRequest) {
+  // Step 21.3 Admin Table query contract ensures allowlisted search/sort/filter/pagination.
   try {
     const ctx = await requireRole(req, ADMIN_ROLES);
-    if (ctx instanceof Response) return ctx;
+    if (ctx instanceof Response) return await normalizeRoleError(ctx);
     const tenantId = ctx.tenant.tenantId;
 
-    const { page, pageSize, skip, take } = parsePagination(req);
     const url = new URL(req.url);
-    const q = url.searchParams.get("q")?.trim();
-    const statusParam = url.searchParams.get("status") as StudentStatus | null;
-    const gradeParam = url.searchParams.get("grade")?.trim() || undefined;
-    const sortField = parseSortField(url.searchParams.get("sortField"));
-    const sortDir = parseSortDir(url.searchParams.get("sortDir"));
-    const orderBy = buildStudentOrderBy(sortField, sortDir);
+    const parsedQuery = parseAdminTableQuery(url.searchParams, {
+      filterSchema: studentFilterSchema,
+      allowedSortFields: STUDENT_SORT_FIELDS,
+      defaultSort: { field: "name", dir: "asc" },
+      defaultPageSize: REPORT_LIMITS.defaultPageSize,
+    });
 
-    const filters: Prisma.StudentWhereInput[] = [];
-
-    if (q) {
-      filters.push({
-        OR: [
-          { firstName: { contains: q, mode: "insensitive" } },
-          { lastName: { contains: q, mode: "insensitive" } },
-          { preferredName: { contains: q, mode: "insensitive" } },
-          { grade: { contains: q, mode: "insensitive" } },
-        ],
-      });
-    }
-
-    if (statusParam) {
-      filters.push({ status: statusParam });
-    }
-
-    if (gradeParam) {
-      filters.push({ grade: gradeParam });
-    }
-
-    const where: Prisma.StudentWhereInput = {
+    const result = await runAdminTableQuery({
+      filterSchema: studentFilterSchema,
+      allowedSortFields: STUDENT_SORT_FIELDS,
+      defaultSort: { field: "name", dir: "asc" },
+      buildWhere: ({ tenantId: scopedTenantId, search, filters }) => {
+        const andFilters: Prisma.StudentWhereInput[] = [
+          { tenantId: scopedTenantId },
+        ];
+        if (search) {
+          andFilters.push({
+            OR: [
+              { firstName: { contains: search, mode: "insensitive" } },
+              { lastName: { contains: search, mode: "insensitive" } },
+              { preferredName: { contains: search, mode: "insensitive" } },
+              { grade: { contains: search, mode: "insensitive" } },
+            ],
+          });
+        }
+        if (filters.status === "ACTIVE") {
+          andFilters.push({ status: StudentStatus.ACTIVE });
+        }
+        if (filters.status === "INACTIVE") {
+          andFilters.push({
+            status: { in: [StudentStatus.INACTIVE, StudentStatus.ARCHIVED] },
+          });
+        }
+        if (filters.levelId) {
+          andFilters.push({ levelId: filters.levelId });
+        }
+        return andFilters.length === 1 ? andFilters[0] : { AND: andFilters };
+      },
+      buildOrderBy: buildStudentOrderBy,
+      count: (where) => prisma.student.count({ where }),
+      findMany: ({ where, orderBy, skip, take }) =>
+        prisma.student.findMany({
+          where,
+          orderBy:
+            orderBy as Prisma.Enumerable<Prisma.StudentOrderByWithRelationInput>,
+          skip,
+          take,
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            preferredName: true,
+            grade: true,
+            level: { select: { id: true, name: true } },
+            status: true,
+            createdAt: true,
+            _count: { select: { parents: true } },
+          },
+        }),
+      mapRow: (row: StudentListRow) => {
+        const { _count, ...student } = row;
+        return { ...student, parentCount: _count.parents };
+      },
+    }, {
       tenantId,
-      ...(filters.length ? { AND: filters } : {}),
-    };
-
-    const [students, total] = await Promise.all([
-      prisma.student.findMany({
-        where,
-        orderBy,
-        skip,
-        take,
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          preferredName: true,
-          grade: true,
-          level: { select: { id: true, name: true } },
-          status: true,
-          createdAt: true,
-          _count: { select: { parents: true } },
-        },
-      }),
-      prisma.student.count({ where }),
-    ]);
-
-    const payload = students.map(({ _count, ...student }) => ({
-      ...student,
-      parentCount: _count.parents,
-    }));
+      parsedQuery,
+    });
 
     return NextResponse.json(
-      { students: payload, page, pageSize, total },
+      {
+        rows: result.rows,
+        totalCount: result.totalCount,
+        page: result.page,
+        pageSize: result.pageSize,
+        sort: result.sort,
+        appliedFilters: result.appliedFilters,
+        // Legacy keys keep existing admin consumers stable while adopting the new contract.
+        students: result.rows,
+        total: result.totalCount,
+      },
       {
         // Ensure browser and edge caches do not serve stale paginated slices.
         headers: { "Cache-Control": "no-store" },
       },
     );
   } catch (error) {
-    console.error("GET /api/students failed", error);
-    return jsonError(500, "Internal server error");
+    if (!(error instanceof ReportApiError)) {
+      console.error("GET /api/students failed", error);
+    }
+    return toReportErrorResponse(error);
   }
 }
 

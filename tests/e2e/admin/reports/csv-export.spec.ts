@@ -46,6 +46,12 @@ test.describe("Admin Reports CSV Export", () => {
       );
     }
 
+    // The report client applies a default ACTIVE status filter via URL-backed state.
+    // Wait for the URL to reflect that default so the export request can be compared deterministically.
+    await expect.poll(() => parsePageUrl(page).searchParams.get("filters") ?? "").not.toBe(
+      "",
+    );
+
     const listUrlBeforeExport = parsePageUrl(page);
     const [exportRequest, exportResponse] = await Promise.all([
       page.waitForRequest((request) =>

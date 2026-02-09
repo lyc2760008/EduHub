@@ -32,6 +32,13 @@ type SetQueryOptions = {
   usePush?: boolean;
 };
 
+type ResetAllOptions = {
+  search?: string;
+  filters?: Record<string, unknown>;
+  sortField?: string | null;
+  sortDir?: AdminTableSortDir;
+};
+
 function parsePositiveInt(value: string | null, fallback: number) {
   if (!value) return fallback;
   const parsed = Number.parseInt(value, 10);
@@ -95,40 +102,62 @@ export function useAdminTableQueryState(
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  // Stabilize the query-string snapshot so table state does not thrash on re-render.
+  const searchParamsKey = searchParams.toString();
+  // Normalize array options to stable references even when callers pass literals.
+  const allowedPageSizesKey = allowedPageSizes.join("|");
+  const stableAllowedPageSizes = useMemo(
+    () =>
+      allowedPageSizesKey
+        ? allowedPageSizesKey.split("|").map((value) => Number(value))
+        : [],
+    [allowedPageSizesKey],
+  );
+  const allowedFilterKeysKey = allowedFilterKeys
+    ? allowedFilterKeys.join("|")
+    : "";
+  const stableAllowedFilterKeys = useMemo(
+    () =>
+      allowedFilterKeysKey
+        ? allowedFilterKeysKey.split("|")
+        : undefined,
+    [allowedFilterKeysKey],
+  );
 
   const state = useMemo<AdminTableQueryState>(() => {
-    const page = parsePositiveInt(searchParams.get("page"), 1);
+    const params = new URLSearchParams(searchParamsKey);
+    const page = parsePositiveInt(params.get("page"), 1);
     const rawPageSize = parsePositiveInt(
-      searchParams.get("pageSize"),
+      params.get("pageSize"),
       defaultPageSize,
     );
     const sanitizedPageSize = Math.min(rawPageSize, maxPageSize);
-    const pageSize = allowedPageSizes.includes(sanitizedPageSize)
+    const pageSize = stableAllowedPageSizes.includes(sanitizedPageSize)
       ? sanitizedPageSize
       : defaultPageSize;
 
-    const sortFieldRaw = searchParams.get("sortField");
+    const sortFieldRaw = params.get("sortField");
     const sortField = sortFieldRaw?.trim()
       ? sortFieldRaw.trim()
       : defaultSortField;
-    const sortDir = parseSortDir(searchParams.get("sortDir"), defaultSortDir);
+    const sortDir = parseSortDir(params.get("sortDir"), defaultSortDir);
 
     return {
-      search: searchParams.get("search")?.trim() ?? "",
+      search: params.get("search")?.trim() ?? "",
       page,
       pageSize,
       sortField,
       sortDir,
-      filters: parseFilters(searchParams.get("filters"), allowedFilterKeys),
+      filters: parseFilters(params.get("filters"), stableAllowedFilterKeys),
     };
   }, [
-    allowedFilterKeys,
-    allowedPageSizes,
     defaultPageSize,
     defaultSortDir,
     defaultSortField,
     maxPageSize,
-    searchParams,
+    searchParamsKey,
+    stableAllowedFilterKeys,
+    stableAllowedPageSizes,
   ]);
 
   const applyState = useCallback(
@@ -140,7 +169,7 @@ export function useAdminTableQueryState(
         ...state,
         ...patch,
       };
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(searchParamsKey);
       if (next.search.trim()) params.set("search", next.search.trim());
       else params.delete("search");
 
@@ -148,7 +177,7 @@ export function useAdminTableQueryState(
       params.set(
         "pageSize",
         String(
-          allowedPageSizes.includes(next.pageSize)
+          stableAllowedPageSizes.includes(next.pageSize)
             ? next.pageSize
             : defaultPageSize,
         ),
@@ -175,12 +204,12 @@ export function useAdminTableQueryState(
       }
     },
     [
-      allowedPageSizes,
       defaultPageSize,
       pathname,
       router,
-      searchParams,
+      searchParamsKey,
       state,
+      stableAllowedPageSizes,
     ],
   );
 
@@ -209,6 +238,14 @@ export function useAdminTableQueryState(
     [applyState, state.filters],
   );
 
+  const setFilters = useCallback(
+    (filters: Record<string, unknown>) => {
+      // Batch filter updates to avoid multiple URL writes for range presets.
+      applyState({ filters, page: 1 });
+    },
+    [applyState],
+  );
+
   const clearFilters = useCallback(() => {
     applyState({ filters: {}, page: 1 });
   }, [applyState]);
@@ -230,22 +267,38 @@ export function useAdminTableQueryState(
   const setPageSize = useCallback(
     (pageSize: number) => {
       const bounded = Math.min(pageSize, maxPageSize);
-      const normalized = allowedPageSizes.includes(bounded)
+      const normalized = stableAllowedPageSizes.includes(bounded)
         ? bounded
         : defaultPageSize;
       applyState({ pageSize: normalized, page: 1 });
     },
-    [allowedPageSizes, applyState, defaultPageSize, maxPageSize],
+    [applyState, defaultPageSize, maxPageSize, stableAllowedPageSizes],
+  );
+
+  const resetAll = useCallback(
+    (options: ResetAllOptions = {}) => {
+      // Single reset keeps URL state consistent when clearing search/filters/sort together.
+      applyState({
+        search: options.search ?? "",
+        page: 1,
+        sortField: options.sortField ?? defaultSortField,
+        sortDir: options.sortDir ?? defaultSortDir,
+        filters: options.filters ?? {},
+      });
+    },
+    [applyState, defaultSortDir, defaultSortField],
   );
 
   return {
     state,
     setSearch,
     setFilter,
+    setFilters,
     clearFilters,
     setSort,
     setPage,
     setPageSize,
+    resetAll,
   };
 }
 

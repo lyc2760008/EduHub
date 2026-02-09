@@ -1,17 +1,29 @@
-// Client-side programs admin UI with modal create/edit and active toggles.
-// RBAC + tenant scoping are enforced server-side; this client focuses on UX state.
-// fetchJson keeps API error shapes predictable; AdminTable keeps layout consistent.
-// Extend later with filters/search or level filters by reusing refreshPrograms.
+// Client-side programs admin UI with shared table toolkit + create/edit drawers.
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 
-import AdminTable, {
-  type AdminTableColumn,
-} from "@/components/admin/shared/AdminTable";
+import AdminDataTable, {
+  type AdminDataTableColumn,
+} from "@/components/admin/shared/AdminDataTable";
+import AdminFiltersSheet from "@/components/admin/shared/AdminFiltersSheet";
+import AdminFormField from "@/components/admin/shared/AdminFormField";
+import AdminPagination from "@/components/admin/shared/AdminPagination";
+import AdminTableToolbar, {
+  type AdminFilterChip,
+} from "@/components/admin/shared/AdminTableToolbar";
+import {
+  AdminErrorPanel,
+  type AdminEmptyState,
+} from "@/components/admin/shared/AdminTableStatePanels";
 import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
+import { buildAdminTableParams } from "@/lib/admin-table/buildAdminTableParams";
+import {
+  useAdminTableQueryState,
+  useDebouncedValue,
+} from "@/lib/admin-table/useAdminTableQueryState";
 
 type SubjectRecord = {
   id: string;
@@ -23,12 +35,27 @@ type ProgramRecord = {
   id: string;
   name: string;
   subjectId: string | null;
+  levelId: string | null;
   isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type ProgramsResponse = {
+  rows: ProgramRecord[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  sort: { field: string | null; dir: "asc" | "desc" };
+  appliedFilters: Record<string, unknown>;
+};
+
+type SubjectsResponse = {
+  rows: SubjectRecord[];
+  totalCount: number;
 };
 
 type ProgramsClientProps = {
-  initialPrograms: ProgramRecord[];
-  initialSubjects: SubjectRecord[];
   tenant: string;
 };
 
@@ -52,106 +79,172 @@ function toFormState(program: ProgramRecord): ProgramFormState {
   };
 }
 
-export default function ProgramsClient({
-  initialPrograms,
-  initialSubjects,
-  tenant,
-}: ProgramsClientProps) {
+function formatDate(value: string, locale: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(parsed);
+}
+
+export default function ProgramsClient({ tenant }: ProgramsClientProps) {
   const t = useTranslations();
-  const [programs, setPrograms] = useState<ProgramRecord[]>(initialPrograms);
-  const [subjects, setSubjects] = useState<SubjectRecord[]>(initialSubjects);
+  const locale = typeof navigator !== "undefined" ? navigator.language : "en";
+
+  const [programs, setPrograms] = useState<ProgramRecord[]>([]);
+  const [subjects, setSubjects] = useState<SubjectRecord[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [form, setForm] = useState<ProgramFormState>(emptyForm);
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
+  const [hasDefaulted, setHasDefaulted] = useState(false);
 
   const isEditing = Boolean(form.id);
+
+  const { state, setSearch, setFilter, setSort, setPage, setPageSize, resetAll } =
+    useAdminTableQueryState({
+      defaultSortField: "name",
+      defaultSortDir: "asc",
+      defaultPageSize: 25,
+      maxPageSize: 100,
+      allowedPageSizes: [25, 50, 100],
+      allowedFilterKeys: ["isActive"],
+    });
+
+  useEffect(() => {
+    if (hasDefaulted) return;
+    if (typeof state.filters.isActive !== "boolean") {
+      setFilter("isActive", true);
+    }
+    setHasDefaulted(true);
+  }, [hasDefaulted, setFilter, state.filters.isActive]);
+
+  const [searchInput, setSearchInput] = useState(() => state.search);
+  const debouncedSearch = useDebouncedValue(searchInput, 400);
+  useEffect(() => {
+    if (debouncedSearch === state.search) return;
+    setSearch(debouncedSearch);
+  }, [debouncedSearch, setSearch, state.search]);
+
+  const loadPrograms = useCallback(async () => {
+    setIsLoading(true);
+    setListError(null);
+
+    // Step 21.3 Admin Table query contract keeps program list params consistent.
+    const params = buildAdminTableParams(state);
+
+    try {
+      const result = await fetchJson<ProgramsResponse>(
+        buildTenantApiUrl(tenant, `/programs?${params.toString()}`),
+        { cache: "no-store" },
+      );
+
+      if (!result.ok && (result.status === 401 || result.status === 403)) {
+        setListError(t("admin.programs.messages.forbidden"));
+        return false;
+      }
+
+      if (!result.ok && result.status === 0) {
+        console.error("Failed to load programs", result.details);
+        setListError(t("common.error"));
+        return false;
+      }
+
+      if (!result.ok) {
+        setListError(t("admin.programs.messages.loadError"));
+        return false;
+      }
+
+      setPrograms(result.data.rows);
+      setTotalCount(result.data.totalCount);
+      return true;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [state, t, tenant]);
+
+  const loadSubjects = useCallback(async () => {
+    const result = await fetchJson<SubjectsResponse>(
+      buildTenantApiUrl(
+        tenant,
+        `/subjects?${new URLSearchParams({
+          page: "1",
+          pageSize: "100",
+          sortField: "name",
+          sortDir: "asc",
+        }).toString()}`,
+      ),
+    );
+
+    if (!result.ok && (result.status === 401 || result.status === 403)) {
+      setListError(t("admin.programs.messages.forbidden"));
+      return false;
+    }
+
+    if (!result.ok && result.status === 0) {
+      console.error("Failed to load program subjects", result.details);
+      setListError(t("common.error"));
+      return false;
+    }
+
+    if (!result.ok) {
+      setListError(t("admin.programs.messages.loadError"));
+      return false;
+    }
+
+    setSubjects(result.data.rows);
+    return true;
+  }, [t, tenant]);
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      void loadPrograms();
+    }, 0);
+    return () => clearTimeout(handle);
+  }, [loadPrograms, reloadNonce]);
+
+  useEffect(() => {
+    void loadSubjects();
+  }, [loadSubjects]);
 
   const subjectLookup = useMemo(() => {
     return new Map(subjects.map((subject) => [subject.id, subject.name]));
   }, [subjects]);
 
-  const refreshPrograms = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const [programsResult, subjectsResult] = await Promise.all([
-        fetchJson<ProgramRecord[]>(buildTenantApiUrl(tenant, "/programs")),
-        fetchJson<SubjectRecord[]>(buildTenantApiUrl(tenant, "/subjects")),
-      ]);
-
-      if (
-        (!programsResult.ok &&
-          (programsResult.status === 401 || programsResult.status === 403)) ||
-        (!subjectsResult.ok &&
-          (subjectsResult.status === 401 || subjectsResult.status === 403))
-      ) {
-        setError(t("admin.programs.messages.forbidden"));
-        return false;
-      }
-
-      if (
-        (!programsResult.ok && programsResult.status === 0) ||
-        (!subjectsResult.ok && subjectsResult.status === 0)
-      ) {
-        console.error("Failed to load programs", {
-          programs: programsResult,
-          subjects: subjectsResult,
-        });
-        setError(t("common.error"));
-        return false;
-      }
-
-      if (!programsResult.ok || !subjectsResult.ok) {
-        setError(t("admin.programs.messages.loadError"));
-        return false;
-      }
-
-      setPrograms(programsResult.data);
-      setSubjects(subjectsResult.data);
-      return true;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [t, tenant]);
-
-  useEffect(() => {
-    void refreshPrograms();
-  }, [refreshPrograms]);
-
-  function openCreateModal() {
+  const openCreateModal = () => {
     // Reset state for a fresh create flow.
     setForm(emptyForm);
     setIsModalOpen(true);
-    setError(null);
+    setFormError(null);
     setMessage(null);
-  }
+  };
 
-  function openEditModal(program: ProgramRecord) {
+  const openEditModal = useCallback((program: ProgramRecord) => {
     // Populate the form for editing without extra API calls.
     setForm(toFormState(program));
     setIsModalOpen(true);
-    setError(null);
+    setFormError(null);
     setMessage(null);
-  }
+  }, []);
 
-  function closeModal() {
+  const closeModal = () => {
     setIsModalOpen(false);
-    setError(null);
-  }
+    setFormError(null);
+  };
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSaving(true);
-    setError(null);
+    setFormError(null);
     setMessage(null);
 
     const trimmedName = form.name.trim();
     if (!trimmedName) {
-      setError(t("admin.programs.messages.validationError"));
+      setFormError(t("admin.programs.messages.validationError"));
       setIsSaving(false);
       return;
     }
@@ -175,7 +268,7 @@ export default function ProgramsClient({
     });
 
     if (!result.ok && (result.status === 401 || result.status === 403)) {
-      setError(t("admin.programs.messages.forbidden"));
+      setFormError(t("admin.programs.messages.forbidden"));
       setIsSaving(false);
       return;
     }
@@ -183,7 +276,7 @@ export default function ProgramsClient({
     if (!result.ok) {
       const isValidation =
         result.status === 400 && result.error === "ValidationError";
-      setError(
+      setFormError(
         isValidation
           ? t("admin.programs.messages.validationError")
           : t("admin.programs.messages.loadError"),
@@ -192,7 +285,7 @@ export default function ProgramsClient({
       return;
     }
 
-    const refreshed = await refreshPrograms();
+    const refreshed = await loadPrograms();
     setIsSaving(false);
     if (!refreshed) {
       return;
@@ -206,130 +299,240 @@ export default function ProgramsClient({
     );
   }
 
-  async function toggleActive(program: ProgramRecord) {
-    setIsSaving(true);
-    setError(null);
-    setMessage(null);
+  const toggleActive = useCallback(
+    async (program: ProgramRecord) => {
+      setIsSaving(true);
+      setListError(null);
+      setMessage(null);
 
-    const result = await fetchJson<ProgramRecord>(
-      buildTenantApiUrl(tenant, `/programs/${program.id}`),
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: !program.isActive }),
-      },
-    );
+      const result = await fetchJson<ProgramRecord>(
+        buildTenantApiUrl(tenant, `/programs/${program.id}`),
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive: !program.isActive }),
+        },
+      );
 
-    if (!result.ok && (result.status === 401 || result.status === 403)) {
-      setError(t("admin.programs.messages.forbidden"));
+      if (!result.ok && (result.status === 401 || result.status === 403)) {
+        setListError(t("admin.programs.messages.forbidden"));
+        setIsSaving(false);
+        return;
+      }
+
+      if (!result.ok) {
+        setListError(t("admin.programs.messages.loadError"));
+        setIsSaving(false);
+        return;
+      }
+
+      await loadPrograms();
+      setMessage(t("admin.programs.messages.updateSuccess"));
       setIsSaving(false);
-      return;
-    }
-
-    if (!result.ok) {
-      setError(t("admin.programs.messages.loadError"));
-      setIsSaving(false);
-      return;
-    }
-
-    await refreshPrograms();
-    setMessage(t("admin.programs.messages.updateSuccess"));
-    setIsSaving(false);
-  }
-
-  const columns: AdminTableColumn<ProgramRecord>[] = [
-    {
-      header: t("admin.programs.fields.name"),
-      cell: (program) => program.name,
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3 font-medium text-slate-900",
     },
-    {
-      header: t("admin.programs.fields.subject"),
-      cell: (program) =>
-        program.subjectId
-          ? subjectLookup.get(program.subjectId) ??
-            t("admin.programs.messages.noSubject")
-          : t("admin.programs.messages.noSubject"),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3 text-slate-700",
-    },
-    {
-      header: t("admin.programs.fields.status"),
-      cell: (program) =>
-        program.isActive
+    [loadPrograms, t, tenant],
+  );
+
+  const filterChips = useMemo<AdminFilterChip[]>(() => {
+    const chips: AdminFilterChip[] = [];
+    if (typeof state.filters.isActive === "boolean") {
+      chips.push({
+        key: "isActive",
+        label: t("admin.programs.fields.status"),
+        value: state.filters.isActive
           ? t("common.status.active")
           : t("common.status.inactive"),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3 text-slate-700",
-    },
-    {
-      header: t("admin.programs.fields.actions"),
-      cell: (program) => (
-        <div className="flex flex-wrap gap-2">
-          <button
-            className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
-            disabled={isSaving}
-            onClick={() => openEditModal(program)}
-            type="button"
-          >
-            {t("admin.programs.edit")}
-          </button>
-          <button
-            className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
-            disabled={isSaving}
-            onClick={() => toggleActive(program)}
-            type="button"
-          >
-            {program.isActive
-              ? t("common.actions.deactivate")
-              : t("common.actions.activate")}
-          </button>
-        </div>
-      ),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3",
-    },
-  ];
+        onRemove: () => setFilter("isActive", null),
+      });
+    }
+    if (state.search.trim()) {
+      chips.unshift({
+        key: "search",
+        label: t("admin.table.search.label"),
+        value: state.search.trim(),
+        onRemove: () => setSearch(""),
+      });
+    }
+    return chips;
+  }, [setFilter, setSearch, state.filters.isActive, state.search, t]);
 
-  const loadingState = t("common.loading");
-  const emptyState = t("admin.programs.messages.empty");
+  const clearAll = () => {
+    setSearchInput("");
+    resetAll({ sortField: "name", sortDir: "asc" });
+  };
+
+  const columns: AdminDataTableColumn<ProgramRecord>[] = useMemo(
+    () => [
+      {
+        key: "name",
+        label: t("admin.programs.fields.name"),
+        sortable: true,
+        sortField: "name",
+        renderCell: (program) => (
+          <span className="font-medium text-slate-900">{program.name}</span>
+        ),
+      },
+      {
+        key: "subjectId",
+        label: t("admin.programs.fields.subject"),
+        renderCell: (program) =>
+          program.subjectId
+            ? subjectLookup.get(program.subjectId) ??
+              t("admin.programs.messages.noSubject")
+            : t("admin.programs.messages.noSubject"),
+      },
+      {
+        key: "status",
+        label: t("admin.programs.fields.status"),
+        renderCell: (program) =>
+          program.isActive
+            ? t("common.status.active")
+            : t("common.status.inactive"),
+      },
+      {
+        key: "updatedAt",
+        label: t("admin.programs.fields.updatedAt"),
+        renderCell: (program) => formatDate(program.updatedAt, locale),
+      },
+      {
+        key: "actions",
+        label: t("admin.programs.fields.actions"),
+        renderCell: (program) => (
+          <div className="flex flex-wrap gap-2">
+            <button
+              className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
+              disabled={isSaving}
+              onClick={() => openEditModal(program)}
+              type="button"
+            >
+              {t("admin.programs.edit")}
+            </button>
+            <button
+              className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
+              disabled={isSaving}
+              onClick={() => toggleActive(program)}
+              type="button"
+            >
+              {program.isActive
+                ? t("common.actions.deactivate")
+                : t("common.actions.activate")}
+            </button>
+          </div>
+        ),
+      },
+    ],
+    [isSaving, locale, openEditModal, subjectLookup, t, toggleActive],
+  );
+
+  const emptyState: AdminEmptyState = useMemo(
+    () => ({
+      title: t("admin.programsList.empty.title"),
+      body: t("admin.programsList.empty.body"),
+    }),
+    [t],
+  );
+
+  const rightSlot = (
+    <button
+      className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+      data-testid="create-program-button"
+      onClick={openCreateModal}
+      type="button"
+    >
+      {t("admin.programsList.action.create")}
+    </button>
+  );
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <button
-          className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-          data-testid="create-program-button"
-          onClick={openCreateModal}
-          type="button"
-        >
-          {t("admin.programs.create")}
-        </button>
-      </div>
+      <AdminTableToolbar
+        searchId="programs-list-search"
+        searchValue={searchInput}
+        onSearchChange={setSearchInput}
+        onOpenFilters={() => setIsFilterSheetOpen(true)}
+        filterChips={filterChips}
+        onClearAllFilters={clearAll}
+        rightSlot={rightSlot}
+      />
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {listError ? (
+        <AdminErrorPanel onRetry={() => setReloadNonce((value) => value + 1)} />
+      ) : null}
       {message ? <p className="text-sm text-green-600">{message}</p> : null}
-      {isLoading ? (
-        <p className="text-sm text-slate-600">{t("common.loading")}</p>
+
+      {!listError ? (
+        <>
+          <AdminDataTable<ProgramRecord>
+            columns={columns}
+            rows={programs}
+            rowKey={(program) => `program-row-${program.id}`}
+            isLoading={isLoading}
+            emptyState={emptyState}
+            sortField={state.sortField}
+            sortDir={state.sortDir}
+            onSortChange={(field, dir) => setSort(field, dir ?? "asc")}
+            onRowClick={openEditModal}
+            testId="programs-table"
+          />
+          <AdminPagination
+            page={state.page}
+            pageSize={state.pageSize}
+            totalCount={totalCount}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        </>
       ) : null}
 
-      <AdminTable
-        rows={programs}
-        columns={columns}
-        rowKey={(program) => `program-row-${program.id}`}
-        testId="programs-table"
-        isLoading={isLoading}
-        loadingState={loadingState}
-        emptyState={emptyState}
-      />
+      <AdminFiltersSheet
+        isOpen={isFilterSheetOpen}
+        onClose={() => setIsFilterSheetOpen(false)}
+        onReset={clearAll}
+      >
+        <AdminFormField
+          label={t("admin.programs.fields.status")}
+          htmlFor="programs-filter-status"
+        >
+          <select
+            id="programs-filter-status"
+            className="rounded border border-slate-300 px-3 py-2"
+            value={
+              typeof state.filters.isActive === "boolean"
+                ? state.filters.isActive
+                  ? "ACTIVE"
+                  : "INACTIVE"
+                : "ALL"
+            }
+            onChange={(event) => {
+              const value = event.target.value;
+              if (value === "ACTIVE") {
+                setFilter("isActive", true);
+              } else if (value === "INACTIVE") {
+                setFilter("isActive", false);
+              } else {
+                setFilter("isActive", null);
+              }
+            }}
+          >
+            <option value="ALL">{t("admin.reports.statusFilter.all")}</option>
+            <option value="ACTIVE">
+              {t("admin.reports.statusFilter.active")}
+            </option>
+            <option value="INACTIVE">
+              {t("admin.reports.statusFilter.inactive")}
+            </option>
+          </select>
+        </AdminFormField>
+      </AdminFiltersSheet>
 
       {isModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
           <div className="w-full max-w-lg rounded border border-slate-200 bg-white p-6 shadow-xl">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-semibold">
-                {isEditing ? t("admin.programs.edit") : t("admin.programs.create")}
+                {isEditing
+                  ? t("admin.programs.edit")
+                  : t("admin.programs.create")}
               </h2>
               <button
                 className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
@@ -342,7 +545,9 @@ export default function ProgramsClient({
             </div>
             <form className="mt-4 grid gap-4" noValidate onSubmit={handleSubmit}>
               <label className="flex flex-col gap-2 text-sm">
-                <span className="text-slate-700">{t("admin.programs.fields.name")}</span>
+                <span className="text-slate-700">
+                  {t("admin.programs.fields.name")}
+                </span>
                 <input
                   className="rounded border border-slate-300 px-3 py-2"
                   data-testid="program-name-input"
@@ -353,7 +558,9 @@ export default function ProgramsClient({
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm">
-                <span className="text-slate-700">{t("admin.programs.fields.subject")}</span>
+                <span className="text-slate-700">
+                  {t("admin.programs.fields.subject")}
+                </span>
                 <select
                   className="rounded border border-slate-300 px-3 py-2"
                   data-testid="program-subject-select"
@@ -391,7 +598,7 @@ export default function ProgramsClient({
                   {t("common.actions.cancel")}
                 </button>
               </div>
-              {error ? <p className="text-sm text-red-600">{error}</p> : null}
+              {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
             </form>
           </div>
         </div>

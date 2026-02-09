@@ -71,15 +71,19 @@ test.describe("[regression] Users - CRUD", () => {
     await saveButton.click();
     await expect(page.getByTestId("save-user-button")).toHaveCount(0);
     await expect(page.getByTestId("users-table")).toBeVisible();
+    await page.getByTestId("users-list-search-input").fill(userEmail);
     await expect(page.getByTestId("users-table").getByText(userEmail)).toBeVisible();
 
-    const editButton = page.locator(
-      `[data-testid="edit-user-button"][data-user-email="${userEmail}"]`,
-    );
+    const editButton = page
+      .getByTestId("users-table-container")
+      .locator(
+        `[data-testid="edit-user-button"][data-user-email="${userEmail}"]`,
+      )
+      .first();
     await editButton.click();
     await expect(page.getByTestId("user-roles-select")).toBeVisible();
 
-    await page.getByTestId("user-roles-select").selectOption("Parent");
+    await page.getByTestId("user-roles-select").selectOption("Admin");
 
     const editCenters = page
       .getByTestId("user-centers-select")
@@ -97,7 +101,7 @@ test.describe("[regression] Users - CRUD", () => {
 
     // Re-open edit to assert the updated selections persisted.
     await editButton.click();
-    await expect(page.getByTestId("user-roles-select")).toHaveValue("Parent");
+    await expect(page.getByTestId("user-roles-select")).toHaveValue("Admin");
     await expect(editCenters.nth(0)).toBeChecked();
 
     if (centerCount > 1) {

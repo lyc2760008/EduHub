@@ -1,14 +1,19 @@
-// Admin audit log endpoint with tenant scoping, RBAC, and optional filters.
+// Admin audit log endpoint implements the Step 21.3 admin table query contract.
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
-import {
-  AUDIT_ACTIONS,
-  AUDIT_AUTH_ACTIONS,
-  AUDIT_ENTITY_TYPES,
-} from "@/lib/audit/constants";
 import { prisma } from "@/lib/db/prisma";
-import { jsonError } from "@/lib/http/response";
 import { requireRole } from "@/lib/rbac";
+import {
+  parseAdminTableQuery,
+  runAdminTableQuery,
+} from "@/lib/reports/adminTableQuery";
+import {
+  ReportApiError,
+  normalizeRoleError,
+  toReportErrorResponse,
+} from "@/lib/reports/adminReportErrors";
+import { REPORT_LIMITS } from "@/lib/reports/reportConfigs";
 import {
   AuditActorType,
   type Prisma,
@@ -19,242 +24,216 @@ export const runtime = "nodejs";
 
 const ADMIN_ROLES: Role[] = ["Owner", "Admin"];
 
-type ErrorCode =
-  | "ValidationError"
-  | "Unauthorized"
-  | "Forbidden"
-  | "NotFound"
-  | "Conflict"
-  | "InternalError";
+const AUDIT_SORT_FIELDS = [
+  "occurredAt",
+  "action",
+  "actorType",
+  "entityType",
+] as const;
+type AuditSortField = (typeof AUDIT_SORT_FIELDS)[number];
 
-type AuditCategory = "auth" | "requests" | "attendance" | "admin";
+const dateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional();
 
-const CATEGORY_MAP: Record<
-  AuditCategory,
-  { actions?: string[]; entityType?: string }
-> = {
-  // "auth" focuses on parent auth + access code rotation activity.
-  auth: { actions: [...AUDIT_AUTH_ACTIONS] },
-  // "requests" maps to absence request entities.
-  requests: { entityType: AUDIT_ENTITY_TYPES.REQUEST },
-  // "attendance" maps to parent-visible attendance note updates.
-  attendance: { entityType: AUDIT_ENTITY_TYPES.ATTENDANCE },
-  // "admin" is reserved for staff-driven actions outside auth/requests/attendance.
-  // Include invite-related onboarding actions so admins can filter copy/link events.
-  admin: {
-    actions: [
-      AUDIT_ACTIONS.PARENT_ACCESS_CODE_RESET,
-      AUDIT_ACTIONS.PARENT_INVITE_COPIED,
-      AUDIT_ACTIONS.PARENT_LINKED_TO_STUDENT,
-    ],
-  },
-};
+const auditActorTypeSchema = z.enum([
+  "PARENT",
+  "USER",
+  "SYSTEM",
+  "ADMIN",
+  "TUTOR",
+]);
 
-function buildErrorResponse(
-  status: number,
-  code: ErrorCode,
-  message: string,
-  details: Record<string, unknown> = {},
-) {
-  // Standardized error shape for admin audit endpoints.
-  return jsonError(status, message, { error: { code, message, details } });
+const auditCategorySchema = z.enum([
+  "auth",
+  "requests",
+  "attendance",
+  "admin",
+]);
+
+const auditFilterSchema = z
+  .object({
+    actorType: auditActorTypeSchema.optional(),
+    category: auditCategorySchema.optional(),
+    action: z.string().trim().min(1).optional(),
+    entityType: z.string().trim().min(1).optional(),
+    from: dateOnlySchema,
+    to: dateOnlySchema,
+  })
+  .strict();
+
+const AUDIT_LIST_SELECT = {
+  id: true,
+  occurredAt: true,
+  actorType: true,
+  actorDisplay: true,
+  action: true,
+  entityType: true,
+  entityId: true,
+  metadata: true,
+  ip: true,
+  userAgent: true,
+} as const;
+
+type AuditListRow = Prisma.AuditEventGetPayload<{
+  select: typeof AUDIT_LIST_SELECT;
+}>;
+
+function parseDateStart(value?: string) {
+  if (!value) return undefined;
+  const [year, month, day] = value.split("-").map((part) => Number(part));
+  return new Date(Date.UTC(year, month - 1, day));
 }
 
-async function normalizeAuthResponse(response: Response) {
-  // Convert auth/tenant errors into the standard error response shape.
-  const status = response.status;
-  const code: ErrorCode =
-    status === 401
-      ? "Unauthorized"
-      : status === 403
-        ? "Forbidden"
-        : status === 404
-          ? "NotFound"
-          : "ValidationError";
-  const fallbackMessage =
-    status === 401
-      ? "Unauthorized"
-      : status === 403
-        ? "Forbidden"
-        : status === 404
-          ? "NotFound"
-          : "ValidationError";
-  let message = fallbackMessage;
-  let details: Record<string, unknown> = {};
+function parseDateEndExclusive(value?: string) {
+  const start = parseDateStart(value);
+  if (!start) return undefined;
+  return new Date(start.getTime() + 24 * 60 * 60 * 1000);
+}
 
-  try {
-    const payload = (await response.clone().json()) as {
-      error?: unknown;
-      message?: unknown;
-      details?: unknown;
-    };
-    if (typeof payload?.error === "string") {
-      message = payload.error;
-    } else if (typeof payload?.message === "string") {
-      message = payload.message;
-    }
-    if (payload?.details) {
-      details =
-        typeof payload.details === "string"
-          ? { message: payload.details }
-          : (payload.details as Record<string, unknown>);
-    }
-  } catch {
-    // Fall back to default message when response bodies are not JSON.
+function buildAuditOrderBy(
+  field: AuditSortField,
+  dir: "asc" | "desc",
+): Prisma.Enumerable<Prisma.AuditEventOrderByWithRelationInput> {
+  // Stable ordering keeps pagination deterministic across pages.
+  if (field === "action") {
+    return [{ action: dir }, { occurredAt: "desc" }, { id: "asc" }];
   }
-
-  return buildErrorResponse(status, code, message, details);
-}
-
-function parseDateParam(
-  value: string | null,
-  field: "from" | "to",
-): Date | null | Response {
-  if (!value || !value.trim()) return null;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return buildErrorResponse(400, "ValidationError", "Invalid date filter", {
-      field,
-    });
+  if (field === "actorType") {
+    return [{ actorType: dir }, { occurredAt: "desc" }, { id: "asc" }];
   }
-  return parsed;
-}
-
-function parseActorType(value: string | null) {
-  if (!value || !value.trim()) return null;
-  const trimmed = value.trim();
-  if (
-    Object.values(AuditActorType).includes(trimmed as AuditActorType)
-  ) {
-    return trimmed as AuditActorType;
+  if (field === "entityType") {
+    return [{ entityType: dir }, { occurredAt: "desc" }, { id: "asc" }];
   }
-  return buildErrorResponse(400, "ValidationError", "Invalid actorType", {
-    field: "actorType",
-  });
-}
-
-function parseCategory(value: string | null) {
-  if (!value || !value.trim()) return null;
-  const trimmed = value.trim().toLowerCase();
-  if (Object.keys(CATEGORY_MAP).includes(trimmed)) {
-    return trimmed as AuditCategory;
-  }
-  return buildErrorResponse(400, "ValidationError", "Invalid category", {
-    field: "category",
-  });
-}
-
-function parsePagination(url: URL) {
-  const takeParam = Number(url.searchParams.get("take"));
-  const skipParam = Number(url.searchParams.get("skip"));
-
-  const takeRaw =
-    Number.isFinite(takeParam) && takeParam > 0 ? Math.floor(takeParam) : 50;
-  const take = Math.min(takeRaw, 200);
-  const skip =
-    Number.isFinite(skipParam) && skipParam >= 0 ? Math.floor(skipParam) : 0;
-
-  return { take, skip };
+  return [{ occurredAt: dir }, { id: "asc" }];
 }
 
 export async function GET(req: NextRequest) {
+  // Step 21.3 Admin Table query contract keeps audit log queries consistent.
   try {
     // RBAC guard runs first to avoid leaking tenant data to unauthorized users.
     const ctx = await requireRole(req, ADMIN_ROLES);
-    if (ctx instanceof Response) return await normalizeAuthResponse(ctx);
+    if (ctx instanceof Response) return await normalizeRoleError(ctx);
     const tenantId = ctx.tenant.tenantId;
 
     const url = new URL(req.url);
-    const { take, skip } = parsePagination(url);
+    const parsedQuery = parseAdminTableQuery(url.searchParams, {
+      filterSchema: auditFilterSchema,
+      allowedSortFields: AUDIT_SORT_FIELDS,
+      defaultSort: { field: "occurredAt", dir: "desc" },
+      defaultPageSize: REPORT_LIMITS.defaultPageSize,
+    });
 
-    const from = parseDateParam(url.searchParams.get("from"), "from");
-    if (from instanceof Response) return from;
-    const to = parseDateParam(url.searchParams.get("to"), "to");
-    if (to instanceof Response) return to;
-
-    if (from && to && from > to) {
-      return buildErrorResponse(400, "ValidationError", "Invalid date range", {
-        from: from.toISOString(),
-        to: to.toISOString(),
-      });
-    }
-
-    const actorType = parseActorType(url.searchParams.get("actorType"));
-    if (actorType instanceof Response) return actorType;
-
-    const category = parseCategory(url.searchParams.get("category"));
-    if (category instanceof Response) return category;
-
-    const actionParam = url.searchParams.get("action")?.trim();
-    const entityTypeParam = url.searchParams.get("entityType")?.trim();
-    const entityId = url.searchParams.get("entityId")?.trim();
-
-    const andFilters: Prisma.AuditEventWhereInput[] = [];
-    if (actionParam) {
-      andFilters.push({ action: actionParam });
-    }
-    if (entityTypeParam) {
-      andFilters.push({ entityType: entityTypeParam });
-    }
-    if (entityId) {
-      andFilters.push({ entityId });
-    }
-
-    if (category) {
-      const mapped = CATEGORY_MAP[category];
-      if (mapped.actions) {
-        andFilters.push({ action: { in: mapped.actions } });
-      }
-      if (mapped.entityType) {
-        andFilters.push({ entityType: mapped.entityType });
-      }
-    }
-
-    const where: Prisma.AuditEventWhereInput = {
-      tenantId,
-      ...(actorType ? { actorType } : {}),
-      ...(from || to
-        ? {
-            occurredAt: {
-              ...(from ? { gte: from } : {}),
-              ...(to ? { lte: to } : {}),
-            },
+    const result = await runAdminTableQuery(
+      {
+        filterSchema: auditFilterSchema,
+        allowedSortFields: AUDIT_SORT_FIELDS,
+        defaultSort: { field: "occurredAt", dir: "desc" },
+        buildWhere: ({ tenantId: scopedTenantId, search, filters }) => {
+          const andFilters: Prisma.AuditEventWhereInput[] = [
+            { tenantId: scopedTenantId },
+          ];
+          if (search) {
+            andFilters.push({
+              OR: [
+                { action: { contains: search, mode: "insensitive" } },
+                { entityId: { contains: search, mode: "insensitive" } },
+                { actorDisplay: { contains: search, mode: "insensitive" } },
+              ],
+            });
           }
-        : {}),
-      ...(andFilters.length ? { AND: andFilters } : {}),
-    };
-
-    const [items, total] = await Promise.all([
-      prisma.auditEvent.findMany({
-        where,
-        orderBy: { occurredAt: "desc" },
-        skip,
-        take,
-        select: {
-          id: true,
-          occurredAt: true,
-          actorType: true,
-          actorDisplay: true,
-          action: true,
-          entityType: true,
-          entityId: true,
-          metadata: true,
-          ip: true,
-          userAgent: true,
+          if (filters.actorType) {
+            const actorType =
+              filters.actorType === "ADMIN" ||
+              filters.actorType === "TUTOR" ||
+              filters.actorType === "USER"
+                ? AuditActorType.USER
+                : filters.actorType === "SYSTEM"
+                  ? AuditActorType.SYSTEM
+                  : AuditActorType.PARENT;
+            andFilters.push({ actorType });
+          }
+          if (filters.category) {
+            if (filters.category === "auth") {
+              andFilters.push({
+                OR: [
+                  { action: { startsWith: "PARENT_LOGIN" } },
+                  { action: { contains: "ACCESS_CODE" } },
+                ],
+              });
+            } else if (filters.category === "requests") {
+              andFilters.push({ action: { startsWith: "ABSENCE_REQUEST" } });
+            } else if (filters.category === "attendance") {
+              andFilters.push({ action: { startsWith: "ATTENDANCE" } });
+            } else if (filters.category === "admin") {
+              andFilters.push({
+                NOT: [
+                  { action: { startsWith: "PARENT_LOGIN" } },
+                  { action: { contains: "ACCESS_CODE" } },
+                  { action: { startsWith: "ABSENCE_REQUEST" } },
+                  { action: { startsWith: "ATTENDANCE" } },
+                ],
+              });
+            }
+          }
+          if (filters.action) {
+            andFilters.push({ action: filters.action });
+          }
+          if (filters.entityType) {
+            andFilters.push({ entityType: filters.entityType });
+          }
+          const start = parseDateStart(filters.from);
+          const endExclusive = parseDateEndExclusive(filters.to);
+          if (start || endExclusive) {
+            andFilters.push({
+              occurredAt: {
+                ...(start ? { gte: start } : {}),
+                ...(endExclusive ? { lt: endExclusive } : {}),
+              },
+            });
+          }
+          return andFilters.length === 1 ? andFilters[0] : { AND: andFilters };
         },
-      }),
-      prisma.auditEvent.count({ where }),
-    ]);
+        buildOrderBy: buildAuditOrderBy,
+        count: (where) => prisma.auditEvent.count({ where }),
+        findMany: ({ where, orderBy, skip, take }) =>
+          prisma.auditEvent.findMany({
+            where,
+            orderBy:
+              orderBy as Prisma.Enumerable<Prisma.AuditEventOrderByWithRelationInput>,
+            skip,
+            take,
+            select: AUDIT_LIST_SELECT,
+          }),
+        mapRow: (row: AuditListRow) => ({
+          id: row.id,
+          occurredAt: row.occurredAt.toISOString(),
+          actorType: row.actorType,
+          actorDisplay: row.actorDisplay,
+          action: row.action,
+          entityType: row.entityType,
+          entityId: row.entityId,
+          metadata: row.metadata as Record<string, unknown> | null,
+          ip: row.ip,
+          userAgent: row.userAgent,
+        }),
+      },
+      {
+        tenantId,
+        parsedQuery,
+      },
+    );
 
     return NextResponse.json({
-      items: items.map((item) => ({
-        ...item,
-        occurredAt: item.occurredAt.toISOString(),
-      })),
-      page: { take, skip, total },
+      rows: result.rows,
+      totalCount: result.totalCount,
+      page: result.page,
+      pageSize: result.pageSize,
+      sort: result.sort,
+      appliedFilters: result.appliedFilters,
     });
   } catch (error) {
-    console.error("GET /api/admin/audit failed", error);
-    return buildErrorResponse(500, "InternalError", "Internal server error");
+    if (!(error instanceof ReportApiError)) {
+      console.error("GET /api/admin/audit failed", error);
+    }
+    return toReportErrorResponse(error);
   }
 }

@@ -1,17 +1,33 @@
 // Client-side groups admin UI with modal create/edit and active toggles.
 // RBAC + tenant scoping are enforced server-side; this client focuses on UX state.
-// fetchJson keeps API error shapes predictable; AdminTable keeps layout consistent.
+// fetchJson keeps API error shapes predictable; AdminDataTable keeps layout consistent.
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-import AdminTable, {
-  type AdminTableColumn,
-} from "@/components/admin/shared/AdminTable";
+import AdminDataTable, {
+  type AdminDataTableColumn,
+} from "@/components/admin/shared/AdminDataTable";
+import AdminFiltersSheet from "@/components/admin/shared/AdminFiltersSheet";
+import AdminFormField from "@/components/admin/shared/AdminFormField";
+import AdminPagination from "@/components/admin/shared/AdminPagination";
+import AdminTableToolbar, {
+  type AdminFilterChip,
+} from "@/components/admin/shared/AdminTableToolbar";
+import {
+  AdminErrorPanel,
+  type AdminEmptyState,
+} from "@/components/admin/shared/AdminTableStatePanels";
 import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
+import { buildAdminTableParams } from "@/lib/admin-table/buildAdminTableParams";
+import {
+  useAdminTableQueryState,
+  useDebouncedValue,
+} from "@/lib/admin-table/useAdminTableQueryState";
 
 type GroupTypeValue = "GROUP" | "CLASS";
 
@@ -32,6 +48,15 @@ type GroupListItem = {
   studentsCount: number;
 };
 
+type GroupsResponse = {
+  rows: GroupListItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  sort: { field: string | null; dir: "asc" | "desc" };
+  appliedFilters: Record<string, unknown>;
+};
+
 type CenterOption = {
   id: string;
   name: string;
@@ -50,8 +75,28 @@ type LevelOption = {
   isActive: boolean;
 };
 
+type ProgramOptionsResponse = {
+  rows: ProgramOption[];
+  totalCount: number;
+};
+
+type LevelOptionsResponse = {
+  rows: LevelOption[];
+  totalCount: number;
+};
+
+type TutorOption = {
+  id: string;
+  name: string | null;
+  email: string;
+};
+
+type TutorsResponse = {
+  rows: TutorOption[];
+  totalCount: number;
+};
+
 type GroupsClientProps = {
-  initialGroups: GroupListItem[];
   centers: CenterOption[];
   programs: ProgramOption[];
   levels: LevelOption[];
@@ -96,23 +141,28 @@ function toFormState(group: GroupListItem): GroupFormState {
 }
 
 export default function GroupsClient({
-  initialGroups,
   centers: initialCenters,
   programs: initialPrograms,
   levels: initialLevels,
   tenant,
 }: GroupsClientProps) {
   const t = useTranslations();
-  const [groups, setGroups] = useState<GroupListItem[]>(initialGroups);
+  const router = useRouter();
+  const [groups, setGroups] = useState<GroupListItem[]>([]);
   const [centers, setCenters] = useState<CenterOption[]>(initialCenters);
   const [programs, setPrograms] = useState<ProgramOption[]>(initialPrograms);
   const [levels, setLevels] = useState<LevelOption[]>(initialLevels);
+  const [tutors, setTutors] = useState<TutorOption[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [form, setForm] = useState<GroupFormState>(emptyForm);
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   const isEditing = Boolean(form.id);
 
@@ -121,104 +171,191 @@ export default function GroupsClient({
       GROUP: t("admin.groups.types.group"),
       CLASS: t("admin.groups.types.class"),
     };
-  }, [t, tenant]);
+  }, [t]);
+
+  const { state, setSearch, setFilter, setSort, setPage, setPageSize, resetAll } =
+    useAdminTableQueryState({
+      defaultSortField: "name",
+      defaultSortDir: "asc",
+      defaultPageSize: 25,
+      maxPageSize: 100,
+      allowedPageSizes: [25, 50, 100],
+      allowedFilterKeys: ["isActive", "programId", "levelId", "tutorId"],
+    });
+
+  const [searchInput, setSearchInput] = useState(() => state.search);
+  const debouncedSearch = useDebouncedValue(searchInput, 400);
+  useEffect(() => {
+    if (debouncedSearch === state.search) return;
+    setSearch(debouncedSearch);
+  }, [debouncedSearch, setSearch, state.search]);
 
   const refreshGroups = useCallback(async () => {
     setIsLoading(true);
-    setError(null);
+    setListError(null);
+
+    // Step 21.3 Admin Table query contract keeps group list params consistent.
+    const params = buildAdminTableParams(state);
 
     try {
-      const [groupsResult, centersResult, programsResult, levelsResult] =
-        await Promise.all([
-          fetchJson<{ groups: GroupListItem[] }>(
-            buildTenantApiUrl(tenant, "/groups"),
-          ),
-          fetchJson<CenterOption[]>(
-            buildTenantApiUrl(tenant, "/centers?includeInactive=true"),
-          ),
-          fetchJson<ProgramOption[]>(
-            buildTenantApiUrl(tenant, "/programs"),
-          ),
-          fetchJson<LevelOption[]>(buildTenantApiUrl(tenant, "/levels")),
-        ]);
+      const groupsResult = await fetchJson<GroupsResponse>(
+        buildTenantApiUrl(tenant, `/groups?${params.toString()}`),
+        { cache: "no-store" },
+      );
 
       if (
-        (!groupsResult.ok &&
-          (groupsResult.status === 401 || groupsResult.status === 403)) ||
-        (!centersResult.ok &&
-          (centersResult.status === 401 || centersResult.status === 403)) ||
-        (!programsResult.ok &&
-          (programsResult.status === 401 || programsResult.status === 403)) ||
-        (!levelsResult.ok &&
-          (levelsResult.status === 401 || levelsResult.status === 403))
+        !groupsResult.ok &&
+        (groupsResult.status === 401 || groupsResult.status === 403)
       ) {
-        setError(t("admin.groups.messages.forbidden"));
+        setListError(t("admin.groups.messages.forbidden"));
         return false;
       }
 
-      if (
-        (!groupsResult.ok && groupsResult.status === 0) ||
-        (!centersResult.ok && centersResult.status === 0) ||
-        (!programsResult.ok && programsResult.status === 0) ||
-        (!levelsResult.ok && levelsResult.status === 0)
-      ) {
-        console.error("Failed to load group data", {
-          groups: groupsResult,
-          centers: centersResult,
-          programs: programsResult,
-          levels: levelsResult,
-        });
-        setError(t("common.error"));
+      if (!groupsResult.ok && groupsResult.status === 0) {
+        console.error("Failed to load groups", groupsResult.details);
+        setListError(t("common.error"));
         return false;
       }
 
-      if (
-        !groupsResult.ok ||
-        !centersResult.ok ||
-        !programsResult.ok ||
-        !levelsResult.ok
-      ) {
-        setError(t("admin.groups.messages.loadError"));
+      if (!groupsResult.ok) {
+        setListError(t("admin.groups.messages.loadError"));
         return false;
       }
 
-      setGroups(groupsResult.data.groups);
-      setCenters(centersResult.data);
-      setPrograms(programsResult.data);
-      setLevels(levelsResult.data);
+      setGroups(groupsResult.data.rows);
+      setTotalCount(groupsResult.data.totalCount);
       return true;
     } finally {
       setIsLoading(false);
     }
-  }, [t]);
+  }, [state, t, tenant]);
+
+  const loadOptions = useCallback(async () => {
+    const [centersResult, programsResult, levelsResult, tutorsResult] =
+      await Promise.all([
+      fetchJson<CenterOption[]>(
+        buildTenantApiUrl(tenant, "/centers?includeInactive=true"),
+      ),
+      fetchJson<ProgramOptionsResponse>(
+        buildTenantApiUrl(
+          tenant,
+          `/programs?${new URLSearchParams({
+            page: "1",
+            pageSize: "100",
+            sortField: "name",
+            sortDir: "asc",
+          }).toString()}`,
+        ),
+      ),
+      fetchJson<LevelOptionsResponse>(
+        buildTenantApiUrl(
+          tenant,
+          `/levels?${new URLSearchParams({
+            page: "1",
+            pageSize: "100",
+            sortField: "name",
+            sortDir: "asc",
+          }).toString()}`,
+        ),
+      ),
+      fetchJson<TutorsResponse>(
+        buildTenantApiUrl(
+          tenant,
+          `/users?${new URLSearchParams({
+            page: "1",
+            pageSize: "100",
+            sortField: "name",
+            sortDir: "asc",
+            filters: JSON.stringify({ role: "Tutor" }),
+          }).toString()}`,
+        ),
+      ),
+    ]);
+
+    if (
+      (!centersResult.ok &&
+        (centersResult.status === 401 || centersResult.status === 403)) ||
+      (!programsResult.ok &&
+        (programsResult.status === 401 || programsResult.status === 403)) ||
+      (!levelsResult.ok &&
+        (levelsResult.status === 401 || levelsResult.status === 403)) ||
+      (!tutorsResult.ok &&
+        (tutorsResult.status === 401 || tutorsResult.status === 403))
+    ) {
+      setListError(t("admin.groups.messages.forbidden"));
+      return false;
+    }
+
+    if (
+      (!centersResult.ok && centersResult.status === 0) ||
+      (!programsResult.ok && programsResult.status === 0) ||
+      (!levelsResult.ok && levelsResult.status === 0) ||
+      (!tutorsResult.ok && tutorsResult.status === 0)
+    ) {
+      console.error("Failed to load group options", {
+        centers: centersResult,
+        programs: programsResult,
+        levels: levelsResult,
+        tutors: tutorsResult,
+      });
+      setListError(t("common.error"));
+      return false;
+    }
+
+    if (
+      !centersResult.ok ||
+      !programsResult.ok ||
+      !levelsResult.ok ||
+      !tutorsResult.ok
+    ) {
+      setListError(t("admin.groups.messages.loadError"));
+      return false;
+    }
+
+    setCenters(centersResult.data);
+    setPrograms(programsResult.data.rows);
+    setLevels(levelsResult.data.rows);
+    setTutors(tutorsResult.data.rows ?? []);
+    return true;
+  }, [t, tenant]);
 
   useEffect(() => {
-    void refreshGroups();
-  }, [refreshGroups]);
+    const handle = setTimeout(() => {
+      void refreshGroups();
+    }, 0);
+    return () => clearTimeout(handle);
+  }, [refreshGroups, reloadNonce]);
 
-  function openCreateModal() {
+  useEffect(() => {
+    void loadOptions();
+  }, [loadOptions]);
+
+  const openCreateModal = useCallback(() => {
     setForm(emptyForm);
     setIsModalOpen(true);
-    setError(null);
+    setListError(null);
+    setFormError(null);
     setMessage(null);
-  }
+  }, []);
 
-  function openEditModal(group: GroupListItem) {
+  const openEditModal = useCallback((group: GroupListItem) => {
     setForm(toFormState(group));
     setIsModalOpen(true);
-    setError(null);
+    setListError(null);
+    setFormError(null);
     setMessage(null);
-  }
+  }, []);
 
-  function closeModal() {
+  const closeModal = useCallback(() => {
     setIsModalOpen(false);
-    setError(null);
-  }
+    setFormError(null);
+  }, []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSaving(true);
-    setError(null);
+    setListError(null);
+    setFormError(null);
     setMessage(null);
 
     const trimmedName = form.name.trim();
@@ -229,7 +366,7 @@ export default function GroupsClient({
     const capacityValue = form.capacity.trim();
 
     if (!trimmedName || !centerId || !programId) {
-      setError(t("admin.groups.messages.validationError"));
+      setFormError(t("admin.groups.messages.validationError"));
       setIsSaving(false);
       return;
     }
@@ -238,7 +375,7 @@ export default function GroupsClient({
     if (capacityValue.length) {
       const parsed = Number(capacityValue);
       if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 0) {
-        setError(t("admin.groups.messages.validationError"));
+        setFormError(t("admin.groups.messages.validationError"));
         setIsSaving(false);
         return;
       }
@@ -268,7 +405,7 @@ export default function GroupsClient({
     });
 
     if (!result.ok && (result.status === 401 || result.status === 403)) {
-      setError(t("admin.groups.messages.forbidden"));
+      setFormError(t("admin.groups.messages.forbidden"));
       setIsSaving(false);
       return;
     }
@@ -276,7 +413,7 @@ export default function GroupsClient({
     if (!result.ok) {
       const isValidation =
         result.status === 400 && result.error === "ValidationError";
-      setError(
+      setFormError(
         isValidation
           ? t("admin.groups.messages.validationError")
           : t("admin.groups.messages.loadError"),
@@ -299,166 +436,380 @@ export default function GroupsClient({
     );
   }
 
-  async function toggleActive(group: GroupListItem) {
-    setIsSaving(true);
-    setError(null);
-    setMessage(null);
+  const toggleActive = useCallback(
+    async (group: GroupListItem) => {
+      setIsSaving(true);
+      setListError(null);
+      setMessage(null);
 
-    const result = await fetchJson<{ group: GroupListItem }>(
-      buildTenantApiUrl(tenant, `/groups/${group.id}`),
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: !group.isActive }),
-      },
-    );
+      const result = await fetchJson<{ group: GroupListItem }>(
+        buildTenantApiUrl(tenant, `/groups/${group.id}`),
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive: !group.isActive }),
+        },
+      );
 
-    if (!result.ok && (result.status === 401 || result.status === 403)) {
-      setError(t("admin.groups.messages.forbidden"));
+      if (!result.ok && (result.status === 401 || result.status === 403)) {
+        setListError(t("admin.groups.messages.forbidden"));
+        setIsSaving(false);
+        return;
+      }
+
+      if (!result.ok) {
+        setListError(t("admin.groups.messages.loadError"));
+        setIsSaving(false);
+        return;
+      }
+
+      await refreshGroups();
+      setMessage(t("admin.groups.messages.updateSuccess"));
       setIsSaving(false);
-      return;
-    }
+    },
+    [refreshGroups, t, tenant],
+  );
 
-    if (!result.ok) {
-      setError(t("admin.groups.messages.loadError"));
-      setIsSaving(false);
-      return;
-    }
-
-    await refreshGroups();
-    setMessage(t("admin.groups.messages.updateSuccess"));
-    setIsSaving(false);
-  }
-
-  const columns: AdminTableColumn<GroupListItem>[] = [
-    {
-      header: t("admin.groups.fields.name"),
-      cell: (group) => group.name,
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3 font-medium text-slate-900",
-    },
-    {
-      header: t("admin.groups.fields.type"),
-      cell: (group) => groupTypeLabels[group.type],
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3 text-slate-700",
-    },
-    {
-      header: t("admin.groups.fields.center"),
-      cell: (group) => group.centerName,
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3 text-slate-700",
-    },
-    {
-      header: t("admin.groups.fields.program"),
-      cell: (group) => group.programName,
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3 text-slate-700",
-    },
-    {
-      header: t("admin.groups.fields.level"),
-      cell: (group) => group.levelName ?? t("admin.groups.messages.noLevel"),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3 text-slate-700",
-    },
-    {
-      header: t("admin.groups.fields.tutorsCount"),
-      cell: (group) => (
-        // data-testid hooks keep count assertions stable in E2E.
-        <span data-testid="group-tutors-count">
-          {group.tutorsCount.toString()}
-        </span>
-      ),
-      headClassName: "px-4 py-3 text-right",
-      cellClassName: "px-4 py-3 text-right text-slate-700",
-    },
-    {
-      header: t("admin.groups.fields.studentsCount"),
-      cell: (group) => (
-        // data-testid hooks keep count assertions stable in E2E.
-        <span data-testid="group-students-count">
-          {group.studentsCount.toString()}
-        </span>
-      ),
-      headClassName: "px-4 py-3 text-right",
-      cellClassName: "px-4 py-3 text-right text-slate-700",
-    },
-    {
-      header: t("admin.groups.fields.status"),
-      cell: (group) =>
-        group.isActive
+  const filterChips = useMemo<AdminFilterChip[]>(() => {
+    const chips: AdminFilterChip[] = [];
+    const programId =
+      typeof state.filters.programId === "string"
+        ? state.filters.programId
+        : "";
+    const levelId =
+      typeof state.filters.levelId === "string"
+        ? state.filters.levelId
+        : "";
+    const tutorId =
+      typeof state.filters.tutorId === "string"
+        ? state.filters.tutorId
+        : "";
+    if (typeof state.filters.isActive === "boolean") {
+      chips.push({
+        key: "isActive",
+        label: t("admin.groups.fields.status"),
+        value: state.filters.isActive
           ? t("common.status.active")
           : t("common.status.inactive"),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3 text-slate-700",
-    },
-    {
-      header: t("admin.groups.fields.actions"),
-      cell: (group) => (
-        <div className="flex flex-wrap gap-2">
-          <button
-            className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
-            disabled={isSaving}
-            onClick={() => openEditModal(group)}
-            type="button"
-          >
-            {t("admin.groups.edit")}
-          </button>
-          <Link
-            className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
-            data-testid="manage-group-link"
-            href={`/${tenant}/admin/groups/${group.id}`}
-          >
-            {t("admin.groups.actions.manage")}
-          </Link>
-          <button
-            className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
-            disabled={isSaving}
-            onClick={() => toggleActive(group)}
-            type="button"
-          >
-            {group.isActive
-              ? t("common.actions.deactivate")
-              : t("common.actions.activate")}
-          </button>
-        </div>
-      ),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3",
-    },
-  ];
+        onRemove: () => setFilter("isActive", null),
+      });
+    }
+    if (programId) {
+      chips.push({
+        key: "programId",
+        label: t("admin.groups.fields.program"),
+        value:
+          programs.find((program) => program.id === programId)?.name ??
+          programId,
+        onRemove: () => setFilter("programId", ""),
+      });
+    }
+    if (levelId) {
+      chips.push({
+        key: "levelId",
+        label: t("admin.groups.fields.level"),
+        value: levels.find((level) => level.id === levelId)?.name ?? levelId,
+        onRemove: () => setFilter("levelId", ""),
+      });
+    }
+    if (tutorId) {
+      chips.push({
+        key: "tutorId",
+        label: t("admin.groups.fields.tutorsCount"),
+        value: tutors.find((tutor) => tutor.id === tutorId)?.name ?? tutorId,
+        onRemove: () => setFilter("tutorId", ""),
+      });
+    }
+    if (state.search.trim()) {
+      chips.unshift({
+        key: "search",
+        label: t("admin.table.search.label"),
+        value: state.search.trim(),
+        onRemove: () => setSearch(""),
+      });
+    }
+    return chips;
+  }, [
+    levels,
+    programs,
+    setFilter,
+    setSearch,
+    state.filters.isActive,
+    state.filters.levelId,
+    state.filters.programId,
+    state.filters.tutorId,
+    state.search,
+    t,
+    tutors,
+  ]);
 
-  const loadingState = t("common.loading");
-  const emptyState = t("admin.groups.messages.empty");
+  const clearAll = () => {
+    setSearchInput("");
+    resetAll({ sortField: "name", sortDir: "asc" });
+  };
+
+  const columns: AdminDataTableColumn<GroupListItem>[] = useMemo(
+    () => [
+      {
+        key: "name",
+        label: t("admin.groups.fields.name"),
+        sortable: true,
+        sortField: "name",
+        renderCell: (group) => (
+          <div className="flex flex-col gap-1">
+            <span className="font-medium text-slate-900">{group.name}</span>
+            <span className="text-xs text-slate-500">
+              {groupTypeLabels[group.type]}
+            </span>
+          </div>
+        ),
+      },
+      {
+        key: "programName",
+        label: t("admin.groups.fields.program"),
+        sortable: true,
+        sortField: "programName",
+        renderCell: (group) => group.programName,
+      },
+      {
+        key: "levelName",
+        label: t("admin.groups.fields.level"),
+        sortable: true,
+        sortField: "levelName",
+        renderCell: (group) =>
+          group.levelName ?? t("admin.groups.messages.noLevel"),
+      },
+      {
+        key: "tutorsCount",
+        label: t("admin.groups.fields.tutorsCount"),
+        sortable: true,
+        sortField: "tutorsCount",
+        renderCell: (group) => (
+          // data-testid hooks keep count assertions stable in E2E.
+          <span data-testid="group-tutors-count">{group.tutorsCount}</span>
+        ),
+      },
+      {
+        key: "studentsCount",
+        label: t("admin.groups.fields.studentsCount"),
+        sortable: true,
+        sortField: "studentsCount",
+        renderCell: (group) => (
+          // data-testid hooks keep count assertions stable in E2E.
+          <span data-testid="group-students-count">{group.studentsCount}</span>
+        ),
+      },
+      {
+        key: "status",
+        label: t("admin.groups.fields.status"),
+        sortable: true,
+        sortField: "status",
+        renderCell: (group) =>
+          group.isActive
+            ? t("common.status.active")
+            : t("common.status.inactive"),
+      },
+      {
+        key: "actions",
+        label: t("admin.groups.fields.actions"),
+        renderCell: (group) => (
+          <div className="flex flex-wrap gap-2">
+            <button
+              className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
+              disabled={isSaving}
+              onClick={() => openEditModal(group)}
+              type="button"
+            >
+              {t("admin.groups.edit")}
+            </button>
+            <Link
+              className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+              data-testid="manage-group-link"
+              href={`/${tenant}/admin/groups/${group.id}`}
+            >
+              {t("admin.groups.actions.manage")}
+            </Link>
+            <button
+              className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
+              disabled={isSaving}
+              onClick={() => toggleActive(group)}
+              type="button"
+            >
+              {group.isActive
+                ? t("common.actions.deactivate")
+                : t("common.actions.activate")}
+            </button>
+          </div>
+        ),
+      },
+    ],
+    [groupTypeLabels, isSaving, openEditModal, t, tenant, toggleActive],
+  );
+
+  const emptyState: AdminEmptyState = useMemo(
+    () => ({
+      title: t("admin.groupsList.empty.title"),
+      body: t("admin.groupsList.empty.body"),
+    }),
+    [t],
+  );
+
+  const rightSlot = (
+    <button
+      className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+      data-testid="create-group-button"
+      onClick={openCreateModal}
+      type="button"
+    >
+      {t("admin.groups.create")}
+    </button>
+  );
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <button
-          className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-          data-testid="create-group-button"
-          onClick={openCreateModal}
-          type="button"
-        >
-          {t("admin.groups.create")}
-        </button>
-      </div>
+      <AdminTableToolbar
+        searchId="groups-list-search"
+        searchValue={searchInput}
+        onSearchChange={setSearchInput}
+        onOpenFilters={() => setIsFilterSheetOpen(true)}
+        filterChips={filterChips}
+        onClearAllFilters={clearAll}
+        rightSlot={rightSlot}
+      />
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {listError ? (
+        <AdminErrorPanel onRetry={() => setReloadNonce((value) => value + 1)} />
+      ) : null}
       {message ? <p className="text-sm text-green-600">{message}</p> : null}
-      {isLoading ? (
-        <p className="text-sm text-slate-600">{t("common.loading")}</p>
+
+      {!listError ? (
+        <>
+          <AdminDataTable<GroupListItem>
+            columns={columns}
+            rows={groups}
+            rowKey={(group) => `group-row-${group.id}`}
+            isLoading={isLoading}
+            emptyState={emptyState}
+            sortField={state.sortField}
+            sortDir={state.sortDir}
+            onSortChange={(field, dir) => setSort(field, dir ?? "asc")}
+            testId="groups-table"
+            onRowClick={(group) =>
+              router.push(`/${tenant}/admin/groups/${group.id}`)
+            }
+          />
+          <AdminPagination
+            page={state.page}
+            pageSize={state.pageSize}
+            totalCount={totalCount}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        </>
       ) : null}
 
-      <AdminTable
-        rows={groups}
-        columns={columns}
-        rowKey={(group) => `group-row-${group.id}`}
-        testId="groups-table"
-        isLoading={isLoading}
-        loadingState={loadingState}
-        emptyState={emptyState}
-      />
+      <AdminFiltersSheet
+        isOpen={isFilterSheetOpen}
+        onClose={() => setIsFilterSheetOpen(false)}
+        onReset={clearAll}
+      >
+        <AdminFormField
+          label={t("admin.groups.fields.status")}
+          htmlFor="groups-filter-status"
+        >
+          <select
+            id="groups-filter-status"
+            className="rounded border border-slate-300 px-3 py-2"
+            value={
+              typeof state.filters.isActive === "boolean"
+                ? state.filters.isActive
+                  ? "ACTIVE"
+                  : "INACTIVE"
+                : "ALL"
+            }
+            onChange={(event) => {
+              const value = event.target.value;
+              if (value === "ACTIVE") {
+                setFilter("isActive", true);
+              } else if (value === "INACTIVE") {
+                setFilter("isActive", false);
+              } else {
+                setFilter("isActive", null);
+              }
+            }}
+          >
+            <option value="ALL">{t("admin.reports.statusFilter.all")}</option>
+            <option value="ACTIVE">{t("admin.reports.statusFilter.active")}</option>
+            <option value="INACTIVE">{t("admin.reports.statusFilter.inactive")}</option>
+          </select>
+        </AdminFormField>
+        <AdminFormField
+          label={t("admin.groups.fields.program")}
+          htmlFor="groups-filter-program"
+        >
+          <select
+            id="groups-filter-program"
+            className="rounded border border-slate-300 px-3 py-2"
+            value={
+              typeof state.filters.programId === "string"
+                ? state.filters.programId
+                : ""
+            }
+            onChange={(event) => setFilter("programId", event.target.value)}
+          >
+            <option value="">{t("admin.reports.filters.allPrograms")}</option>
+            {programs.map((program) => (
+              <option key={program.id} value={program.id}>
+                {program.name}
+              </option>
+            ))}
+          </select>
+        </AdminFormField>
+        <AdminFormField
+          label={t("admin.groups.fields.level")}
+          htmlFor="groups-filter-level"
+        >
+          <select
+            id="groups-filter-level"
+            className="rounded border border-slate-300 px-3 py-2"
+            value={
+              typeof state.filters.levelId === "string"
+                ? state.filters.levelId
+                : ""
+            }
+            onChange={(event) => setFilter("levelId", event.target.value)}
+          >
+            <option value="">{t("admin.reports.filters.allLevels")}</option>
+            {levels.map((level) => (
+              <option key={level.id} value={level.id}>
+                {level.name}
+              </option>
+            ))}
+          </select>
+        </AdminFormField>
+        <AdminFormField
+          label={t("admin.groups.fields.tutorsCount")}
+          htmlFor="groups-filter-tutor"
+        >
+          <select
+            id="groups-filter-tutor"
+            className="rounded border border-slate-300 px-3 py-2"
+            value={
+              typeof state.filters.tutorId === "string"
+                ? state.filters.tutorId
+                : ""
+            }
+            onChange={(event) => setFilter("tutorId", event.target.value)}
+          >
+            <option value="">{t("admin.sessions.filters.allTutors")}</option>
+            {tutors.map((tutor) => (
+              <option key={tutor.id} value={tutor.id}>
+                {tutor.name ?? tutor.email}
+              </option>
+            ))}
+          </select>
+        </AdminFormField>
+      </AdminFiltersSheet>
 
       {isModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
@@ -649,7 +1000,9 @@ export default function GroupsClient({
                   {t("common.actions.cancel")}
                 </button>
               </div>
-              {error ? <p className="text-sm text-red-600">{error}</p> : null}
+              {formError ? (
+                <p className="text-sm text-red-600">{formError}</p>
+              ) : null}
             </form>
           </div>
         </div>

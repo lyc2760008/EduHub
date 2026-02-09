@@ -100,7 +100,17 @@ async function fetchPrograms(page: Page, tenantSlug: string) {
     buildTenantApiPath(tenantSlug, "/api/programs"),
   );
   expect(response.status()).toBe(200);
-  return (await response.json()) as ProgramSummary[];
+  const payload = (await response.json()) as unknown;
+  // /api/programs follows the Step 21.3 admin table contract (rows/totalCount/...), but some tests
+  // still treat it as a simple array. Normalize the response to keep E2E helpers stable.
+  if (Array.isArray(payload)) return payload as ProgramSummary[];
+  if (payload && typeof payload === "object") {
+    const rows = (payload as { rows?: unknown }).rows;
+    if (Array.isArray(rows)) return rows as ProgramSummary[];
+    const items = (payload as { items?: unknown }).items;
+    if (Array.isArray(items)) return items as ProgramSummary[];
+  }
+  throw new Error("Unexpected /api/programs response shape for attendance E2E.");
 }
 
 async function createProgram(page: Page, tenantSlug: string) {
@@ -222,7 +232,16 @@ export async function fetchUsers(page: Page, tenantSlug: string) {
     buildTenantApiPath(tenantSlug, "/api/users"),
   );
   expect(response.status()).toBe(200);
-  return (await response.json()) as UserSummary[];
+  const payload = (await response.json()) as unknown;
+  // /api/users follows the Step 21.3 admin table contract (rows/totalCount/...).
+  if (Array.isArray(payload)) return payload as UserSummary[];
+  if (payload && typeof payload === "object") {
+    const rows = (payload as { rows?: unknown }).rows;
+    if (Array.isArray(rows)) return rows as UserSummary[];
+    const items = (payload as { items?: unknown }).items;
+    if (Array.isArray(items)) return items as UserSummary[];
+  }
+  throw new Error("Unexpected /api/users response shape for attendance E2E.");
 }
 
 export async function fetchSessions(page: Page, tenantSlug: string) {
