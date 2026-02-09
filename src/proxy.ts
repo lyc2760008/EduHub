@@ -1,3 +1,4 @@
+// Proxy handler sets tenant slug + request ID headers for observability-safe routing.
 import { NextResponse, type NextRequest } from "next/server";
 
 import {
@@ -28,15 +29,24 @@ function withTenantSlug(req: NextRequest): NextResponse {
     headers.set("x-tenant-slug", slug);
   }
 
+  // Request IDs are observability-only and must never influence auth decisions.
+  const existingRequestId = headers.get("x-request-id");
+  const requestId = existingRequestId ?? crypto.randomUUID();
+  headers.set("x-request-id", requestId);
+
   // If path starts with /t/<slug>/api, rewrite to /api to keep internal routing simple.
   if (slug && pathname.startsWith(`/t/${slug}/api`)) {
     const rewritePath = pathname.replace(`/t/${slug}`, "");
     const url = req.nextUrl.clone();
     url.pathname = rewritePath || "/";
-    return NextResponse.rewrite(url, { request: { headers } });
+    const response = NextResponse.rewrite(url, { request: { headers } });
+    response.headers.set("x-request-id", requestId);
+    return response;
   }
 
-  return NextResponse.next({ request: { headers } });
+  const response = NextResponse.next({ request: { headers } });
+  response.headers.set("x-request-id", requestId);
+  return response;
 }
 
 export function proxy(req: NextRequest) {
@@ -44,5 +54,8 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/:path*", "/t/:path*"],
+  // Skip static assets to keep proxy/middleware overhead low.
+  matcher: [
+    "/((?!_next/|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css|js|map|txt|woff|woff2|ttf|otf)).*)",
+  ],
 };

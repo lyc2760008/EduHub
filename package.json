@@ -5,6 +5,7 @@
   "x-comment": "Playwright scripts group fast and targeted E2E runs (including onboarding QA); typecheck, tenant provisioning, and go-live smoke scripts support ops readiness.",
   "x-devops-comment": "DevOps scripts run preflight checks, safe migrations, and tenant provisioning without printing secrets.",
   "x-pilot-comment": "Pilot scripts include MMC setup/import flows plus the Step 21.2 MMC pilot staging/production setup wrapper (idempotent, no secrets).",
+  "x-observability-comment": "Sentry SDK dependency supports error reporting instrumentation (no sensitive data).",
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
@@ -44,6 +45,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.1.0",
     "@prisma/client": "^7.1.0",
+    "@sentry/nextjs": "10.38.0",
     "bcryptjs": "^3.0.3",
     "luxon": "^3.7.2",
     "next": "16.0.10",
