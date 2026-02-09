@@ -80,6 +80,20 @@ export function buildTenantUrl(tenantSlug: string, suffix: string) {
     return `${baseUrl.origin}/t/${tenantSlug}${normalizedSuffix}`;
   }
 
+  const normalizedHost = baseUrl.hostname.toLowerCase();
+  const baseTenant = (process.env.E2E_TENANT_SLUG || "e2e-testing").toLowerCase();
+  const wantsSubdomain =
+    normalizedHost.startsWith(`${tenantSlug.toLowerCase()}.`) ||
+    normalizedHost.startsWith(`${baseTenant}.`) ||
+    normalizedHost.endsWith(".lvh.me") ||
+    normalizedHost === "localhost" ||
+    normalizedHost.endsWith(".localhost");
+
+  if (!wantsSubdomain) {
+    // Shared hosts (ex: Vercel preview/staging) rely on /<slug> UI routing.
+    return `${baseUrl.origin}/${tenantSlug}${normalizedSuffix}`;
+  }
+
   const hostParts = baseUrl.hostname.split(".");
   let newHost = baseUrl.hostname;
 
@@ -105,6 +119,23 @@ export async function createStudentAndLinkParent(page: Page, tenantSlug: string)
   const firstName = `E2E${uniqueToken}`;
   const lastName = "ParentAuth";
   const parentEmail = `e2e.parent.${uniqueToken}@example.com`;
+
+  return createStudentAndLinkParentForEmail(page, tenantSlug, parentEmail, {
+    firstName,
+    lastName,
+  });
+}
+
+export async function createStudentAndLinkParentForEmail(
+  page: Page,
+  tenantSlug: string,
+  parentEmail: string,
+  studentName?: { firstName: string; lastName: string },
+) {
+  // Allow go-live/staging runs to link a specific parent email to a new student.
+  const uniqueToken = uniqueString("parent-auth-ui");
+  const firstName = studentName?.firstName ?? `E2E${uniqueToken}`;
+  const lastName = studentName?.lastName ?? "ParentAuth";
 
   const createStudentResponse = await postWithRetry(
     page,
@@ -172,10 +203,12 @@ export async function loginAsParentWithAccessCode(
   email: string,
   accessCode: string,
 ) {
-  // Shared login helper keeps the parent auth flow consistent across tests.
-  // Reuse an existing parent session when it already matches the expected user.
-  const sessionResponse = await page.request.get("/api/auth/session");
-  if (sessionResponse.status() === 200) {
+  // Helper ensures the session is actually established (parent-shell exists on login page too).
+  async function assertParentSession() {
+    const sessionResponse = await page.request.get("/api/auth/session");
+    if (sessionResponse.status() !== 200) {
+      return false;
+    }
     let payload: { user?: { email?: string; role?: string } } | null = null;
     try {
       // NextAuth can return `null` JSON for anonymous sessions; guard to avoid TypeError.
@@ -185,28 +218,32 @@ export async function loginAsParentWithAccessCode(
     } catch {
       payload = null;
     }
-    if (
+    return (
       payload?.user?.role === "Parent" &&
       payload.user?.email?.toLowerCase() === email.toLowerCase()
-    ) {
-      const portalPath = buildTenantPath(tenantSlug, "/portal");
-      await page.goto(portalPath);
-      // Prefer shell visibility over strict URL waits to avoid rare callback redirect hangs.
-      await Promise.race([
-        page.waitForURL((url) => url.pathname.startsWith(portalPath), {
-          timeout: 15_000,
-        }),
-        page.getByTestId("parent-shell").waitFor({
-          state: "visible",
-          timeout: 15_000,
-        }),
-      ]);
-      await expect(page.getByTestId("parent-shell")).toBeVisible();
-      return;
-    }
-    // Clear mismatched sessions before attempting the parent login UI.
-    await page.context().clearCookies();
+    );
   }
+
+  // Shared login helper keeps the parent auth flow consistent across tests.
+  // Reuse an existing parent session when it already matches the expected user.
+  if (await assertParentSession()) {
+    const portalPath = buildTenantPath(tenantSlug, "/portal");
+    await page.goto(portalPath);
+    // Prefer shell visibility over strict URL waits to avoid rare callback redirect hangs.
+    await Promise.race([
+      page.waitForURL((url) => url.pathname.startsWith(portalPath), {
+        timeout: 15_000,
+      }),
+      page.getByTestId("parent-shell").waitFor({
+        state: "visible",
+        timeout: 15_000,
+      }),
+    ]);
+    await expect(page.getByTestId("parent-shell")).toBeVisible();
+    return;
+  }
+  // Clear mismatched sessions before attempting the parent login UI.
+  await page.context().clearCookies();
 
   await page.goto(buildTenantPath(tenantSlug, "/parent/login"));
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -245,6 +282,33 @@ export async function loginAsParentWithAccessCode(
     // Fallback navigation keeps auth helper resilient when callback redirects are delayed.
     await page.goto(portalPath);
   });
+  // If UI login failed, fall back to direct auth callback to ensure a valid session.
+  if (!(await assertParentSession())) {
+    await page.evaluate(
+      async ({ email, accessCode, tenantSlug }) => {
+        const csrf = await fetch("/api/auth/csrf").then((res) => res.json());
+        const body = new URLSearchParams({
+          csrfToken: csrf.csrfToken,
+          email,
+          accessCode,
+          tenantSlug,
+          callbackUrl: `/${tenantSlug}/portal`,
+          json: "true",
+        });
+        await fetch("/api/auth/callback/parent-credentials", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body,
+        });
+      },
+      { email, accessCode, tenantSlug },
+    );
+  }
+
+  if (!(await assertParentSession())) {
+    throw new Error("Parent login failed to establish a session.");
+  }
+
   await expect(page.getByTestId("parent-shell")).toBeVisible();
 }
 

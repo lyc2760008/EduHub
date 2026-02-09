@@ -134,8 +134,20 @@ export async function ensurePortalAbsenceRequest(
     return request;
   }
 
+  let details = "";
+  try {
+    // Include the portal error payload to surface tenant/link mismatches.
+    details = JSON.stringify(await createResponse.json());
+  } catch {
+    try {
+      details = await createResponse.text();
+    } catch {
+      // Ignore body parsing errors; status code is still surfaced.
+    }
+  }
+
   throw new Error(
-    `Unexpected create status ${createResponse.status()} for absence request.`,
+    `Unexpected create status ${createResponse.status()} for absence request. ${details}`,
   );
 }
 

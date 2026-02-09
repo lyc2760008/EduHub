@@ -63,6 +63,8 @@ test.describe("[regression] RBAC + tenant isolation (parent)", () => {
       accessCode: fixtures.accessCode,
     });
 
+    // Clear tenant headers so cross-tenant navigation and API calls resolve correctly.
+    await page.context().setExtraHTTPHeaders({});
     await page.goto(buildTenantUrl(otherTenantSlug, "/portal/requests"));
     await expect(page.getByTestId("parent-login-page")).toBeVisible();
 
