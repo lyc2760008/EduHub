@@ -38,6 +38,13 @@ if (-not $env:SEED_DEMO_TENANT_NAME) { $env:SEED_DEMO_TENANT_NAME = "Pilot Stagi
 if (-not $env:SEED_SECOND_TENANT_SLUG) { $env:SEED_SECOND_TENANT_SLUG = "acme-staging" }
 if (-not $env:SEED_SECOND_TENANT_NAME) { $env:SEED_SECOND_TENANT_NAME = "Acme Staging" }
 
+# Resolve effective seed emails to match prisma/seed.ts defaults (emails only, no secrets).
+$seedOwnerEmail = if ($env:SEED_OWNER_EMAIL) { $env:SEED_OWNER_EMAIL } else { "owner@demo.local" }
+$seedTutorEmail = if ($env:SEED_TUTOR_EMAIL) { $env:SEED_TUTOR_EMAIL } else { "tutor@demo.local" }
+$seedParentEmail = if ($env:SEED_PARENT_EMAIL) { $env:SEED_PARENT_EMAIL } else { "parent@demo.local" }
+# Log the effective tenant + user emails so operators can confirm the login targets post-seed.
+Write-Host ("Seeding '{0}' (owner={1}, tutor={2}, parent={3})" -f $env:SEED_DEMO_TENANT_SLUG, $seedOwnerEmail, $seedTutorEmail, $seedParentEmail)
+
 # Optional: run migrations first if SEED_RUN_MIGRATE is set.
 if ($env:SEED_RUN_MIGRATE -match "^(1|true|yes)$") {
   if (-not $env:DIRECT_URL) { $env:DIRECT_URL = $env:DATABASE_URL }

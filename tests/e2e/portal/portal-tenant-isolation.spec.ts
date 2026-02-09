@@ -23,6 +23,8 @@ test.describe("[regression] Parent portal tenant isolation", () => {
 
     await loginParentWithAccessCode(page, tenantSlug, credentials);
 
+    // Clear tenant headers so cross-tenant navigation resolves to the other tenant.
+    await page.context().setExtraHTTPHeaders({});
     await page.goto(buildPortalPath(otherTenantSlug, ""));
     await page.waitForURL((url) => url.pathname.endsWith("/parent/login"));
     await expect(page.getByTestId("parent-login-page")).toBeVisible();
@@ -37,6 +39,8 @@ test.describe("[regression] Parent portal tenant isolation", () => {
     );
 
     await page.context().clearCookies();
+    // Clear tenant headers so the login request targets the other tenant.
+    await page.context().setExtraHTTPHeaders({});
     await page.goto(buildTenantUrl(otherTenantSlug, "/parent/login"));
     await page.getByTestId("parent-login-email").fill(parentEmail);
     await page.getByTestId("parent-login-access-code").fill(accessCode);

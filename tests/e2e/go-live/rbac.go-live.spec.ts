@@ -2,7 +2,7 @@
 import { test } from "@playwright/test";
 
 import { expectAdminBlocked, loginAsParentWithAccessCode } from "../helpers/parent-auth";
-import { resolveStep203Fixtures } from "../helpers/step203";
+import { resolveGoLiveParentAccess } from "../helpers/go-live";
 import { buildTenantPath } from "../helpers/tenant";
 
 function resolveGoLiveTenantSlug() {
@@ -18,24 +18,10 @@ function resolveGoLiveTenantSlug() {
 test.describe("[go-live][prod-safe] RBAC", () => {
   test("[go-live][prod-safe] Parent cannot access admin audit", async ({ page }) => {
     const tenantSlug = resolveGoLiveTenantSlug();
-    // Prefer explicit go-live credentials; fall back to seeded fixtures for local runs.
-    const explicitEmail = process.env.E2E_PARENT_EMAIL;
-    const explicitAccessCode = process.env.E2E_PARENT_ACCESS_CODE;
-    let parentEmail = explicitEmail || "";
-    let accessCode = explicitAccessCode || "";
+    // Resolve a valid parent access code via the shared helper for staging reliability.
+    const { email, accessCode } = await resolveGoLiveParentAccess(page, tenantSlug);
 
-    if (!parentEmail || !accessCode) {
-      const fixtures = resolveStep203Fixtures();
-      if (tenantSlug !== fixtures.tenantSlug) {
-        throw new Error(
-          "Missing E2E_PARENT_EMAIL/E2E_PARENT_ACCESS_CODE for non-e2e tenant go-live run.",
-        );
-      }
-      parentEmail = fixtures.parentA1Email;
-      accessCode = fixtures.accessCode;
-    }
-
-    await loginAsParentWithAccessCode(page, tenantSlug, parentEmail, accessCode);
+    await loginAsParentWithAccessCode(page, tenantSlug, email, accessCode);
     await page.goto(buildTenantPath(tenantSlug, "/admin/audit"));
     await expectAdminBlocked(page);
   });

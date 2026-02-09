@@ -18,11 +18,20 @@ setup("Parent storage state", async ({ page }) => {
       `Parent storage state must target e2e-testing; got ${fixtures.tenantSlug}.`,
     );
   }
+  const skipSeed = (process.env.E2E_SKIP_SEED || "").trim() === "1";
+  const explicitParentEmail = process.env.E2E_PARENT_ACCESS_EMAIL;
+  const explicitAccessCode = process.env.E2E_PARENT_ACCESS_CODE;
+  // Allow staging runs that skip seeding to authenticate with an explicit parent access-code account.
+  const parentEmail =
+    skipSeed && explicitParentEmail ? explicitParentEmail : fixtures.parentA1Email;
+  const parentAccessCode =
+    skipSeed && explicitAccessCode ? explicitAccessCode : fixtures.accessCode;
+
   await loginAsParentWithAccessCode(
     page,
     fixtures.tenantSlug,
-    fixtures.parentA1Email,
-    fixtures.accessCode,
+    parentEmail,
+    parentAccessCode,
   );
   await page.context().storageState({ path: STORAGE_STATE_PATH });
 });
