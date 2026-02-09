@@ -1,8 +1,8 @@
-// Admin programs page that uses shared admin table toolkit contracts.
+// Admin parents page that uses the shared list shell + table toolkit for consistency.
 import { getTranslations } from "next-intl/server";
 
 import type { Role } from "@/generated/prisma/client";
-import ProgramsClient from "@/components/admin/programs/ProgramsClient";
+import ParentsClient from "@/components/admin/parents/ParentsClient";
 import AdminAccessGate from "@/components/admin/shared/AdminAccessGate";
 import AdminPageShell from "@/components/admin/shared/AdminPageShell";
 
@@ -16,7 +16,7 @@ type PageProps = {
   }>;
 };
 
-export default async function ProgramsPage({ params }: PageProps) {
+export default async function ParentsPage({ params }: PageProps) {
   // i18n: resolve admin copy on the server to stay locale-correct.
   const t = await getTranslations();
   // Next.js 16 may supply dynamic params as a Promise in server components.
@@ -26,12 +26,12 @@ export default async function ProgramsPage({ params }: PageProps) {
     <AdminAccessGate tenant={tenant} roles={ADMIN_ROLES} maxWidth="max-w-5xl">
       {() => (
         <AdminPageShell
-          title={t("admin.programsList.title")}
-          subtitle={t("admin.programsList.helper")}
+          title={t("admin.parentsList.title")}
+          subtitle={t("admin.parentsList.helper")}
           maxWidth="max-w-5xl"
-          testId="programs-page"
+          testId="parents-page"
         >
-          <ProgramsClient tenant={tenant} />
+          <ParentsClient tenant={tenant} />
         </AdminPageShell>
       )}
     </AdminAccessGate>

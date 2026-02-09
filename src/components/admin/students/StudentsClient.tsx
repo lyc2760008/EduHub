@@ -23,6 +23,8 @@ import {
 import { inputBase, primaryButton, secondaryButton } from "@/components/admin/shared/adminUiClasses";
 import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
+import { unwrapListResponse } from "@/lib/api/unwrapListResponse";
+import { buildAdminTableParams } from "@/lib/admin-table/buildAdminTableParams";
 import {
   useAdminTableQueryState,
   useDebouncedValue,
@@ -47,10 +49,12 @@ type LevelOption = {
 };
 
 type StudentsResponse = {
-  students: StudentListItem[];
+  rows: StudentListItem[];
+  totalCount: number;
   page: number;
   pageSize: number;
-  total: number;
+  sort: { field: string | null; dir: "asc" | "desc" };
+  appliedFilters: Record<string, unknown>;
 };
 
 type StudentsClientProps = {
@@ -115,22 +119,8 @@ export default function StudentsClient({ tenant }: StudentsClientProps) {
     setIsLoading(true);
     setError(null);
 
-    const params = new URLSearchParams({
-      page: String(state.page),
-      pageSize: String(state.pageSize),
-    });
-    // Pass sort to the API so ordering happens before pagination boundaries.
-    if (state.sortField) {
-      params.set("sortField", state.sortField);
-      params.set("sortDir", state.sortDir);
-    }
-    if (state.search.trim()) {
-      params.set("q", state.search.trim());
-    }
-    const status = normalizeStatusFilter(state.filters.status);
-    if (status !== "ALL") {
-      params.set("status", status);
-    }
+    // Step 21.3 Admin Table query contract keeps list fetch params consistent.
+    const params = buildAdminTableParams(state);
 
     try {
       const result = await fetchJson<StudentsResponse>(
@@ -155,30 +145,22 @@ export default function StudentsClient({ tenant }: StudentsClientProps) {
         return;
       }
 
-      setStudents(result.data.students);
-      setTotalCount(result.data.total);
+      setStudents(result.data.rows);
+      setTotalCount(result.data.totalCount);
     } finally {
       setIsLoading(false);
     }
-  }, [
-    state.filters.status,
-    state.page,
-    state.pageSize,
-    state.search,
-    state.sortDir,
-    state.sortField,
-    t,
-    tenant,
-  ]);
+  }, [state, t, tenant]);
 
   const refreshLevels = useCallback(async () => {
-    const result = await fetchJson<LevelOption[]>(
+    const result = await fetchJson<unknown>(
       buildTenantApiUrl(tenant, "/levels"),
       // Keep level options fresh when admins add/edit catalog data in other tabs.
       { cache: "no-store" },
     );
     if (result.ok) {
-      setLevels(result.data);
+      // /api/levels follows the Step 21.3 table contract (rows/totalCount). Normalize for select options.
+      setLevels(unwrapListResponse<LevelOption>(result.data));
     } else {
       setLevels([]);
     }

@@ -1,18 +1,29 @@
+// Admin audit log client now uses the shared table toolkit + query contract for consistency.
 "use client";
 
-// Admin audit log client provides filtering, list rendering, and detail drawer UI.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
-import AdminTable, {
-  type AdminTableColumn,
-} from "@/components/admin/shared/AdminTable";
+import AdminDataTable, {
+  type AdminDataTableColumn,
+} from "@/components/admin/shared/AdminDataTable";
+import AdminFiltersSheet from "@/components/admin/shared/AdminFiltersSheet";
+import AdminFormField from "@/components/admin/shared/AdminFormField";
+import AdminPagination from "@/components/admin/shared/AdminPagination";
+import AdminTableToolbar, {
+  type AdminFilterChip,
+} from "@/components/admin/shared/AdminTableToolbar";
 import {
-  inputBase,
-  secondaryButton,
-} from "@/components/admin/shared/adminUiClasses";
+  AdminErrorPanel,
+  type AdminEmptyState,
+} from "@/components/admin/shared/AdminTableStatePanels";
 import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
+import { buildAdminTableParams } from "@/lib/admin-table/buildAdminTableParams";
+import {
+  useAdminTableQueryState,
+  useDebouncedValue,
+} from "@/lib/admin-table/useAdminTableQueryState";
 import { AUDIT_ACTIONS } from "@/lib/audit/constants";
 
 type AuditActorType = "PARENT" | "USER" | "SYSTEM";
@@ -31,20 +42,17 @@ type AuditEventRecord = {
 };
 
 type AuditResponse = {
-  items: AuditEventRecord[];
-  page: {
-    take: number;
-    skip: number;
-    total: number;
-  };
+  rows: AuditEventRecord[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  sort: { field: string | null; dir: "asc" | "desc" };
+  appliedFilters: Record<string, unknown>;
 };
 
 type RangePreset = "today" | "7d" | "30d" | "all";
 type CategoryFilter = "all" | "auth" | "requests" | "attendance" | "admin";
 type ActorFilter = "all" | "parent" | "admin" | "tutor";
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-const DEFAULT_TAKE = 50;
 
 const RANGE_OPTIONS: Array<{ value: RangePreset; labelKey: string }> = [
   { value: "today", labelKey: "admin.audit.filter.range.today" },
@@ -96,25 +104,52 @@ const ACTION_LABELS: Record<string, string> = {
 // Guard against exposing sensitive metadata fields (access codes, secrets, hashes).
 const SENSITIVE_METADATA_KEY = /(access|code|token|secret|password|hash)/i;
 
-function buildDateRange(preset: RangePreset) {
-  if (preset === "all") return { from: null, to: null };
+function toDateOnly(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
+function buildRangeFilters(preset: RangePreset) {
+  if (preset === "all") return {};
   const now = new Date();
+  const to = toDateOnly(now);
   if (preset === "today") {
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    return { from: start, to: now };
+    return { from: to, to };
   }
-
   const offsetDays = preset === "7d" ? 7 : 30;
-  const from = new Date(now.getTime() - offsetDays * DAY_MS);
-  return { from, to: now };
+  const fromDate = new Date(now);
+  fromDate.setDate(fromDate.getDate() - offsetDays);
+  return { from: toDateOnly(fromDate), to };
+}
+
+function resolveRangePreset(filters: Record<string, unknown>) {
+  const from = typeof filters.from === "string" ? filters.from : "";
+  const to = typeof filters.to === "string" ? filters.to : "";
+  if (!from && !to) return "all";
+  const todayRange = buildRangeFilters("today");
+  if (from === todayRange.from && to === todayRange.to) return "today";
+  const weekRange = buildRangeFilters("7d");
+  if (from === weekRange.from && to === weekRange.to) return "7d";
+  const monthRange = buildRangeFilters("30d");
+  if (from === monthRange.from && to === monthRange.to) return "30d";
+  return "custom";
 }
 
 function mapActorFilterToApi(filter: ActorFilter) {
-  // Backend audit events only differentiate PARENT vs USER; admin/tutor both map to USER.
   if (filter === "parent") return "PARENT";
-  if (filter === "admin" || filter === "tutor") return "USER";
+  if (filter === "admin") return "ADMIN";
+  if (filter === "tutor") return "TUTOR";
   return null;
+}
+
+function mapActorFilterFromApi(value: string | null) {
+  if (value === "PARENT") return "parent";
+  if (value === "ADMIN") return "admin";
+  if (value === "TUTOR") return "tutor";
+  if (value === "USER") return "admin";
+  return "all";
 }
 
 function formatDateTime(value: string, locale: string) {
@@ -140,10 +175,7 @@ function normalizeMetadata(metadata: AuditEventRecord["metadata"]) {
 }
 
 function getCategoryLabelKey(action: string) {
-  if (
-    action.startsWith("PARENT_LOGIN") ||
-    action.includes("ACCESS_CODE")
-  ) {
+  if (action.startsWith("PARENT_LOGIN") || action.includes("ACCESS_CODE")) {
     return "admin.audit.filter.category.auth";
   }
   if (action.startsWith("ABSENCE_REQUEST")) {
@@ -230,77 +262,88 @@ export default function AuditLogClient({ tenant }: AuditLogClientProps) {
   const locale = useLocale();
 
   const [events, setEvents] = useState<AuditEventRecord[]>([]);
-  const [rangePreset, setRangePreset] = useState<RangePreset>("7d");
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
-  const [actorFilter, setActorFilter] = useState<ActorFilter>("all");
-  const [page, setPage] = useState({ take: DEFAULT_TAKE, skip: 0, total: 0 });
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
   const [selected, setSelected] = useState<AuditEventRecord | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  const dateRange = useMemo(() => buildDateRange(rangePreset), [rangePreset]);
+  const { state, setSearch, setFilter, setFilters, setSort, setPage, setPageSize, resetAll } =
+    useAdminTableQueryState({
+      defaultSortField: "occurredAt",
+      defaultSortDir: "desc",
+      defaultPageSize: 25,
+      maxPageSize: 100,
+      allowedPageSizes: [25, 50, 100],
+      allowedFilterKeys: ["from", "to", "category", "actorType"],
+    });
 
-  const loadEvents = useCallback(
-    async (options: { append?: boolean; offset?: number } = {}) => {
-      const append = options.append ?? false;
-      setError(null);
+  const [searchInput, setSearchInput] = useState(() => state.search);
+  const debouncedSearch = useDebouncedValue(searchInput, 400);
+  useEffect(() => {
+    if (debouncedSearch === state.search) return;
+    setSearch(debouncedSearch);
+  }, [debouncedSearch, setSearch, state.search]);
 
-      if (append) {
-        setIsLoadingMore(true);
-      } else {
-        setIsLoading(true);
-      }
-
-      const params = new URLSearchParams();
-      const nextSkip = append ? (options.offset ?? 0) : 0;
-      params.set("take", String(page.take));
-      params.set("skip", String(nextSkip));
-
-      if (dateRange.from) {
-        params.set("from", dateRange.from.toISOString());
-      }
-      if (dateRange.to) {
-        params.set("to", dateRange.to.toISOString());
-      }
-      if (categoryFilter !== "all") {
-        params.set("category", categoryFilter);
-      }
-      const actorType = mapActorFilterToApi(actorFilter);
-      if (actorType) {
-        params.set("actorType", actorType);
-      }
-
-      const result = await fetchJson<AuditResponse>(
-        buildTenantApiUrl(tenant, `/admin/audit?${params.toString()}`),
-      );
-
-      if (!result.ok) {
-        setError(t("admin.audit.error.body"));
-        setIsLoading(false);
-        setIsLoadingMore(false);
-        return;
-      }
-
-      const items = result.data.items ?? [];
-      setEvents((prev) => (append ? [...prev, ...items] : items));
-      setPage(result.data.page ?? { take: DEFAULT_TAKE, skip: 0, total: 0 });
-      setIsLoading(false);
-      setIsLoadingMore(false);
-    },
-    [actorFilter, categoryFilter, dateRange, page.take, t, tenant],
-  );
+  const resolvedRangePreset = useMemo(() => resolveRangePreset(state.filters), [state.filters]);
+  const rangePreset = resolvedRangePreset === "custom" ? "all" : resolvedRangePreset;
 
   useEffect(() => {
-    // Defer load to avoid setState directly inside the effect body.
+    if (resolvedRangePreset !== "custom") return;
+    // Remove unsupported range filters so the preset UI stays in sync with the URL state.
+    const nextFilters = { ...state.filters };
+    delete nextFilters.from;
+    delete nextFilters.to;
+    setFilters(nextFilters);
+  }, [resolvedRangePreset, setFilters, state.filters]);
+
+  const loadEvents = useCallback(async () => {
+    setIsLoading(true);
+    setListError(null);
+
+    // Step 21.3 Admin Table query contract keeps audit list params consistent.
+    const params = buildAdminTableParams(state);
+
+    try {
+      const result = await fetchJson<AuditResponse>(
+        buildTenantApiUrl(tenant, `/admin/audit?${params.toString()}`),
+        { cache: "no-store" },
+      );
+
+      if (!result.ok && (result.status === 401 || result.status === 403)) {
+        setListError(t("admin.audit.error.body"));
+        return false;
+      }
+
+      if (!result.ok && result.status === 0) {
+        console.error("Failed to load audit events", result.details);
+        setListError(t("common.error"));
+        return false;
+      }
+
+      if (!result.ok) {
+        setListError(t("admin.audit.error.body"));
+        return false;
+      }
+
+      setEvents(result.data.rows ?? []);
+      setTotalCount(result.data.totalCount ?? 0);
+      return true;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [state, t, tenant]);
+
+  useEffect(() => {
     const handle = setTimeout(() => {
-      void loadEvents({ append: false });
+      void loadEvents();
       setSelected(null);
       setIsDrawerOpen(false);
     }, 0);
     return () => clearTimeout(handle);
-  }, [loadEvents]);
+  }, [loadEvents, reloadNonce]);
 
   const handleRowClick = useCallback((record: AuditEventRecord) => {
     setSelected(record);
@@ -312,234 +355,279 @@ export default function AuditLogClient({ tenant }: AuditLogClientProps) {
     setSelected(null);
   }, []);
 
-  const canLoadMore = events.length < page.total;
+  const filterChips = useMemo<AdminFilterChip[]>(() => {
+    const chips: AdminFilterChip[] = [];
 
-  const columns: AdminTableColumn<AuditEventRecord>[] = [
-    {
-      header: t("admin.audit.col.time"),
-      cell: (record) => (
-        // data-testid + data-time keep audit time assertions stable in E2E.
-        <span data-testid="audit-row-time" data-time={record.occurredAt}>
-          {formatDateTime(record.occurredAt, locale) || t("generic.dash")}
-        </span>
-      ),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3 text-slate-700",
-    },
-    {
-      header: t("admin.audit.col.actor"),
-      cell: (record) => (
-        <div
-          className="flex flex-col"
-          // data-actor-display aids tenant isolation assertions without coupling to i18n.
-          data-testid="audit-row-actor"
-          data-actor-type={record.actorType}
-          data-actor-display={record.actorDisplay ?? ""}
-        >
-          <span className="text-sm text-slate-900">
-            {formatActorLabel(record, t)}
-          </span>
-          <span className="text-xs text-slate-500">
-            {t(getCategoryLabelKey(record.action))}
-          </span>
-        </div>
-      ),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3",
-    },
-    {
-      header: t("admin.audit.col.action"),
-      cell: (record) => (
-        // data-action lets tests find specific audit events without relying on labels.
-        <span data-testid="audit-row-action" data-action={record.action}>
-          {t(getActionLabelKey(record))}
-        </span>
-      ),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3 text-slate-700",
-    },
-    {
-      header: t("admin.audit.col.entity"),
-      cell: (record) => (
-        // data-entity-type keeps entity assertions stable for audit rows.
-        <span
-          data-testid="audit-row-entity"
-          data-entity-type={record.entityType ?? ""}
-        >
-          {formatEntitySummary(record, t)}
-        </span>
-      ),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3 text-slate-700",
-    },
-  ];
+    const actorFilter =
+      typeof state.filters.actorType === "string"
+        ? mapActorFilterFromApi(state.filters.actorType)
+        : "all";
+    if (actorFilter !== "all") {
+      chips.push({
+        key: "actorType",
+        label: t("admin.audit.filter.actorType.label"),
+        value:
+          ACTOR_OPTIONS.find((option) => option.value === actorFilter)?.labelKey
+            ? t(
+                ACTOR_OPTIONS.find((option) => option.value === actorFilter)!
+                  .labelKey,
+              )
+            : t("admin.audit.filter.actorType.all"),
+        onRemove: () => setFilter("actorType", null),
+      });
+    }
 
-  const emptyState = (
-    <div
-      className="flex flex-col items-center gap-1"
-      // data-testid keeps empty-state checks stable across breakpoints.
-      data-testid="audit-empty-state"
-    >
-      <p className="text-sm font-semibold text-slate-900">
-        {t("admin.audit.empty.title")}
-      </p>
-      <p className="text-xs text-slate-500">{t("admin.audit.empty.body")}</p>
-    </div>
+    const categoryFilter =
+      typeof state.filters.category === "string" ? state.filters.category : "all";
+    if (categoryFilter && categoryFilter !== "all") {
+      const categoryOption = CATEGORY_OPTIONS.find(
+        (option) => option.value === categoryFilter,
+      );
+      chips.push({
+        key: "category",
+        label: t("admin.audit.filter.category.label"),
+        value: categoryOption ? t(categoryOption.labelKey) : String(categoryFilter),
+        onRemove: () => setFilter("category", null),
+      });
+    }
+
+    if (rangePreset !== "all") {
+      const rangeOption = RANGE_OPTIONS.find(
+        (option) => option.value === rangePreset,
+      );
+      chips.push({
+        key: "range",
+        label: t("admin.audit.filter.range.label"),
+        value: rangeOption ? t(rangeOption.labelKey) : t("admin.audit.filter.range.all"),
+        onRemove: () => {
+          const nextFilters = { ...state.filters };
+          delete nextFilters.from;
+          delete nextFilters.to;
+          setFilters(nextFilters);
+        },
+      });
+    }
+
+    if (state.search.trim()) {
+      chips.unshift({
+        key: "search",
+        label: t("admin.table.search.label"),
+        value: state.search.trim(),
+        onRemove: () => setSearch(""),
+      });
+    }
+
+    return chips;
+  }, [rangePreset, setFilter, setFilters, setSearch, state.filters, state.search, t]);
+
+  const clearAll = () => {
+    setSearchInput("");
+    resetAll({ sortField: "occurredAt", sortDir: "desc" });
+  };
+
+  const columns: AdminDataTableColumn<AuditEventRecord>[] = useMemo(
+    () => [
+      {
+        key: "time",
+        label: t("admin.audit.col.time"),
+        sortable: true,
+        sortField: "occurredAt",
+        renderCell: (record) => (
+          <span data-testid="audit-row-time" data-time={record.occurredAt}>
+            {formatDateTime(record.occurredAt, locale) || t("generic.dash")}
+          </span>
+        ),
+      },
+      {
+        key: "actor",
+        label: t("admin.audit.col.actor"),
+        sortable: true,
+        sortField: "actorType",
+        renderCell: (record) => (
+          <div
+            className="flex flex-col"
+            data-testid="audit-row-actor"
+            data-actor-type={record.actorType}
+            data-actor-display={record.actorDisplay ?? ""}
+          >
+            <span className="text-sm text-slate-900">
+              {formatActorLabel(record, t)}
+            </span>
+            <span className="text-xs text-slate-500">
+              {t(getCategoryLabelKey(record.action))}
+            </span>
+          </div>
+        ),
+      },
+      {
+        key: "action",
+        label: t("admin.audit.col.action"),
+        sortable: true,
+        sortField: "action",
+        renderCell: (record) => (
+          <span data-testid="audit-row-action" data-action={record.action}>
+            {t(getActionLabelKey(record))}
+          </span>
+        ),
+      },
+      {
+        key: "entity",
+        label: t("admin.audit.col.entity"),
+        sortable: true,
+        sortField: "entityType",
+        renderCell: (record) => (
+          <span
+            data-testid="audit-row-entity"
+            data-entity-type={record.entityType ?? ""}
+          >
+            {formatEntitySummary(record, t)}
+          </span>
+        ),
+      },
+    ],
+    [locale, t],
   );
 
+  const emptyState: AdminEmptyState = useMemo(
+    () => ({
+      title: t("admin.audit.empty.title"),
+      body: t("admin.audit.empty.body"),
+    }),
+    [t],
+  );
+
+  const actorFilterValue = mapActorFilterFromApi(
+    typeof state.filters.actorType === "string" ? state.filters.actorType : null,
+  );
+  const categoryFilterValue =
+    typeof state.filters.category === "string" ? state.filters.category : "all";
+
   return (
-    <div className="flex flex-col gap-4" data-testid="audit-log">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">
-            {t("admin.audit.filter.range.label")}
-            <select
-              className={inputBase}
-              value={rangePreset}
-              onChange={(event) => setRangePreset(event.target.value as RangePreset)}
-              data-testid="audit-range-filter"
-            >
-              {RANGE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {t(option.labelKey)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">
-            {t("admin.audit.filter.category.label")}
-            <select
-              className={inputBase}
-              value={categoryFilter}
-              onChange={(event) =>
-                setCategoryFilter(event.target.value as CategoryFilter)
-              }
-              data-testid="audit-category-filter"
-            >
-              {CATEGORY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {t(option.labelKey)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">
-            {t("admin.audit.filter.actorType.label")}
-            <select
-              className={inputBase}
-              value={actorFilter}
-              onChange={(event) => setActorFilter(event.target.value as ActorFilter)}
-              data-testid="audit-actor-filter"
-            >
-              {ACTOR_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {t(option.labelKey)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        {canLoadMore ? (
-          <button
-            type="button"
-            className={secondaryButton}
-            onClick={() => void loadEvents({ append: true, offset: events.length })}
-            disabled={isLoadingMore}
-            data-testid="audit-load-more"
-          >
-            {isLoadingMore ? t("common.loading") : t("admin.audit.action.loadMore")}
-          </button>
-        ) : null}
-      </div>
+    <div className="flex flex-col gap-6" data-testid="audit-log">
+      <AdminTableToolbar
+        searchId="audit-log-search"
+        searchValue={searchInput}
+        onSearchChange={setSearchInput}
+        onOpenFilters={() => setIsFilterSheetOpen(true)}
+        filterChips={filterChips}
+        onClearAllFilters={clearAll}
+      />
 
-      {error ? (
-        <div
-          className="rounded border border-red-200 bg-red-50 px-3 py-2"
-          // data-testid keeps error state assertions stable in E2E.
-          data-testid="audit-error-state"
-        >
-          <p className="text-sm font-semibold text-red-700">
-            {t("admin.audit.error.title")}
-          </p>
-          <p className="text-xs text-red-700">{error}</p>
-          <button
-            type="button"
-            className={`${secondaryButton} mt-3`}
-            onClick={() => void loadEvents({ append: false })}
-          >
-            {t("admin.audit.error.tryAgain")}
-          </button>
-        </div>
-      ) : (
+      {listError ? (
+        <AdminErrorPanel onRetry={() => setReloadNonce((value) => value + 1)} />
+      ) : null}
+
+      {!listError ? (
         <>
-          {/* Only render table/empty states when there is no error. */}
-          <div className="hidden md:block">
-            <AdminTable
-              rows={events}
-              columns={columns}
-              rowKey={(record) => `audit-row-${record.id}`}
-              testId="audit-table"
-              isLoading={isLoading}
-              loadingState={t("common.loading")}
-              emptyState={emptyState}
-              onRowClick={handleRowClick}
-            />
-          </div>
-
-          <div className="grid gap-3 md:hidden">
-            {isLoading && events.length === 0 ? (
-              <>
-                {Array.from({ length: 3 }).map((_, index) => (
-                  <div
-                    key={`audit-skeleton-${index}`}
-                    className="rounded border border-slate-200 bg-white p-4"
-                  >
-                    <div className="h-4 w-32 rounded bg-slate-100" />
-                    <div className="mt-3 h-3 w-24 rounded bg-slate-100" />
-                    <div className="mt-3 h-3 w-40 rounded bg-slate-100" />
-                  </div>
-                ))}
-              </>
-            ) : null}
-            {!isLoading && events.length === 0 ? (
-              <div className="rounded border border-slate-200 bg-white p-4 text-center">
-                <p className="text-sm font-semibold text-slate-900">
-                  {t("admin.audit.empty.title")}
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {t("admin.audit.empty.body")}
-                </p>
-              </div>
-            ) : null}
-            {events.map((record) => (
-              <button
-                key={record.id}
-                type="button"
-                className="rounded border border-slate-200 bg-white p-4 text-left shadow-sm"
-                onClick={() => handleRowClick(record)}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-semibold text-slate-900">
-                    {t(getActionLabelKey(record))}
-                  </span>
-                  <span className="rounded-full border border-slate-200 px-2 py-0.5 text-xs text-slate-600">
-                    {t(getCategoryLabelKey(record.action))}
-                  </span>
-                </div>
-                <p className="mt-2 text-xs text-slate-500">
-                  {formatDateTime(record.occurredAt, locale) || t("generic.dash")}
-                </p>
-                <p className="mt-2 text-sm text-slate-700">
-                  {formatActorLabel(record, t)}
-                </p>
-                <p className="mt-2 text-xs text-slate-500">
-                  {formatEntitySummary(record, t)}
-                </p>
-              </button>
-            ))}
-          </div>
+          <AdminDataTable<AuditEventRecord>
+            columns={columns}
+            rows={events}
+            rowKey={(record) => `audit-row-${record.id}`}
+            isLoading={isLoading}
+            emptyState={emptyState}
+            sortField={state.sortField}
+            sortDir={state.sortDir}
+            onSortChange={(field, dir) => setSort(field, dir ?? "asc")}
+            onRowClick={handleRowClick}
+            testId="audit-table"
+          />
+          <AdminPagination
+            page={state.page}
+            pageSize={state.pageSize}
+            totalCount={totalCount}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
         </>
-      )}
+      ) : null}
+
+      <AdminFiltersSheet
+        isOpen={isFilterSheetOpen}
+        onClose={() => setIsFilterSheetOpen(false)}
+        onReset={clearAll}
+      >
+        <AdminFormField label={t("admin.audit.filter.range.label")} htmlFor="audit-filter-range">
+          <select
+            id="audit-filter-range"
+            className="rounded border border-slate-300 px-3 py-2"
+            value={rangePreset}
+            onChange={(event) => {
+              const preset = event.target.value as RangePreset;
+              const nextFilters = { ...state.filters };
+              const range = buildRangeFilters(preset);
+              if (range.from) {
+                nextFilters.from = range.from;
+              } else {
+                delete nextFilters.from;
+              }
+              if (range.to) {
+                nextFilters.to = range.to;
+              } else {
+                delete nextFilters.to;
+              }
+              setFilters(nextFilters);
+            }}
+            data-testid="audit-range-filter"
+          >
+            {RANGE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {t(option.labelKey)}
+              </option>
+            ))}
+          </select>
+        </AdminFormField>
+        <AdminFormField
+          label={t("admin.audit.filter.category.label")}
+          htmlFor="audit-filter-category"
+        >
+          <select
+            id="audit-filter-category"
+            className="rounded border border-slate-300 px-3 py-2"
+            value={categoryFilterValue}
+            onChange={(event) => {
+              const value = event.target.value as CategoryFilter;
+              if (!value || value === "all") {
+                setFilter("category", null);
+              } else {
+                setFilter("category", value);
+              }
+            }}
+            data-testid="audit-category-filter"
+          >
+            {CATEGORY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {t(option.labelKey)}
+              </option>
+            ))}
+          </select>
+        </AdminFormField>
+        <AdminFormField
+          label={t("admin.audit.filter.actorType.label")}
+          htmlFor="audit-filter-actor"
+        >
+          <select
+            id="audit-filter-actor"
+            className="rounded border border-slate-300 px-3 py-2"
+            value={actorFilterValue}
+            onChange={(event) => {
+              const value = event.target.value as ActorFilter;
+              const mapped = mapActorFilterToApi(value);
+              if (!mapped) {
+                setFilter("actorType", null);
+              } else {
+                setFilter("actorType", mapped);
+              }
+            }}
+            data-testid="audit-actor-filter"
+          >
+            {ACTOR_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {t(option.labelKey)}
+              </option>
+            ))}
+          </select>
+        </AdminFormField>
+      </AdminFiltersSheet>
 
       {isDrawerOpen ? (
         <div
@@ -556,7 +644,7 @@ export default function AuditLogClient({ tenant }: AuditLogClientProps) {
                     {t("admin.audit.detail.title")}
                   </h2>
                   <p className="text-sm text-slate-600">
-                    {t(getActionLabelKey(selected))} {t("generic.dash")}{" "}
+                    {t(getActionLabelKey(selected))} {t("generic.dash")} {" "}
                     {formatDateTime(selected.occurredAt, locale)}
                   </p>
                 </div>
@@ -665,7 +753,7 @@ export default function AuditLogClient({ tenant }: AuditLogClientProps) {
                 <div className="mt-auto flex justify-end">
                   <button
                     type="button"
-                    className={secondaryButton}
+                    className="rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
                     onClick={closeDrawer}
                   >
                     {t("actions.close")}

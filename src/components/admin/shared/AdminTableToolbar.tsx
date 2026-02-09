@@ -111,7 +111,7 @@ export default function AdminTableToolbar({
               <span aria-hidden="true">x</span>
             </button>
           ))}
-          {filterChips.length > 1 ? (
+          {filterChips.length ? (
             <button
               type="button"
               className="text-xs font-semibold text-slate-600 underline decoration-slate-300 underline-offset-2 hover:text-slate-900"

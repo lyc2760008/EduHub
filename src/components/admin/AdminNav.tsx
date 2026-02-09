@@ -1,3 +1,4 @@
+// Admin nav groups highlight Step 21.4B list pages (People/Setup/Operations) while keeping core links visible.
 "use client";
 
 import Link from "next/link";
@@ -24,61 +25,73 @@ export default function AdminNav({ tenant, userRole }: AdminNavProps) {
   // UI-level guard keeps the audit link hidden for non-admin roles.
   const isAdmin = userRole === "Owner" || userRole === "Admin";
 
-  // Core admin navigation items keep labels and routes consistent.
+  // Core admin navigation keeps essentials visible for all staff roles.
   const coreItems: AdminNavItem[] = [
     { id: "dashboard", href: `/${tenant}/admin`, labelKey: "nav.dashboard" },
-    {
-      id: "centers",
-      href: `/${tenant}/admin/centers`,
-      labelKey: "nav.centers",
-    },
-    { id: "users", href: `/${tenant}/admin/users`, labelKey: "nav.users" },
-    {
-      id: "catalog",
-      href: `/${tenant}/admin/catalog`,
-      labelKey: "nav.catalog",
-      // Catalog stays active while navigating across catalog sub-pages.
-      activePrefixes: [
-        `/${tenant}/admin/catalog`,
-        `/${tenant}/admin/subjects`,
-        `/${tenant}/admin/levels`,
-        `/${tenant}/admin/programs`,
-      ],
-    },
-    // Students nav keeps roster management discoverable alongside core modules.
     { id: "students", href: `/${tenant}/admin/students`, labelKey: "nav.students" },
-    { id: "groups", href: `/${tenant}/admin/groups`, labelKey: "nav.groups" },
-    // Reports lives in the admin module list so staff can find operational dashboards quickly.
+    { id: "requests", href: `/${tenant}/admin/requests`, labelKey: "nav.requests" },
     {
       id: "reports",
       href: `/${tenant}/admin/reports`,
-      labelKey: "nav.reports",
+      labelKey: "admin.nav.reports",
     },
-    {
-      id: "sessions",
-      href: `/${tenant}/admin/sessions`,
-      labelKey: "nav.sessions",
-    },
+    { id: "sessions", href: `/${tenant}/admin/sessions`, labelKey: "nav.sessions" },
+    { id: "centers", href: `/${tenant}/admin/centers`, labelKey: "nav.centers" },
     { id: "help", href: `/${tenant}/admin/help`, labelKey: "nav.help" },
+    { id: "catalog", href: `/${tenant}/admin/catalog`, labelKey: "nav.catalog" },
   ];
 
-  // Operations nav highlights audit-ready workflows for admin users.
-  const operationsItems: AdminNavItem[] = [
-    {
-      id: "requests",
-      href: `/${tenant}/admin/requests`,
-      labelKey: "nav.requests",
-    },
-    ...(isAdmin
-      ? [
-          {
-            id: "audit",
-            href: `/${tenant}/admin/audit`,
-            labelKey: "nav.audit",
-          } satisfies AdminNavItem,
-        ]
-      : []),
-  ];
+  const peopleItems: AdminNavItem[] = isAdmin
+    ? [
+        {
+          id: "parents",
+          href: `/${tenant}/admin/parents`,
+          labelKey: "admin.nav.parents",
+        },
+        {
+          id: "staff",
+          href: `/${tenant}/admin/users`,
+          labelKey: "admin.nav.staff",
+        },
+      ]
+    : [];
+
+  // Setup doubles as the academics grouping for groups/classes + curriculum setup.
+  const setupItems: AdminNavItem[] = isAdmin
+    ? [
+        {
+          id: "groups",
+          href: `/${tenant}/admin/groups`,
+          labelKey: "admin.nav.groups",
+        },
+        {
+          id: "programs",
+          href: `/${tenant}/admin/programs`,
+          labelKey: "admin.nav.programs",
+        },
+        {
+          id: "subjects",
+          href: `/${tenant}/admin/subjects`,
+          labelKey: "admin.nav.subjects",
+        },
+        {
+          id: "levels",
+          href: `/${tenant}/admin/levels`,
+          labelKey: "admin.nav.levels",
+        },
+      ]
+    : [];
+
+  // Operations/System nav highlights audit-ready workflows for admin users.
+  const operationsItems: AdminNavItem[] = isAdmin
+    ? [
+        {
+          id: "audit",
+          href: `/${tenant}/admin/audit`,
+          labelKey: "admin.nav.audit",
+        },
+      ]
+    : [];
 
   const reportItems: AdminNavItem[] = [
     {
@@ -150,10 +163,58 @@ export default function AdminNav({ tenant, userRole }: AdminNavProps) {
             );
           })}
         </div>
+        {peopleItems.length ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs font-semibold uppercase text-slate-500">
+              {t("admin.nav.people")}
+            </span>
+            {peopleItems.map((item) => {
+              const isActive = pathname.startsWith(item.href);
+              const linkClassName = isActive
+                ? "rounded bg-slate-100 px-2 py-1 font-semibold text-slate-900"
+                : "rounded px-2 py-1 text-slate-600 hover:text-slate-900";
+              return (
+                <Link
+                  key={item.id}
+                  className={linkClassName}
+                  href={item.href}
+                  data-testid={`nav-link-${item.id}`}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  {t(item.labelKey)}
+                </Link>
+              );
+            })}
+          </div>
+        ) : null}
+        {setupItems.length ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs font-semibold uppercase text-slate-500">
+              {t("admin.nav.setup")}
+            </span>
+            {setupItems.map((item) => {
+              const isActive = pathname.startsWith(item.href);
+              const linkClassName = isActive
+                ? "rounded bg-slate-100 px-2 py-1 font-semibold text-slate-900"
+                : "rounded px-2 py-1 text-slate-600 hover:text-slate-900";
+              return (
+                <Link
+                  key={item.id}
+                  className={linkClassName}
+                  href={item.href}
+                  data-testid={`nav-link-${item.id}`}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  {t(item.labelKey)}
+                </Link>
+              );
+            })}
+          </div>
+        ) : null}
         {operationsItems.length ? (
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-xs font-semibold uppercase text-slate-500">
-              {t("nav.operations")}
+              {t("admin.nav.operations")}
             </span>
             {operationsItems.map((item) => {
               const isActive = pathname.startsWith(item.href);

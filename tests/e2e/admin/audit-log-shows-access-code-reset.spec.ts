@@ -33,7 +33,11 @@ test.describe("[regression] Audit log access code reset", () => {
         response.url().includes("/api/admin/audit") &&
         response.request().method() === "GET",
     );
+    // Audit filters live inside the shared filter sheet (Step 21.3 admin table toolkit).
+    await page.getByTestId("audit-log-search-filters-button").click();
+    await expect(page.getByTestId("admin-filters-sheet")).toBeVisible();
     await page.getByTestId("audit-category-filter").selectOption("auth");
+    await page.getByTestId("admin-filters-sheet-close").click();
     await filterResponsePromise;
 
     const actionCell = page.locator(

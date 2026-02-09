@@ -9,6 +9,21 @@ type Center = { id: string; name: string };
 type User = { id: string; role: string; centers: Center[] };
 type Student = { id: string };
 
+function unwrapRows<T>(payload: unknown): T[] {
+  // Several admin list endpoints were upgraded to the Step 21.3 table contract (rows/totalCount/...).
+  // Keep this test resilient by accepting either a raw array or a contract-shaped object.
+  if (Array.isArray(payload)) return payload as T[];
+  if (payload && typeof payload === "object") {
+    const maybeRows = (payload as { rows?: unknown }).rows;
+    if (Array.isArray(maybeRows)) return maybeRows as T[];
+    const maybeItems = (payload as { items?: unknown }).items;
+    if (Array.isArray(maybeItems)) return maybeItems as T[];
+    const maybeStudents = (payload as { students?: unknown }).students;
+    if (Array.isArray(maybeStudents)) return maybeStudents as T[];
+  }
+  return [];
+}
+
 // Tagged for Playwright suite filtering.
 test.describe("[slow] [regression] Sessions - generator", () => {
   test("Admin can dry run and commit recurring sessions", async ({ page }) => {
@@ -38,7 +53,8 @@ test.describe("[slow] [regression] Sessions - generator", () => {
       buildTenantApiPath(tenantSlug, "/api/users"),
     );
     expect(usersResponse.status()).toBe(200);
-    const users = (await usersResponse.json()) as User[];
+    const usersPayload = (await usersResponse.json()) as unknown;
+    const users = unwrapRows<User>(usersPayload);
     const tutor = users.find(
       (user) => user.role === "Tutor" && user.centers.length,
     );
@@ -59,10 +75,8 @@ test.describe("[slow] [regression] Sessions - generator", () => {
       buildTenantApiPath(tenantSlug, "/api/students"),
     );
     expect(studentsResponse.status()).toBe(200);
-    const studentsPayload = (await studentsResponse.json()) as {
-      students: Student[];
-    };
-    const student = studentsPayload.students[0];
+    const studentsPayload = (await studentsResponse.json()) as unknown;
+    const student = unwrapRows<Student>(studentsPayload)[0];
     if (!student) {
       throw new Error("No students available for generator test.");
     }

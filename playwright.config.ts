@@ -6,6 +6,16 @@ import { defineConfig } from "@playwright/test";
 const ADMIN_STORAGE_STATE = "tests/e2e/.auth/admin.json";
 const PARENT_STORAGE_STATE = "tests/e2e/.auth/parent.json";
 
+type TraceMode = "off" | "on" | "retain-on-failure" | "on-first-retry" | "on-all-retries";
+type ScreenshotMode = "off" | "on" | "only-on-failure";
+type VideoMode = "off" | "on" | "retain-on-failure" | "on-first-retry";
+
+function asEnum<T extends string>(value: string | undefined, allowed: readonly T[], fallback: T): T {
+  if (!value) return fallback;
+  const normalized = value.trim() as T;
+  return allowed.includes(normalized) ? normalized : fallback;
+}
+
 export default defineConfig({
   testDir: "./tests/e2e",
   // Global setup keeps the dedicated e2e tenant fixtures ready for all specs.
@@ -19,10 +29,12 @@ export default defineConfig({
   use: {
     // Default to the dedicated e2e tenant host to keep dev data isolated.
     baseURL: process.env.E2E_BASE_URL || "http://e2e-testing.lvh.me:3000",
-    headless: true,
-    trace: "retain-on-failure",
-    screenshot: "only-on-failure",
-    video: "retain-on-failure",
+    // Allow local debugging to opt into headed mode without changing config.
+    headless: (process.env.E2E_HEADLESS || "true").trim().toLowerCase() !== "false",
+    // Artifact capture can dominate runtime when many tests fail; keep defaults but allow env overrides.
+    trace: asEnum<TraceMode>(process.env.E2E_TRACE, ["off", "on", "retain-on-failure", "on-first-retry", "on-all-retries"] as const, "retain-on-failure"),
+    screenshot: asEnum<ScreenshotMode>(process.env.E2E_SCREENSHOT, ["off", "on", "only-on-failure"] as const, "only-on-failure"),
+    video: asEnum<VideoMode>(process.env.E2E_VIDEO, ["off", "on", "retain-on-failure", "on-first-retry"] as const, "retain-on-failure"),
   },
   // Include HTML report output for go-live gating and operator review.
   reporter: [["list"], ["html", { outputFolder: "playwright-report", open: "never" }]],

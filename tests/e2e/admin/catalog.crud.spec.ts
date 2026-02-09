@@ -38,7 +38,8 @@ test.describe("[regression] Catalog - CRUD", () => {
 
     await page.getByTestId("create-level-button").click();
     await page.getByTestId("level-name-input").fill(levelName);
-    await page.getByTestId("level-sortorder-input").fill("10");
+    // The Levels modal uses a numeric "sort order" input; keep the selector stable via data-testid.
+    await page.getByTestId("level-sort-order-input").fill("10");
     await page.getByTestId("save-level-button").click();
 
     await expect(page.getByTestId("levels-table")).toContainText(levelName);

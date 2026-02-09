@@ -1,4 +1,4 @@
-// Admin users page that uses shared RBAC gate + shell and shared user data helpers.
+// Admin users page serves as the staff list entry point for Step 21.4B.
 import { getTranslations } from "next-intl/server";
 
 import type { Role } from "@/generated/prisma/client";
@@ -6,8 +6,6 @@ import UsersClient from "@/components/admin/users/UsersClient";
 import AdminAccessGate from "@/components/admin/shared/AdminAccessGate";
 import AdminPageShell from "@/components/admin/shared/AdminPageShell";
 import { getCenters } from "@/lib/centers/getCenters";
-import { prisma } from "@/lib/db/prisma";
-import { getUsersForTenant } from "@/lib/users/data";
 
 export const runtime = "nodejs";
 
@@ -31,11 +29,8 @@ export default async function UsersPage({ params }: PageProps) {
         // RBAC context from AdminAccessGate keeps data scoped to the tenant.
         const tenantId = access.tenant.tenantId;
         // Load centers for checkbox options and users for initial render.
-        const [centers, users] = await Promise.all([
-          getCenters(tenantId, { includeInactive: true }),
-          // Shared helper keeps staff-center joins consistent with API responses.
-          getUsersForTenant(prisma, tenantId),
-        ]);
+        // List data is fetched client-side via the shared admin table contract.
+        const centers = await getCenters(tenantId, { includeInactive: true });
 
         const centerOptions = centers.map((center) => ({
           id: center.id,
@@ -44,12 +39,12 @@ export default async function UsersPage({ params }: PageProps) {
 
         return (
           <AdminPageShell
-            title={t("admin.users.title")}
+            title={t("admin.staffList.title")}
+            subtitle={t("admin.staffList.helper")}
             maxWidth="max-w-5xl"
             testId="users-page"
           >
             <UsersClient
-              initialUsers={users}
               centers={centerOptions}
               tenant={tenant}
             />

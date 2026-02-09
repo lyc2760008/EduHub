@@ -42,7 +42,13 @@ test.describe("[regression] Students - Admin create + parent link", () => {
       if (response.request().method() !== "GET") return false;
       try {
         const requestUrl = new URL(response.url());
-        return (requestUrl.searchParams.get("q") ?? "").trim() === searchTerm;
+        // Query contract has historically used either `q` or `search` depending on the table toolkit version.
+        const query = (
+          requestUrl.searchParams.get("search") ??
+          requestUrl.searchParams.get("q") ??
+          ""
+        ).trim();
+        return query === searchTerm;
       } catch {
         return false;
       }

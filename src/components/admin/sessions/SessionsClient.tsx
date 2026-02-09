@@ -28,6 +28,7 @@ import SessionGeneratorModal from "@/components/admin/sessions/SessionGeneratorM
 import SessionOneOffModal from "@/components/admin/sessions/SessionOneOffModal";
 import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
+import { buildAdminTableParams } from "@/lib/admin-table/buildAdminTableParams";
 import { useAdminTableQueryState, useDebouncedValue } from "@/lib/admin-table/useAdminTableQueryState";
 
 type RoleValue = Role;
@@ -85,15 +86,27 @@ type SessionsClientProps = {
 };
 
 type SessionsResponse = {
-  sessions: SessionListItem[];
+  rows: SessionListItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  sort: { field: string | null; dir: "asc" | "desc" };
+  appliedFilters: Record<string, unknown>;
 };
 
 type StudentsResponse = {
-  students: StudentOption[];
+  rows: StudentOption[];
+  totalCount: number;
 };
 
 type GroupsResponse = {
-  groups: GroupOption[];
+  rows: GroupOption[];
+  totalCount: number;
+};
+
+type TutorsResponse = {
+  rows: TutorOption[];
+  totalCount: number;
 };
 
 const DEFAULT_TIMEZONE = "America/Edmonton";
@@ -102,18 +115,6 @@ function sessionTypeLabelKey(type: SessionListItem["sessionType"]) {
   if (type === "ONE_ON_ONE") return "admin.sessions.types.oneOnOne";
   if (type === "GROUP") return "admin.sessions.types.group";
   return "admin.sessions.types.class";
-}
-
-function buildStartOfDayISO(date: string) {
-  if (!date) return undefined;
-  const iso = new Date(`${date}T00:00:00.000Z`);
-  return Number.isNaN(iso.getTime()) ? undefined : iso.toISOString();
-}
-
-function buildEndOfDayISO(date: string) {
-  if (!date) return undefined;
-  const iso = new Date(`${date}T23:59:59.999Z`);
-  return Number.isNaN(iso.getTime()) ? undefined : iso.toISOString();
 }
 
 function formatSessionDateTime(iso: string, timezone: string, locale: string) {
@@ -141,6 +142,7 @@ export default function SessionsClient({
   const [tutors, setTutors] = useState<TutorOption[]>([]);
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [groups, setGroups] = useState<GroupOption[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingOptions, setIsLoadingOptions] = useState(false);
@@ -182,25 +184,10 @@ export default function SessionsClient({
     setIsLoading(true);
     setError(null);
 
-    const params = new URLSearchParams();
-    const centerId =
-      typeof state.filters.centerId === "string" ? state.filters.centerId : "";
-    const tutorId =
-      typeof state.filters.tutorId === "string" ? state.filters.tutorId : "";
-    const from = typeof state.filters.from === "string" ? state.filters.from : "";
-    const to = typeof state.filters.to === "string" ? state.filters.to : "";
-    if (centerId) params.set("centerId", centerId);
-    if (tutorId) params.set("tutorId", tutorId);
-
-    const startAtFrom = buildStartOfDayISO(from);
-    const startAtTo = buildEndOfDayISO(to);
-    if (startAtFrom) params.set("startAtFrom", startAtFrom);
-    if (startAtTo) params.set("startAtTo", startAtTo);
-
-    const url = params.size
-      ? buildTenantApiUrl(tenant, `/sessions?${params.toString()}`)
-      : buildTenantApiUrl(tenant, "/sessions");
-    const result = await fetchJson<SessionsResponse>(url);
+    // Step 21.3 Admin Table query contract keeps session list params consistent.
+    const params = buildAdminTableParams(state);
+    const url = buildTenantApiUrl(tenant, `/sessions?${params.toString()}`);
+    const result = await fetchJson<SessionsResponse>(url, { cache: "no-store" });
 
     if (!result.ok) {
       if (result.status === 401 || result.status === 403) {
@@ -214,9 +201,10 @@ export default function SessionsClient({
       return;
     }
 
-    setSessions(result.data.sessions ?? []);
+    setSessions(result.data.rows ?? []);
+    setTotalCount(result.data.totalCount ?? 0);
     setIsLoading(false);
-  }, [state.filters.centerId, state.filters.from, state.filters.to, state.filters.tutorId, t, tenant]);
+  }, [state, t, tenant]);
 
   const loadAdminOptions = useCallback(async () => {
     if (!isAdmin) return;
@@ -227,22 +215,48 @@ export default function SessionsClient({
         fetchJson<CenterOption[]>(
           buildTenantApiUrl(tenant, "/centers?includeInactive=true"),
         ),
-        fetchJson<TutorOption[]>(buildTenantApiUrl(tenant, "/users")),
+        fetchJson<TutorsResponse>(
+          buildTenantApiUrl(
+            tenant,
+            `/users?${new URLSearchParams({
+              page: "1",
+              pageSize: "100",
+              sortField: "name",
+              sortDir: "asc",
+              filters: JSON.stringify({ role: "Tutor" }),
+            }).toString()}`,
+          ),
+        ),
         fetchJson<StudentsResponse>(
           // Keep modal option lists fresh and biased to most recently created students for admin flows.
           buildTenantApiUrl(
             tenant,
-            "/students?pageSize=100&sortField=createdAt&sortDir=desc",
+            `/students?${new URLSearchParams({
+              page: "1",
+              pageSize: "100",
+              sortField: "createdAt",
+              sortDir: "desc",
+            }).toString()}`,
           ),
           { cache: "no-store" },
         ),
-        fetchJson<GroupsResponse>(buildTenantApiUrl(tenant, "/groups")),
+        fetchJson<GroupsResponse>(
+          buildTenantApiUrl(
+            tenant,
+            `/groups?${new URLSearchParams({
+              page: "1",
+              pageSize: "100",
+              sortField: "name",
+              sortDir: "asc",
+            }).toString()}`,
+          ),
+        ),
       ]);
 
     if (centerResult.ok) setCenters(centerResult.data);
-    if (usersResult.ok) setTutors(usersResult.data);
-    if (studentsResult.ok) setStudents(studentsResult.data.students);
-    if (groupsResult.ok) setGroups(groupsResult.data.groups);
+    if (usersResult.ok) setTutors(usersResult.data.rows);
+    if (studentsResult.ok) setStudents(studentsResult.data.rows);
+    if (groupsResult.ok) setGroups(groupsResult.data.rows);
 
     if (
       !centerResult.ok ||
@@ -315,51 +329,6 @@ export default function SessionsClient({
     }
     return timezoneOptions[0] ?? DEFAULT_TIMEZONE;
   }, [centers, state.filters.centerId, timezoneOptions]);
-
-  // Search/sort/pagination are local transforms over a server-filtered dataset from /api/sessions.
-  const visibleSessions = useMemo(() => {
-    const search = state.search.trim().toLowerCase();
-    const filtered = search
-      ? sessions.filter((session) => {
-          const haystack = [
-            session.centerName,
-            session.tutorName ?? "",
-            session.groupName ?? "",
-            t(sessionTypeLabelKey(session.sessionType)),
-          ]
-            .join(" ")
-            .toLowerCase();
-          return haystack.includes(search);
-        })
-      : sessions;
-
-    const sortField = state.sortField ?? "startAt";
-    const direction = state.sortDir === "asc" ? 1 : -1;
-    const sorted = [...filtered].sort((left, right) => {
-      if (sortField === "centerName") {
-        return left.centerName.localeCompare(right.centerName) * direction;
-      }
-      if (sortField === "tutorName") {
-        return (left.tutorName ?? "").localeCompare(right.tutorName ?? "") * direction;
-      }
-      if (sortField === "endAt") {
-        return (
-          (new Date(left.endAt).getTime() - new Date(right.endAt).getTime()) *
-          direction
-        );
-      }
-      return (
-        (new Date(left.startAt).getTime() - new Date(right.startAt).getTime()) *
-        direction
-      );
-    });
-
-    const start = (state.page - 1) * state.pageSize;
-    return {
-      total: sorted.length,
-      rows: sorted.slice(start, start + state.pageSize),
-    };
-  }, [sessions, state.page, state.pageSize, state.search, state.sortDir, state.sortField, t]);
 
   const openOneOffModal = () => {
     setIsOneOffOpen(true);
@@ -563,7 +532,7 @@ export default function SessionsClient({
         <>
           <AdminDataTable<SessionListItem>
             columns={columns}
-            rows={visibleSessions.rows}
+            rows={sessions}
             rowKey={(session) => `sessions-row-${session.id}`}
             isLoading={isLoading}
             emptyState={emptyState}
@@ -574,7 +543,7 @@ export default function SessionsClient({
           <AdminPagination
             page={state.page}
             pageSize={state.pageSize}
-            totalCount={visibleSessions.total}
+            totalCount={totalCount}
             onPageChange={setPage}
             onPageSizeChange={setPageSize}
           />

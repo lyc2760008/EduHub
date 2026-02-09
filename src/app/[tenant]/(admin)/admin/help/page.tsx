@@ -27,7 +27,8 @@ type PageProps = {
 async function loadQuickStart() {
   try {
     return await readFile(QUICK_START_PATH, "utf8");
-  } catch (error) {
+  } catch {
+    // Missing quick start content should fall back to the localized empty state.
     return null;
   }
 }

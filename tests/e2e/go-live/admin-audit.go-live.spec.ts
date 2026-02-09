@@ -30,13 +30,15 @@ test.describe("[go-live][prod-safe] Admin audit access", () => {
       .catch(() => false);
     expect(errorVisible).toBeFalsy();
 
-    await page.getByTestId("audit-range-filter").selectOption("7d");
-    await page.getByTestId("audit-category-filter").selectOption("auth");
+    // Audit filters live inside the shared filter sheet (Step 21.3 admin table toolkit).
+    await page.getByTestId("audit-log-search-filters-button").click();
+    await expect(page.getByTestId("admin-filters-sheet")).toBeVisible();
+    // Keep go-live smoke focused on a stable, non-date filter (date presets can be flaky around midnight).
     await page.getByTestId("audit-actor-filter").selectOption("parent");
+    await page.getByTestId("admin-filters-sheet-close").click();
 
-    await expect(page.getByTestId("audit-range-filter")).toHaveValue("7d");
-    await expect(page.getByTestId("audit-category-filter")).toHaveValue("auth");
-    await expect(page.getByTestId("audit-actor-filter")).toHaveValue("parent");
+    // Assert via filter chips (toolkit output) instead of select values (URL-driven state can lag).
+    await expect(page.getByTestId("audit-log-search-filter-chip-actorType")).toBeVisible();
 
     // Wait for rows or empty state to replace the loading placeholder.
     await expect

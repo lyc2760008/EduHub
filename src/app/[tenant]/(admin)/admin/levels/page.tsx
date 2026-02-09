@@ -1,11 +1,10 @@
-// Admin levels page that relies on shared RBAC gate + shell and delegates UI to a client component.
+// Admin levels page that uses shared admin table toolkit contracts.
 import { getTranslations } from "next-intl/server";
 
 import type { Role } from "@/generated/prisma/client";
 import LevelsClient from "@/components/admin/levels/LevelsClient";
 import AdminAccessGate from "@/components/admin/shared/AdminAccessGate";
 import AdminPageShell from "@/components/admin/shared/AdminPageShell";
-import { prisma } from "@/lib/db/prisma";
 
 export const runtime = "nodejs";
 
@@ -25,24 +24,16 @@ export default async function LevelsPage({ params }: PageProps) {
 
   return (
     <AdminAccessGate tenant={tenant} roles={ADMIN_ROLES} maxWidth="max-w-5xl">
-      {async (access) => {
-        const tenantId = access.tenant.tenantId;
-        // Tenant-scoped initial load keeps client render fast and isolated.
-        const levels = await prisma.level.findMany({
-          where: { tenantId },
-          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-        });
-
-        return (
-          <AdminPageShell
-            title={t("admin.levels.title")}
-            maxWidth="max-w-5xl"
-            testId="levels-page"
-          >
-            <LevelsClient initialLevels={levels} tenant={tenant} />
-          </AdminPageShell>
-        );
-      }}
+      {() => (
+        <AdminPageShell
+          title={t("admin.levelsList.title")}
+          subtitle={t("admin.levelsList.helper")}
+          maxWidth="max-w-5xl"
+          testId="levels-page"
+        >
+          <LevelsClient tenant={tenant} />
+        </AdminPageShell>
+      )}
     </AdminAccessGate>
   );
 }

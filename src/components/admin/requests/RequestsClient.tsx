@@ -19,6 +19,7 @@ import {
 import { inputBase, primaryButton, secondaryButton } from "@/components/admin/shared/adminUiClasses";
 import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
+import { buildAdminTableParams } from "@/lib/admin-table/buildAdminTableParams";
 import { getSessionTypeLabelKey } from "@/lib/portal/format";
 import { useAdminTableQueryState, useDebouncedValue } from "@/lib/admin-table/useAdminTableQueryState";
 
@@ -66,10 +67,12 @@ type RequestRecord = {
 };
 
 type RequestsResponse = {
-  items: RequestRecord[];
+  rows: RequestRecord[];
+  totalCount: number;
   page: number;
   pageSize: number;
-  total: number;
+  sort: { field: string | null; dir: "asc" | "desc" };
+  appliedFilters: Record<string, unknown>;
 };
 
 const STATUS_OPTIONS: Array<{ value: RequestStatus | "ALL"; labelKey: string }> = [
@@ -161,12 +164,12 @@ export default function RequestsClient({ tenant }: RequestsClientProps) {
     setIsLoading(true);
     setError(null);
 
+    // Step 21.3 Admin Table query contract keeps request list params consistent.
     const status =
       typeof state.filters.status === "string" ? state.filters.status : "PENDING";
-    const params = new URLSearchParams({
-      status,
-      page: String(state.page),
-      pageSize: String(state.pageSize),
+    const params = buildAdminTableParams({
+      ...state,
+      filters: { ...state.filters, status },
     });
     const url = buildTenantApiUrl(tenant, `/requests?${params.toString()}`);
     const result = await fetchJson<RequestsResponse>(url);
@@ -177,10 +180,10 @@ export default function RequestsClient({ tenant }: RequestsClientProps) {
       return;
     }
 
-    setRequests(result.data.items ?? []);
-    setTotalCount(result.data.total ?? 0);
+    setRequests(result.data.rows ?? []);
+    setTotalCount(result.data.totalCount ?? 0);
     setIsLoading(false);
-  }, [state.filters.status, state.page, state.pageSize, t, tenant]);
+  }, [state, t, tenant]);
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -188,42 +191,6 @@ export default function RequestsClient({ tenant }: RequestsClientProps) {
     }, 0);
     return () => clearTimeout(handle);
   }, [loadRequests, reloadNonce]);
-
-  const filteredRequests = useMemo(() => {
-    const search = state.search.trim().toLowerCase();
-    const withSearch = search
-      ? requests.filter((item) => {
-          const text = [
-            item.student.firstName,
-            item.student.lastName,
-            item.parent.email,
-            item.session.group?.name ?? "",
-          ]
-            .join(" ")
-            .toLowerCase();
-          return text.includes(search);
-        })
-      : requests;
-
-    const sortField = state.sortField ?? "createdAt";
-    const direction = state.sortDir === "asc" ? 1 : -1;
-    const sorted = [...withSearch].sort((left, right) => {
-      if (sortField === "status") {
-        return left.status.localeCompare(right.status) * direction;
-      }
-      if (sortField === "updatedAt") {
-        return (
-          (new Date(left.updatedAt).getTime() - new Date(right.updatedAt).getTime()) *
-          direction
-        );
-      }
-      return (
-        (new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()) *
-        direction
-      );
-    });
-    return sorted;
-  }, [requests, state.search, state.sortDir, state.sortField]);
 
   const handleRowClick = useCallback((request: RequestRecord) => {
     setSelected(request);
@@ -415,7 +382,7 @@ export default function RequestsClient({ tenant }: RequestsClientProps) {
         <>
           <AdminDataTable<RequestRecord>
             columns={columns}
-            rows={filteredRequests}
+            rows={requests}
             rowKey={(request) => `request-row-${request.id}`}
             isLoading={isLoading}
             emptyState={emptyState}

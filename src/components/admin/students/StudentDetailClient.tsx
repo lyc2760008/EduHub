@@ -12,6 +12,7 @@ import AdminTable, {
 } from "@/components/admin/shared/AdminTable";
 import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
+import { unwrapListResponse } from "@/lib/api/unwrapListResponse";
 
 type StudentStatusValue = "ACTIVE" | "INACTIVE" | "ARCHIVED";
 
@@ -187,11 +188,12 @@ export default function StudentDetailClient({
   }, [studentId, t, tenant]);
 
   const loadLevels = useCallback(async () => {
-    const result = await fetchJson<LevelOption[]>(
+    const result = await fetchJson<unknown>(
       buildTenantApiUrl(tenant, "/levels"),
     );
     if (result.ok) {
-      setLevels(result.data);
+      // /api/levels follows the Step 21.3 table contract (rows/totalCount). Normalize for select options.
+      setLevels(unwrapListResponse<LevelOption>(result.data));
     } else {
       setLevels([]);
     }

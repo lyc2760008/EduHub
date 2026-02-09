@@ -1,14 +1,29 @@
-// Client-side users admin UI with shared fetch + table helpers for list and modal flows.
+// Client-side users admin UI serves as the staff list for Step 21.4B.
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 
-import AdminTable, {
-  type AdminTableColumn,
-} from "@/components/admin/shared/AdminTable";
+import AdminDataTable, {
+  type AdminDataTableColumn,
+} from "@/components/admin/shared/AdminDataTable";
+import AdminFiltersSheet from "@/components/admin/shared/AdminFiltersSheet";
+import AdminFormField from "@/components/admin/shared/AdminFormField";
+import AdminPagination from "@/components/admin/shared/AdminPagination";
+import AdminTableToolbar, {
+  type AdminFilterChip,
+} from "@/components/admin/shared/AdminTableToolbar";
+import {
+  AdminErrorPanel,
+  type AdminEmptyState,
+} from "@/components/admin/shared/AdminTableStatePanels";
 import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
+import { buildAdminTableParams } from "@/lib/admin-table/buildAdminTableParams";
+import {
+  useAdminTableQueryState,
+  useDebouncedValue,
+} from "@/lib/admin-table/useAdminTableQueryState";
 
 type RoleValue = "Owner" | "Admin" | "Tutor" | "Parent" | "Student";
 
@@ -25,8 +40,16 @@ type UserListItem = {
   centers: CenterOption[];
 };
 
+type UsersResponse = {
+  rows: UserListItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  sort: { field: string | null; dir: "asc" | "desc" };
+  appliedFilters: Record<string, unknown>;
+};
+
 type UsersClientProps = {
-  initialUsers: UserListItem[];
   centers: CenterOption[];
   tenant: string;
 };
@@ -39,13 +62,7 @@ type UserFormState = {
   centerIds: string[];
 };
 
-const ROLE_OPTIONS: RoleValue[] = [
-  "Owner",
-  "Admin",
-  "Tutor",
-  "Parent",
-  "Student",
-];
+const ROLE_OPTIONS: RoleValue[] = ["Owner", "Admin", "Tutor"];
 
 const emptyForm: UserFormState = {
   id: null,
@@ -70,74 +87,108 @@ function toFormState(user: UserListItem): UserFormState {
 }
 
 export default function UsersClient({
-  initialUsers,
   centers,
   tenant,
 }: UsersClientProps) {
   const t = useTranslations();
-  const [users, setUsers] = useState<UserListItem[]>(initialUsers);
+  const [users, setUsers] = useState<UserListItem[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [form, setForm] = useState<UserFormState>(emptyForm);
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   const isEditing = Boolean(form.id);
 
-  async function refreshUsers() {
+  const { state, setSearch, setFilter, setSort, setPage, setPageSize, resetAll } =
+    useAdminTableQueryState({
+      defaultSortField: "name",
+      defaultSortDir: "asc",
+      defaultPageSize: 25,
+      maxPageSize: 100,
+      allowedPageSizes: [25, 50, 100],
+      allowedFilterKeys: ["role"],
+    });
+
+  const [searchInput, setSearchInput] = useState(() => state.search);
+  const debouncedSearch = useDebouncedValue(searchInput, 400);
+  useEffect(() => {
+    if (debouncedSearch === state.search) return;
+    setSearch(debouncedSearch);
+  }, [debouncedSearch, setSearch, state.search]);
+
+  const refreshUsers = useCallback(async () => {
     setIsLoading(true);
-    setError(null);
+    setListError(null);
+
+    // Step 21.3 Admin Table query contract keeps user list params consistent.
+    const params = buildAdminTableParams(state);
 
     try {
-      const result = await fetchJson<UserListItem[]>(
-        buildTenantApiUrl(tenant, "/users"),
+      const result = await fetchJson<UsersResponse>(
+        buildTenantApiUrl(tenant, `/users?${params.toString()}`),
+        { cache: "no-store" },
       );
 
       if (!result.ok && (result.status === 401 || result.status === 403)) {
-        setError(t("admin.users.messages.forbidden"));
+        setListError(t("admin.users.messages.forbidden"));
         return false;
       }
 
       if (!result.ok && result.status === 0) {
         // Network failures fall back to a generic localized error message.
         console.error("Failed to load users", result.details);
-        setError(t("common.error"));
+        setListError(t("common.error"));
         return false;
       }
 
       if (!result.ok) {
-        setError(t("admin.users.messages.loadError"));
+        setListError(t("admin.users.messages.loadError"));
         return false;
       }
 
-      setUsers(result.data);
+      setUsers(result.data.rows);
+      setTotalCount(result.data.totalCount);
       return true;
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [state, t, tenant]);
 
-  function openCreateModal() {
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      void refreshUsers();
+    }, 0);
+    return () => clearTimeout(handle);
+  }, [refreshUsers, reloadNonce]);
+
+  const openCreateModal = useCallback(() => {
     // Reset state for a fresh create flow.
     setForm(emptyForm);
     setIsModalOpen(true);
-    setError(null);
+    setListError(null);
+    setFormError(null);
     setMessage(null);
-  }
+  }, []);
 
-  function openEditModal(user: UserListItem) {
+  const openEditModal = useCallback((user: UserListItem) => {
     // Populate the form for editing without extra API calls.
     setForm(toFormState(user));
     setIsModalOpen(true);
-    setError(null);
+    setListError(null);
+    setFormError(null);
     setMessage(null);
-  }
+  }, []);
 
-  function closeModal() {
+  const closeModal = useCallback(() => {
     setIsModalOpen(false);
-    setError(null);
-  }
+    setFormError(null);
+  }, []);
 
   function toggleCenter(centerId: string) {
     setForm((prev) => {
@@ -154,14 +205,15 @@ export default function UsersClient({
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSaving(true);
-    setError(null);
+    setListError(null);
+    setFormError(null);
     setMessage(null);
 
     const trimmedEmail = form.email.trim();
     const trimmedName = form.name.trim();
 
     if (!isEditing && !trimmedEmail) {
-      setError(t("admin.users.messages.validationError"));
+      setFormError(t("admin.users.messages.validationError"));
       setIsSaving(false);
       return;
     }
@@ -196,7 +248,7 @@ export default function UsersClient({
     });
 
     if (!result.ok && (result.status === 401 || result.status === 403)) {
-      setError(t("admin.users.messages.forbidden"));
+      setFormError(t("admin.users.messages.forbidden"));
       setIsSaving(false);
       return;
     }
@@ -204,7 +256,7 @@ export default function UsersClient({
     if (!result.ok) {
       const isValidation =
         result.status === 400 && result.error === "ValidationError";
-      setError(
+      setFormError(
         isValidation
           ? t("admin.users.messages.validationError")
           : t("admin.users.messages.loadError"),
@@ -227,81 +279,165 @@ export default function UsersClient({
     );
   }
 
-  const columns: AdminTableColumn<UserListItem>[] = [
-    {
-      header: t("admin.users.fields.name"),
-      cell: (user) => user.name ?? "",
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3 font-medium text-slate-900",
-    },
-    {
-      header: t("admin.users.fields.email"),
-      cell: (user) => user.email,
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3 text-slate-700",
-    },
-    {
-      header: t("admin.users.fields.role"),
-      cell: (user) => t(roleTranslationKey(user.role)),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3 text-slate-700",
-    },
-    {
-      header: t("admin.users.fields.centers"),
-      cell: (user) => user.centers.map((center) => center.name).join(", "),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3 text-slate-700",
-    },
-    {
-      header: t("admin.users.edit"),
-      cell: (user) => (
-        <button
-          className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
-          // Test hooks keep row-level actions stable for Playwright selectors.
-          data-testid="edit-user-button"
-          data-user-email={user.email}
-          onClick={() => openEditModal(user)}
-          type="button"
-        >
-          {t("admin.users.edit")}
-        </button>
-      ),
-      headClassName: "px-4 py-3",
-      cellClassName: "px-4 py-3",
-    },
-  ];
+  const filterChips = useMemo<AdminFilterChip[]>(() => {
+    const chips: AdminFilterChip[] = [];
+    const role = typeof state.filters.role === "string" ? state.filters.role : "";
+    if (role) {
+      chips.push({
+        key: "role",
+        label: t("admin.users.fields.role"),
+        value: t(roleTranslationKey(role as RoleValue)),
+        onRemove: () => setFilter("role", ""),
+      });
+    }
+    if (state.search.trim()) {
+      chips.unshift({
+        key: "search",
+        label: t("admin.table.search.label"),
+        value: state.search.trim(),
+        onRemove: () => setSearch(""),
+      });
+    }
+    return chips;
+  }, [setFilter, setSearch, state.filters.role, state.search, t]);
 
-  const loadingState = t("common.loading");
-  const emptyState = t("admin.users.messages.empty");
+  const clearAll = () => {
+    setSearchInput("");
+    resetAll({ sortField: "name", sortDir: "asc" });
+  };
+
+  const columns: AdminDataTableColumn<UserListItem>[] = useMemo(
+    () => [
+      {
+        key: "name",
+        label: t("admin.users.fields.name"),
+        sortable: true,
+        sortField: "name",
+        renderCell: (user) => (
+          <span className="font-medium text-slate-900">{user.name ?? ""}</span>
+        ),
+      },
+      {
+        key: "email",
+        label: t("admin.users.fields.email"),
+        sortable: true,
+        sortField: "email",
+        renderCell: (user) => user.email,
+      },
+      {
+        key: "role",
+        label: t("admin.users.fields.role"),
+        sortable: true,
+        sortField: "role",
+        renderCell: (user) => t(roleTranslationKey(user.role)),
+      },
+      {
+        key: "centers",
+        label: t("admin.users.fields.centers"),
+        renderCell: (user) => user.centers.map((center) => center.name).join(", "),
+      },
+      {
+        key: "actions",
+        label: t("admin.users.edit"),
+        renderCell: (user) => (
+          <button
+            className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
+            // Test hooks keep row-level actions stable for Playwright selectors.
+            data-testid="edit-user-button"
+            data-user-email={user.email}
+            disabled={isSaving}
+            onClick={() => openEditModal(user)}
+            type="button"
+          >
+            {t("admin.users.edit")}
+          </button>
+        ),
+      },
+    ],
+    [isSaving, openEditModal, t],
+  );
+
+  const emptyState: AdminEmptyState = useMemo(
+    () => ({
+      title: t("admin.staffList.empty.title"),
+      body: t("admin.staffList.empty.body"),
+    }),
+    [t],
+  );
+
+  const rightSlot = (
+    <button
+      className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+      data-testid="create-user-button"
+      onClick={openCreateModal}
+      type="button"
+    >
+      {t("admin.staffList.action.create")}
+    </button>
+  );
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <button
-          className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-          data-testid="create-user-button"
-          onClick={openCreateModal}
-          type="button"
-        >
-          {t("admin.users.create")}
-        </button>
-      </div>
+      <AdminTableToolbar
+        searchId="users-list-search"
+        searchValue={searchInput}
+        onSearchChange={setSearchInput}
+        onOpenFilters={() => setIsFilterSheetOpen(true)}
+        filterChips={filterChips}
+        onClearAllFilters={clearAll}
+        rightSlot={rightSlot}
+      />
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {listError ? (
+        <AdminErrorPanel onRetry={() => setReloadNonce((value) => value + 1)} />
+      ) : null}
       {message ? <p className="text-sm text-green-600">{message}</p> : null}
-      {isLoading ? (
-        <p className="text-sm text-slate-600">{t("common.loading")}</p>
+
+      {!listError ? (
+        <>
+          <AdminDataTable<UserListItem>
+            columns={columns}
+            rows={users}
+            rowKey={(user) => `user-row-${user.id}`}
+            isLoading={isLoading}
+            emptyState={emptyState}
+            sortField={state.sortField}
+            sortDir={state.sortDir}
+            onSortChange={(field, dir) => setSort(field, dir ?? "asc")}
+            onRowClick={openEditModal}
+            testId="users-table"
+          />
+          <AdminPagination
+            page={state.page}
+            pageSize={state.pageSize}
+            totalCount={totalCount}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        </>
       ) : null}
 
-      <AdminTable
-        rows={users}
-        columns={columns}
-        rowKey={(user) => `user-row-${user.id}`}
-        testId="users-table"
-        isLoading={isLoading}
-        loadingState={loadingState}
-        emptyState={emptyState}
-      />
+      <AdminFiltersSheet
+        isOpen={isFilterSheetOpen}
+        onClose={() => setIsFilterSheetOpen(false)}
+        onReset={clearAll}
+      >
+        <AdminFormField label={t("admin.users.fields.role")} htmlFor="users-filter-role">
+          <select
+            id="users-filter-role"
+            className="rounded border border-slate-300 px-3 py-2"
+            value={typeof state.filters.role === "string" ? state.filters.role : ""}
+            onChange={(event) => setFilter("role", event.target.value)}
+          >
+            <option value="">{t("admin.reports.statusFilter.all")}</option>
+            {ROLE_OPTIONS.map((role) => (
+              <option key={role} value={role}>
+                {t(roleTranslationKey(role))}
+              </option>
+            ))}
+          </select>
+        </AdminFormField>
+      </AdminFiltersSheet>
 
       {isModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
@@ -414,7 +550,9 @@ export default function UsersClient({
                   {t("admin.users.actions.cancel")}
                 </button>
               </div>
-              {error ? <p className="text-sm text-red-600">{error}</p> : null}
+              {formError ? (
+                <p className="text-sm text-red-600">{formError}</p>
+              ) : null}
             </form>
           </div>
         </div>

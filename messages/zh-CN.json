@@ -44,9 +44,126 @@
       "title": "访问受限",
       "message": "您没有权限查看此页面。"
     },
+    "table": {
+      "_comment": "????????????",
+      "search": {
+        "label": "??",
+        "placeholder": "???"
+      },
+      "filters": {
+        "label": "??",
+        "clearAll": "????"
+      },
+      "pagination": {
+        "rowsPerPage": "????",
+        "of": "{from}?{to} / ?{total}",
+        "prev": "???",
+        "next": "???"
+      },
+      "sort": {
+        "sortedAscending": "??????",
+        "sortedDescending": "??????"
+      },
+      "state": {
+        "error": {
+          "title": "??????",
+          "body": "????",
+          "retry": "??"
+        }
+      },
+      "export": {
+        "preparing": "??????...",
+        "warning": "???????????"
+      },
+      "exportCsv": "?? CSV"
+    },
+    "nav": {
+      "_comment": "Admin navigation labels for Step 24.1C sidebar groups.",
+      "dashboard": "仪表盘",
+      "people": "人员",
+      "operations": "运营",
+      "setup": "设置",
+      "reports": "报表",
+      "group": {
+        "people": "人员",
+        "setup": "设置",
+        "operations": "运营",
+        "reports": "报表"
+      },
+      "students": "学生",
+      "parents": "家长",
+      "staff": "员工 / 老师",
+      "centers": "校区",
+      "groups": "班级 / 分组",
+      "programs": "项目",
+      "subjects": "科目",
+      "levels": "级别",
+      "sessions": "课程",
+      "requests": "申请",
+      "audit": "审计日志",
+      "help": "帮助",
+      "reportsHome": "报表首页",
+      "report": {
+        "upcomingSessions": "即将到来的课程",
+        "attendanceSummary": "出勤汇总",
+        "absenceRequests": "请假申请",
+        "tutorWorkload": "老师工作量",
+        "studentsDirectory": "学生目录"
+      }
+    },
+    "shell": {
+      "_comment": "Admin shell \u5bfc\u822a\u4e0e\u65e0\u969c\u788d\u6587\u6848\u3002",
+      "topbar": {
+        "menu": {
+          "open": "打开菜单",
+          "close": "关闭菜单"
+        }
+      },
+      "sidebar": {
+        "toggleCollapse": "收起侧边栏",
+        "toggleExpand": "展开侧边栏"
+      },
+      "nav": {
+        "title": "菜单"
+      },
+      "group": {
+        "collapse": "收起 {groupName}",
+        "expand": "展开 {groupName}"
+      },
+      "breadcrumbs": {
+        "label": "导航路径"
+      }
+    },
     "help": {
       "subtitle": "MMC 试点管理员快速上手。",
       "missing": "快速上手内容暂不可用，请联系内部支持团队。"
+    },
+    "parents": {
+      "error": {
+        "body": "??????????"
+      }
+    },
+    "parentsList": {
+      "title": "??",
+      "helper": "??????????????",
+      "columns": {
+        "parent": "??",
+        "email": "??",
+        "students": "????",
+        "createdAt": "????"
+      },
+      "filters": {
+        "hasStudents": {
+          "label": "?????",
+          "any": "??",
+          "yes": "?",
+          "no": "?"
+        }
+      },
+      "empty": {
+        "title": "?????",
+        "body": "?????????????????"
+      }
     },
     "centers": {
       "title": "中心管理",
@@ -93,6 +210,7 @@
       "fields": {
         "name": "名称",
         "status": "状态",
+        "updatedAt": "????",
         "actions": "操作"
       },
       "messages": {
@@ -104,6 +222,20 @@
         "empty": "暂无学科"
       }
     },
+    "subjectsList": {
+      "title": "??",
+      "helper": "?????",
+      "action": {
+        "create": "????"
+      },
+      "empty": {
+        "title": "????",
+        "body": "???????????",
+        "cta": {
+          "create": "????"
+        }
+      }
+    },
     "levels": {
       "title": "级别",
       "create": "创建级别",
@@ -112,6 +244,7 @@
         "name": "名称",
         "sortOrder": "排序",
         "status": "状态",
+        "updatedAt": "????",
         "actions": "操作"
       },
       "messages": {
@@ -123,6 +256,20 @@
         "empty": "暂无级别"
       }
     },
+    "levelsList": {
+      "title": "??",
+      "helper": "????????",
+      "action": {
+        "create": "????"
+      },
+      "empty": {
+        "title": "????",
+        "body": "?????????????",
+        "cta": {
+          "create": "????"
+        }
+      }
+    },
     "programs": {
       "title": "课程",
       "create": "创建课程",
@@ -131,6 +278,7 @@
         "name": "名称",
         "subject": "学科",
         "status": "状态",
+        "updatedAt": "????",
         "actions": "操作"
       },
       "messages": {
@@ -141,6 +289,20 @@
         "forbidden": "您没有权限管理课程",
         "empty": "暂无课程",
         "noSubject": "无学科"
+      }
+    },
+    "programsList": {
+      "title": "??",
+      "helper": "?????",
+      "action": {
+        "create": "????"
+      },
+      "empty": {
+        "title": "????",
+        "body": "??????????????",
+        "cta": {
+          "create": "????"
+        }
       }
     },
     "groups": {
@@ -195,6 +357,31 @@
         "studentsUpdated": "学生名单已更新",
         "filterStudents": "按姓名筛选学生",
         "notFound": "未找到分组"
+      }
+    },
+    "groupsList": {
+      "title": "?? / ??",
+      "helper": "????????????",
+      "empty": {
+        "title": "?????",
+        "body": "???????????????",
+        "cta": {
+          "create": "????"
+        }
+      }
+    },
+    "staffList": {
+      "title": "?? / ??",
+      "helper": "????????????",
+      "action": {
+        "create": "????"
+      },
+      "empty": {
+        "title": "?????",
+        "body": "?????????????????",
+        "cta": {
+          "create": "????"
+        }
       }
     },
     "sessions": {
@@ -371,6 +558,9 @@
       "_comment": "管理端审计日志文案（Step 20.8）。",
       "title": "审计日志",
       "helper": "记录本租户的重要操作（只读）。",
+      "search": {
+        "placeholder": "???????"
+      },
       "filter": {
         "range": {
           "label": "时间范围",

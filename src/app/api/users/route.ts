@@ -9,12 +9,23 @@ import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
 import { requireRole } from "@/lib/rbac";
 import {
+  parseAdminTableQuery,
+  runAdminTableQuery,
+} from "@/lib/reports/adminTableQuery";
+import {
+  ReportApiError,
+  normalizeRoleError,
+  toReportErrorResponse,
+} from "@/lib/reports/adminReportErrors";
+import { REPORT_LIMITS } from "@/lib/reports/reportConfigs";
+import {
   fetchCentersForTenant,
+  getStaffCentersForUsers,
   getUserDetailForTenant,
-  getUsersForTenant,
   normalizeCenterIds,
   replaceStaffCentersForUser,
   type CenterSummary,
+  type UserListItem,
 } from "@/lib/users/data";
 import { Prisma, Role } from "@/generated/prisma/client";
 
@@ -31,20 +42,139 @@ const CreateUserSchema = z
   })
   .strict();
 
+const USER_SORT_FIELDS = ["name", "email", "role"] as const;
+type UserSortField = (typeof USER_SORT_FIELDS)[number];
+
+const userFilterSchema = z
+  .object({
+    role: z.nativeEnum(Role).optional(),
+  })
+  .strict();
+
+// Shared include ensures membership rows expose the user fields needed for list rendering.
+const USER_MEMBERSHIP_INCLUDE = {
+  user: { select: { id: true, name: true, email: true } },
+} as const;
+
+type UserMembershipRow = Prisma.TenantMembershipGetPayload<{
+  include: typeof USER_MEMBERSHIP_INCLUDE;
+}>;
+
+function buildUserOrderBy(
+  field: UserSortField,
+  dir: "asc" | "desc",
+): Prisma.Enumerable<Prisma.TenantMembershipOrderByWithRelationInput> {
+  // Stable ordering keeps pagination deterministic when names are missing.
+  if (field === "email") {
+    return [{ user: { email: dir } }, { userId: "asc" }];
+  }
+  if (field === "role") {
+    return [
+      { role: dir },
+      { user: { email: "asc" } },
+      { userId: "asc" },
+    ];
+  }
+  return [
+    { user: { name: dir } },
+    { user: { email: "asc" } },
+    { userId: "asc" },
+  ];
+}
+
 export async function GET(req: NextRequest) {
+  // Step 21.3 Admin Table query contract keeps user list queries consistent.
   try {
     // RBAC guard runs first to avoid leaking tenant data to unauthorized users.
     const ctx = await requireRole(req, ADMIN_ROLES);
-    if (ctx instanceof Response) return ctx;
+    if (ctx instanceof Response) return await normalizeRoleError(ctx);
     const tenantId = ctx.tenant.tenantId;
 
-    const users = await getUsersForTenant(prisma, tenantId);
+    const url = new URL(req.url);
+    const parsedQuery = parseAdminTableQuery(url.searchParams, {
+      filterSchema: userFilterSchema,
+      allowedSortFields: USER_SORT_FIELDS,
+      defaultSort: { field: "name", dir: "asc" },
+      defaultPageSize: REPORT_LIMITS.defaultPageSize,
+    });
 
-    return NextResponse.json(users);
+    const result = await runAdminTableQuery({
+      filterSchema: userFilterSchema,
+      allowedSortFields: USER_SORT_FIELDS,
+      defaultSort: { field: "name", dir: "asc" },
+      buildWhere: ({ tenantId: scopedTenantId, search, filters }) => {
+        const andFilters: Prisma.TenantMembershipWhereInput[] = [
+          { tenantId: scopedTenantId },
+        ];
+        if (search) {
+          andFilters.push({
+            OR: [
+              { user: { name: { contains: search, mode: "insensitive" } } },
+              { user: { email: { contains: search, mode: "insensitive" } } },
+            ],
+          });
+        }
+        if (filters.role) {
+          andFilters.push({ role: filters.role });
+        }
+        return andFilters.length === 1 ? andFilters[0] : { AND: andFilters };
+      },
+      buildOrderBy: buildUserOrderBy,
+      count: (where) => prisma.tenantMembership.count({ where }),
+      findMany: async ({ where, orderBy, skip, take }) => {
+        const memberships: UserMembershipRow[] =
+          await prisma.tenantMembership.findMany({
+            where,
+            orderBy:
+              orderBy as Prisma.TenantMembershipOrderByWithRelationInput[],
+            skip,
+            take,
+            include: USER_MEMBERSHIP_INCLUDE,
+          });
+
+        const userIds = memberships.map((membership) => membership.userId);
+        const staffCenters = await getStaffCentersForUsers(
+          prisma,
+          tenantId,
+          userIds,
+        );
+        const centersByUserId = new Map<string, CenterSummary[]>();
+        for (const staffCenter of staffCenters) {
+          const existing = centersByUserId.get(staffCenter.userId) ?? [];
+          existing.push(staffCenter.center);
+          centersByUserId.set(staffCenter.userId, existing);
+        }
+
+        const users: UserListItem[] = memberships.map((membership) => ({
+          id: membership.user.id,
+          name: membership.user.name,
+          email: membership.user.email,
+          role: membership.role,
+          centers: centersByUserId.get(membership.userId) ?? [],
+        }));
+
+        return users;
+      },
+      mapRow: (row) => row,
+    }, {
+      tenantId,
+      parsedQuery,
+    });
+
+    return NextResponse.json({
+      rows: result.rows,
+      totalCount: result.totalCount,
+      page: result.page,
+      pageSize: result.pageSize,
+      sort: result.sort,
+      appliedFilters: result.appliedFilters,
+    });
   } catch (error) {
     // Internal errors return a generic response to avoid leaking details.
-    console.error("GET /api/users failed", error);
-    return jsonError(500, "Internal server error");
+    if (!(error instanceof ReportApiError)) {
+      console.error("GET /api/users failed", error);
+    }
+    return toReportErrorResponse(error);
   }
 }
 

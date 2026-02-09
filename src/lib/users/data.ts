@@ -55,7 +55,8 @@ function hasStaffCenterDelegate(
   return typeof client.staffCenter !== "undefined";
 }
 
-async function getStaffCentersForUsers(
+// Shared lookup supports paginated user lists without duplicating raw SQL fallbacks.
+export async function getStaffCentersForUsers(
   client: DbClient,
   tenantId: string,
   userIds: string[],

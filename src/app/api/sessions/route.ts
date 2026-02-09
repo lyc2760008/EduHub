@@ -6,6 +6,16 @@ import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
 import { requireRole } from "@/lib/rbac";
 import {
+  parseAdminTableQuery,
+  runAdminTableQuery,
+} from "@/lib/reports/adminTableQuery";
+import {
+  ReportApiError,
+  normalizeRoleError,
+  toReportErrorResponse,
+} from "@/lib/reports/adminReportErrors";
+import { REPORT_LIMITS } from "@/lib/reports/reportConfigs";
+import {
   Prisma,
   RequestStatus,
   RequestType,
@@ -31,131 +41,208 @@ const CreateSessionSchema = z
   })
   .strict();
 
-function parseDateParam(value: string | null): Date | null | undefined {
+const SESSION_SORT_FIELDS = [
+  "startAt",
+  "endAt",
+  "centerName",
+  "tutorName",
+] as const;
+type SessionSortField = (typeof SESSION_SORT_FIELDS)[number];
+
+const dateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional();
+
+const sessionFilterSchema = z
+  .object({
+    centerId: z.string().trim().min(1).optional(),
+    tutorId: z.string().trim().min(1).optional(),
+    from: dateOnlySchema,
+    to: dateOnlySchema,
+  })
+  .strict();
+
+type SessionListRow = Prisma.SessionGetPayload<{
+  select: {
+    id: true;
+    centerId: true;
+    tutorId: true;
+    sessionType: true;
+    groupId: true;
+    startAt: true;
+    endAt: true;
+    timezone: true;
+    center: { select: { name: true } };
+    tutor: { select: { name: true; email: true } };
+    group: { select: { name: true; type: true } };
+  };
+}>;
+
+function parseDateStart(value?: string) {
   if (!value) return undefined;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed;
+  const [year, month, day] = value.split("-").map((part) => Number(part));
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function parseDateEndExclusive(value?: string) {
+  const start = parseDateStart(value);
+  if (!start) return undefined;
+  return new Date(start.getTime() + 24 * 60 * 60 * 1000);
+}
+
+function buildSessionOrderBy(
+  field: SessionSortField,
+  dir: "asc" | "desc",
+): Prisma.Enumerable<Prisma.SessionOrderByWithRelationInput> {
+  // Stable secondary ordering keeps pagination deterministic for admin lists.
+  if (field === "centerName") {
+    return [{ center: { name: dir } }, { startAt: "asc" }, { id: "asc" }];
+  }
+  if (field === "tutorName") {
+    return [{ tutor: { name: dir } }, { startAt: "asc" }, { id: "asc" }];
+  }
+  if (field === "endAt") {
+    return [{ endAt: dir }, { id: "asc" }];
+  }
+  return [{ startAt: dir }, { id: "asc" }];
 }
 
 export async function GET(req: NextRequest) {
+  // Step 21.3 Admin Table query contract keeps sessions list queries consistent.
   try {
     // RBAC guard runs first to avoid leaking tenant data to unauthorized users.
     const ctx = await requireRole(req, READ_ROLES);
-    if (ctx instanceof Response) return ctx;
+    if (ctx instanceof Response) return await normalizeRoleError(ctx);
     const tenantId = ctx.tenant.tenantId;
+    const viewerRole = ctx.membership.role;
+    const viewerId = ctx.user.id;
 
     const url = new URL(req.url);
-    const centerId = url.searchParams.get("centerId")?.trim() || undefined;
-    const tutorIdParam = url.searchParams.get("tutorId")?.trim() || undefined;
-    const startAtFromParam = url.searchParams.get("startAtFrom");
-    const startAtToParam = url.searchParams.get("startAtTo");
-
-    const startAtFrom = parseDateParam(startAtFromParam);
-    if (startAtFrom === null) {
-      return NextResponse.json(
-        { error: "ValidationError", details: "Invalid startAtFrom" },
-        { status: 400 },
-      );
-    }
-
-    const startAtTo = parseDateParam(startAtToParam);
-    if (startAtTo === null) {
-      return NextResponse.json(
-        { error: "ValidationError", details: "Invalid startAtTo" },
-        { status: 400 },
-      );
-    }
-
-    if (startAtFrom && startAtTo && startAtFrom > startAtTo) {
-      return NextResponse.json(
-        {
-          error: "ValidationError",
-          details: "startAtFrom must be <= startAtTo",
-        },
-        { status: 400 },
-      );
-    }
-
-    const now = new Date();
-    const startAtLowerBound =
-      startAtFrom && startAtFrom > now ? startAtFrom : now;
-
-    const where: Prisma.SessionWhereInput = {
-      tenantId,
-      startAt: {
-        gte: startAtLowerBound,
-        ...(startAtTo ? { lte: startAtTo } : {}),
-      },
-      ...(centerId ? { centerId } : {}),
-    };
-
-    if (ctx.membership.role === "Tutor") {
-      where.tutorId = ctx.user.id;
-    } else if (tutorIdParam) {
-      where.tutorId = tutorIdParam;
-    }
-
-    const sessions = await prisma.session.findMany({
-      where,
-      orderBy: { startAt: "asc" },
-      select: {
-        id: true,
-        centerId: true,
-        tutorId: true,
-        sessionType: true,
-        groupId: true,
-        startAt: true,
-        endAt: true,
-        timezone: true,
-        createdAt: true,
-        updatedAt: true,
-        center: { select: { name: true } },
-        tutor: { select: { name: true } },
-        group: { select: { name: true, type: true } },
-      },
+    const parsedQuery = parseAdminTableQuery(url.searchParams, {
+      filterSchema: sessionFilterSchema,
+      allowedSortFields: SESSION_SORT_FIELDS,
+      defaultSort: { field: "startAt", dir: "asc" },
+      defaultPageSize: REPORT_LIMITS.defaultPageSize,
     });
 
-    // Aggregate pending absence requests once to avoid per-session lookups.
-    const sessionIds = sessions.map((session) => session.id);
-    const pendingCounts = sessionIds.length
-      ? await prisma.parentRequest.groupBy({
-          by: ["sessionId"],
-          where: {
-            tenantId,
-            sessionId: { in: sessionIds },
-            status: RequestStatus.PENDING,
-            type: RequestType.ABSENCE,
+    const pendingCountBySessionId = new Map<string, number>();
+
+    const result = await runAdminTableQuery({
+      filterSchema: sessionFilterSchema,
+      allowedSortFields: SESSION_SORT_FIELDS,
+      defaultSort: { field: "startAt", dir: "asc" },
+      buildWhere: ({ tenantId: scopedTenantId, search, filters }) => {
+        const andFilters: Prisma.SessionWhereInput[] = [
+          { tenantId: scopedTenantId },
+        ];
+        if (search) {
+          andFilters.push({
+            OR: [
+              { tutor: { name: { contains: search, mode: "insensitive" } } },
+              { tutor: { email: { contains: search, mode: "insensitive" } } },
+              { center: { name: { contains: search, mode: "insensitive" } } },
+              { group: { name: { contains: search, mode: "insensitive" } } },
+            ],
+          });
+        }
+        const start = parseDateStart(filters.from);
+        const endExclusive = parseDateEndExclusive(filters.to);
+        const now = new Date();
+        const lowerBound = start && start > now ? start : now;
+        andFilters.push({
+          startAt: {
+            gte: lowerBound,
+            ...(endExclusive ? { lt: endExclusive } : {}),
           },
-          _count: { _all: true },
-        })
-      : [];
-    const pendingCountBySessionId = new Map(
-      pendingCounts.map((row) => [row.sessionId, row._count._all]),
-    );
+        });
+        if (filters.centerId) {
+          andFilters.push({ centerId: filters.centerId });
+        }
+        if (viewerRole === "Tutor") {
+          andFilters.push({ tutorId: viewerId });
+        } else if (filters.tutorId) {
+          andFilters.push({ tutorId: filters.tutorId });
+        }
+        return andFilters.length === 1 ? andFilters[0] : { AND: andFilters };
+      },
+      buildOrderBy: buildSessionOrderBy,
+      count: (where) => prisma.session.count({ where }),
+      findMany: async ({ where, orderBy, skip, take }) => {
+        const sessions = await prisma.session.findMany({
+          where,
+          orderBy:
+            orderBy as Prisma.Enumerable<Prisma.SessionOrderByWithRelationInput>,
+          skip,
+          take,
+          select: {
+            id: true,
+            centerId: true,
+            tutorId: true,
+            sessionType: true,
+            groupId: true,
+            startAt: true,
+            endAt: true,
+            timezone: true,
+            center: { select: { name: true } },
+            tutor: { select: { name: true, email: true } },
+            group: { select: { name: true, type: true } },
+          },
+        });
 
-    const payload = sessions.map((session) => ({
-      id: session.id,
-      centerId: session.centerId,
-      centerName: session.center.name,
-      tutorId: session.tutorId,
-      tutorName: session.tutor.name ?? null,
-      sessionType: session.sessionType,
-      groupId: session.groupId,
-      groupName: session.group?.name ?? null,
-      groupType: session.group?.type ?? null,
-      startAt: session.startAt,
-      endAt: session.endAt,
-      timezone: session.timezone,
-      pendingAbsenceCount: pendingCountBySessionId.get(session.id) ?? 0,
-      createdAt: session.createdAt,
-      updatedAt: session.updatedAt,
-    }));
+        // Aggregate pending absence requests once per page to avoid N+1 lookups.
+        const sessionIds = sessions.map((session) => session.id);
+        const pendingCounts = sessionIds.length
+          ? await prisma.parentRequest.groupBy({
+              by: ["sessionId"],
+              where: {
+                tenantId,
+                sessionId: { in: sessionIds },
+                status: RequestStatus.PENDING,
+                type: RequestType.ABSENCE,
+              },
+              _count: { _all: true },
+            })
+          : [];
+        pendingCountBySessionId.clear();
+        for (const row of pendingCounts) {
+          pendingCountBySessionId.set(row.sessionId, row._count._all);
+        }
 
-    return NextResponse.json({ sessions: payload });
+        return sessions;
+      },
+      mapRow: (session: SessionListRow) => ({
+        id: session.id,
+        centerId: session.centerId,
+        centerName: session.center.name,
+        tutorId: session.tutorId,
+        tutorName: session.tutor.name ?? null,
+        sessionType: session.sessionType,
+        groupId: session.groupId,
+        groupName: session.group?.name ?? null,
+        groupType: session.group?.type ?? null,
+        startAt: session.startAt.toISOString(),
+        endAt: session.endAt.toISOString(),
+        timezone: session.timezone,
+        pendingAbsenceCount: pendingCountBySessionId.get(session.id) ?? 0,
+      }),
+    }, {
+      tenantId,
+      parsedQuery,
+    });
+
+    return NextResponse.json({
+      rows: result.rows,
+      totalCount: result.totalCount,
+      page: result.page,
+      pageSize: result.pageSize,
+      sort: result.sort,
+      appliedFilters: result.appliedFilters,
+      // Legacy keys keep existing admin consumers stable while adopting the new contract.
+      sessions: result.rows,
+    });
   } catch (error) {
-    console.error("GET /api/sessions failed", error);
-    return jsonError(500, "Internal server error");
+    if (!(error instanceof ReportApiError)) {
+      console.error("GET /api/sessions failed", error);
+    }
+    return toReportErrorResponse(error);
   }
 }
 

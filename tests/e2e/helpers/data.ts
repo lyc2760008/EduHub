@@ -116,7 +116,23 @@ export async function fetchUsers(page: Page, tenantSlug: string) {
     buildTenantApiPath(tenantSlug, "/api/users"),
   );
   expect(response.status()).toBe(200);
-  return (await response.json()) as UserSummary[];
+  const payload = (await response.json()) as unknown;
+  // /api/users was upgraded to the Step 21.3 admin table contract (rows/totalCount/...).
+  // Keep E2E helpers backwards-compatible so older tests that expect a raw array still work.
+  if (Array.isArray(payload)) {
+    return payload as UserSummary[];
+  }
+  if (payload && typeof payload === "object") {
+    const maybeRows = (payload as { rows?: unknown }).rows;
+    if (Array.isArray(maybeRows)) {
+      return maybeRows as UserSummary[];
+    }
+    const maybeItems = (payload as { items?: unknown }).items;
+    if (Array.isArray(maybeItems)) {
+      return maybeItems as UserSummary[];
+    }
+  }
+  throw new Error("Unexpected /api/users response shape for E2E helpers.");
 }
 
 // Resolve a tutor with a center assignment to keep session/group workflows stable.
@@ -187,7 +203,8 @@ export async function createLevel(
 
   await page.getByTestId("create-level-button").click();
   await page.getByTestId("level-name-input").fill(name);
-  await page.getByTestId("level-sortorder-input").fill("10");
+  // The Levels modal uses a numeric "sort order" input; keep the selector stable via data-testid.
+  await page.getByTestId("level-sort-order-input").fill("10");
 
   const createResponsePromise = page.waitForResponse(
     (response) =>
@@ -273,7 +290,14 @@ export async function createStudent(
     if (response.request().method() !== "GET") return false;
     try {
       const requestUrl = new URL(response.url());
-      return (requestUrl.searchParams.get("q") ?? "").trim() === searchTerm;
+      // Query contract has historically used either `q` or `search` depending on the table toolkit version.
+      // Accept both so the E2E suite stays robust across contract migrations.
+      const query = (
+        requestUrl.searchParams.get("search") ??
+        requestUrl.searchParams.get("q") ??
+        ""
+      ).trim();
+      return query === searchTerm;
     } catch {
       return false;
     }
