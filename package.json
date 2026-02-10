@@ -6,6 +6,7 @@
   "x-devops-comment": "DevOps scripts run preflight checks, safe migrations, and tenant provisioning without printing secrets.",
   "x-pilot-comment": "Pilot scripts include MMC setup/import flows plus the Step 21.2 MMC pilot staging/production setup wrapper (idempotent, no secrets).",
   "x-observability-comment": "Sentry SDK dependency supports error reporting instrumentation (no sensitive data).",
+  "x-docs-comment": "Docs scripts generate current-state snapshots for PO planning without exposing secrets.",
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
@@ -40,7 +41,8 @@
     "pilot:mmc:prod": "tsx scripts/pilot/mmc-setup.ts --env production",
     "devops:preflight": "node scripts/devops/preflight.mjs",
     "devops:migrate:deploy": "node scripts/devops/migrate-deploy.mjs",
-    "devops:provision:tenant": "node scripts/devops/provision-tenant.mjs --"
+    "devops:provision:tenant": "node scripts/devops/provision-tenant.mjs --",
+    "docs:state": "node scripts/generate-current-state.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.1.0",
