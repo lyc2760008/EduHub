@@ -632,7 +632,7 @@
         "parentLoginFailed": "Parent sign-in failed",
         "parentLoginThrottled": "Parent sign-in throttled",
         "parentLoginLocked": "Parent sign-in locked",
-        "parentAccessCodeResetByAdmin": "Access code reset by admin",
+        "parentAccessCodeResetByAdmin": "Sign-in link sent by admin",
         "absenceRequestCreated": "Absence request created",
         "absenceRequestWithdrawn": "Absence request withdrawn",
         "absenceRequestResubmitted": "Absence request re-submitted",
@@ -966,15 +966,15 @@
       },
       "action": {
         "copyInvite": "Copy invite message",
-        "resetCode": "Reset access code"
+        "resetCode": "Send sign-in link"
       },
       "accessCode": {
         "status": {
-          "set": "Access code set",
-          "notSet": "Access code not set"
+          "set": "Sign-in link enabled",
+          "notSet": "Sign-in link unavailable"
         },
         "hint": {
-          "resetIfNeeded": "If the parent can't sign in, reset the access code."
+          "resetIfNeeded": "If the parent can't sign in, send a new link."
         }
       },
       "meta": {
@@ -993,17 +993,17 @@
         "body": "Please try again."
       },
       "resetCode": {
-        "button": "Reset access code",
-        "title": "Reset access code",
-        "confirmBody": "This will generate a new access code and invalidate the previous one.",
-        "confirmButton": "Reset code",
-        "successTitle": "New access code generated",
-        "codeLabel": "Access code",
-        "copyButton": "Copy code",
-        "copiedToast": "Code copied",
-        "securityGuidance": "Share this code securely with the parent (avoid public channels). The old code no longer works.",
+        "button": "Send sign-in link",
+        "title": "Send sign-in link",
+        "confirmBody": "We’ll email a secure sign-in link to the parent.",
+        "confirmButton": "Send",
+        "successTitle": "Sign-in link sent",
+        "codeLabel": "Sign-in link",
+        "copyButton": "Copy link",
+        "copiedToast": "Link copied",
+        "securityGuidance": "Share this email securely. The link expires soon.",
         "error": {
-          "generic": "Unable to reset the code. Please try again."
+          "generic": "Unable to send link. Please try again."
         }
       }
     },
@@ -1011,7 +1011,7 @@
       "_comment": "Invite modal copy and message templates for parent onboarding.",
       "modal": {
         "title": "Invite parent",
-        "helper": "Copy and share this message with the parent. Share the access code securely.",
+        "helper": "Copy and share this message with the parent.",
         "langToggle": {
           "label": "Language"
         },
@@ -1032,7 +1032,7 @@
         },
         "warning": {
           "title": "Security reminder",
-          "body": "Share the access code securely. Do not post it in public channels."
+          "body": "Share this email securely. Do not post it in public channels."
         },
         "error": {
           "noPortalUrl": "Portal link is unavailable. Please check tenant configuration.",
@@ -1041,8 +1041,8 @@
       },
       "template": {
         "_comment": "Templates are language-specific for the invite modal toggle.",
-        "en": "Hi,\n\nYou've been invited to access the Parent Portal for {centerName}.\n\nPortal link: {portalUrl}\nLogin email: {parentEmail}\n\nTo sign in, please use your email and the access code provided by your center. (Your center will share the access code securely.)\n\nIf anything looks incorrect (missing students or sessions), please contact your center admin for help.",
-        "zhCN": "您好，\n\n您已被邀请访问 {centerName} 的家长端。\n\n链接:{portalUrl}\n登录邮箱:{parentEmail}\n\n请使用您的邮箱与校区提供的访问码登录。(访问码将由校区通过安全方式发送。）\n\n如信息有误(孩子或课程缺失），请联系校区管理员协助处理。"
+        "en": "Hi,\n\nYou've been invited to access the Parent Portal for {centerName}.\n\nPortal link: {portalUrl}\nLogin email: {parentEmail}\n\nTo sign in, open the portal link and enter your email. We'll send a secure sign-in link to your inbox.\n\nIf anything looks incorrect (missing students or sessions), please contact your center admin for help.",
+        "zhCN": "您好，\n\n您已被邀请访问 {centerName} 的家长端。\n\n链接:{portalUrl}\n登录邮箱:{parentEmail}\n\n请打开链接并输入您的邮箱。我们会向您的邮箱发送安全的登录链接。\n\n如信息有误(孩子或课程缺失），请联系校区管理员协助处理。"
       }
     },
     "table": {
@@ -1227,7 +1227,7 @@
         "signingIn": "Signing in…"
       },
       "error": {
-        "invalidCredentials": "We couldn't sign you in. Please check your email and access code.",
+        "invalidCredentials": "We couldn't sign you in. Please check your email.",
         "generic": {
           "title": "Couldn't sign in",
           "body": "Please try again. If the problem continues, contact your center."
@@ -1544,7 +1544,7 @@
       },
       "guidance": {
         "missingStudents": "If you see missing or incorrect students, please contact your center admin.",
-        "securityTip": "Security tip: keep your access code private."
+        "securityTip": "Security tip: keep your sign-in link private."
       },
       "error": {
         "title": "Couldn't load account",
@@ -1573,7 +1573,7 @@
         "troubleshooting": "Troubleshooting"
       },
       "a": {
-        "login": "Open the Parent Portal link from your center, enter your email, then enter the access code provided by your center. If you see too many attempts, please wait a few minutes and try again.",
+        "login": "Open the Parent Portal link from your center, enter your email, and we’ll email you a sign-in link. If you see too many requests, please wait a few minutes and try again.",
         "pages": "Dashboard, My Students, Sessions, Attendance, My Requests (if your center uses it), Account, and Help.",
         "scheduleAttendance": "Sessions list the date/time and student name. Times are shown in the portal's displayed timezone. Attendance is recorded by staff after sessions, and notes shown are shared with parents.",
         "incorrectInfo": "If students, sessions, or times look wrong, please contact your center admin so they can verify your account link and schedule setup.",
@@ -1621,6 +1621,106 @@
       }
     }
   },
+  "parentAuth": {
+    "_comment": "Parent auth (magic link) login, verification, admin send-link, and email copy.",
+    "login": {
+      "title": "Sign in",
+      "subtitle": "We’ll email you a secure sign-in link.",
+      "email": {
+        "label": "Email",
+        "placeholder": "name@example.com"
+      },
+      "rememberMe": {
+        "label": "Remember me on this device",
+        "help": "Stay signed in for up to 90 days (unless you log out or clear cookies)."
+      },
+      "cta": {
+        "sendLink": "Send sign-in link",
+        "sending": "Sending…"
+      },
+      "help": {
+        "link": "Need help?"
+      },
+      "validation": {
+        "invalidEmail": "Enter a valid email address."
+      },
+      "error": {
+        "generic": "Something went wrong. Please try again.",
+        "rateLimited": "Too many requests. Please wait a bit and try again.",
+        "rateLimitedWithRetry": "Too many requests. Try again in {minutes} minutes."
+      },
+      "success": {
+        "title": "Check your email",
+        "bodyNeutral": "If an account matches that email, we’ll send a sign-in link shortly.",
+        "cta": {
+          "resend": "Send another link",
+          "useDifferentEmail": "Use a different email"
+        }
+      },
+      "securityNote": "For your security, the link expires soon."
+    },
+    "verify": {
+      "title": "Signing you in",
+      "loading": "Verifying your link…",
+      "success": {
+        "title": "Signed in",
+        "redirecting": "Redirecting…"
+      },
+      "expired": {
+        "title": "Link expired",
+        "body": "This sign-in link has expired. Please request a new link."
+      },
+      "invalid": {
+        "title": "Invalid link",
+        "body": "This sign-in link is not valid. Please request a new link."
+      },
+      "failure": {
+        "title": "Unable to sign in",
+        "body": "We couldn’t sign you in. Please try again."
+      },
+      "cta": {
+        "newLink": "Send a new link",
+        "backToLogin": "Back to sign in"
+      }
+    },
+    "admin": {
+      "sendLink": {
+        "label": "Send sign-in link",
+        "confirm": {
+          "title": "Send sign-in link?",
+          "body": "We’ll email a secure sign-in link to {email}.",
+          "ctaSend": "Send",
+          "ctaCancel": "Cancel"
+        },
+        "toast": {
+          "success": "Sign-in link sent.",
+          "error": "Unable to send link. Please try again."
+        },
+        "securityNote": "Share this email securely."
+      }
+    },
+    "email": {
+      "subject": "Sign in to {appName}",
+      "greeting": "Hi,",
+      "intro": "Use the link below to sign in.",
+      "cta": "Sign in",
+      "fallback": "If the button doesn’t work, copy and paste this link into your browser:",
+      "security": {
+        "title": "Security note",
+        "body": "This link expires in {expiresInMinutes} minutes and can only be used once."
+      },
+      "notRequested": {
+        "title": "Didn’t request this email?",
+        "body": "You can ignore this message. If you’re concerned, contact support at {supportEmail}."
+      },
+      "signature": "Thanks,\\n{appName} Team"
+    },
+    "landing": {
+      "title": "Signed in",
+      "body": "You’re signed in to the Parent Portal.",
+      "cta": "Go to Parent Portal"
+    }
+  },
   "parent": {
     "nav": {
       "dashboard": "Dashboard",
@@ -1628,25 +1728,17 @@
       "logout": "Logout"
     },
     "login": {
-      "title": "Parent login",
-      "subtitle": "Enter your email and access code provided by the center.",
+      "title": "Sign in",
+      "subtitle": "We’ll email you a secure sign-in link.",
       "email": {
         "label": "Email",
-        "placeholder": "you@example.com"
+        "placeholder": "name@example.com"
       },
-      "code": {
-        "label": "Access code",
-        "placeholder": "Enter access code",
-        "help": "You can paste the code exactly as provided."
-      },
-      "submit": "Sign in",
+      "submit": "Send sign-in link",
       "error": {
-        "_comment": "Parent login validation + throttle messages.",
+        "_comment": "Legacy parent login validation messages (magic link flow).",
         "emailRequired": "Email is required.",
         "emailInvalid": "Enter a valid email address.",
-        "codeRequired": "Access code is required.",
-        "invalidCredentials": "We couldn't sign you in. Please check your email and access code.",
-        "throttled": "Too many attempts. Try again in {minutes} minutes.",
         "generic": "Something went wrong. Please try again."
       }
     },

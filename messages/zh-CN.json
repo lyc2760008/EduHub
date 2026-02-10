@@ -620,7 +620,7 @@
         "parentLoginFailed": "家长登录未成功",
         "parentLoginThrottled": "家长登录受限",
         "parentLoginLocked": "家长登录被暂时锁定",
-        "parentAccessCodeResetByAdmin": "管理员重置访问码",
+        "parentAccessCodeResetByAdmin": "管理员发送登录链接",
         "absenceRequestCreated": "提交请假申请",
         "absenceRequestWithdrawn": "撤回请假申请",
         "absenceRequestResubmitted": "重新提交请假申请",
@@ -954,15 +954,15 @@
       },
       "action": {
         "copyInvite": "复制邀请信息",
-        "resetCode": "重置访问码"
+        "resetCode": "发送登录链接"
       },
       "accessCode": {
         "status": {
-          "set": "已设置访问码",
-          "notSet": "未设置访问码"
+          "set": "登录链接可用",
+          "notSet": "登录链接不可用"
         },
         "hint": {
-          "resetIfNeeded": "如果家长无法登录，请重置访问码。"
+          "resetIfNeeded": "如果家长无法登录，请重新发送链接。"
         }
       },
       "meta": {
@@ -981,17 +981,17 @@
         "body": "请稍后重试。"
       },
       "resetCode": {
-        "button": "重置访问码",
-        "title": "重置访问码",
-        "confirmBody": "将生成新的访问码，旧访问码将失效。",
-        "confirmButton": "确认重置",
-        "successTitle": "已生成新的访问码",
-        "codeLabel": "访问码",
-        "copyButton": "复制访问码",
+        "button": "发送登录链接",
+        "title": "发送登录链接",
+        "confirmBody": "我们会向家长发送安全的登录链接。",
+        "confirmButton": "发送",
+        "successTitle": "登录链接已发送",
+        "codeLabel": "登录链接",
+        "copyButton": "复制链接",
         "copiedToast": "已复制",
-        "securityGuidance": "请通过安全方式发送给家长（避免公开渠道）。旧访问码已失效。",
+        "securityGuidance": "请安全地分享该邮件内容。链接很快会失效。",
         "error": {
-          "generic": "重置失败，请稍后重试。"
+          "generic": "无法发送链接，请重试。"
         }
       }
     },
@@ -999,7 +999,7 @@
       "_comment": "家长邀请弹窗与模板文案。",
       "modal": {
         "title": "邀请家长",
-        "helper": "复制并分享给家长。访问码请通过安全方式单独发送。",
+        "helper": "复制并分享给家长。",
         "langToggle": {
           "label": "语言"
         },
@@ -1020,7 +1020,7 @@
         },
         "warning": {
           "title": "安全提示",
-          "body": "请通过安全方式发送访问码，不要在公开渠道发布。"
+          "body": "请安全地分享该邮件内容。不要发布到公共渠道。"
         },
         "error": {
           "noPortalUrl": "家长端链接不可用，请检查租户配置。",
@@ -1029,8 +1029,8 @@
       },
       "template": {
         "_comment": "模板内容为固定语言文本，用于邀请弹窗语言切换。",
-        "en": "Hi,\n\nYou’ve been invited to access the Parent Portal for {centerName}.\n\nPortal link: {portalUrl}\nLogin email: {parentEmail}\n\nTo sign in, please use your email and the access code provided by your center. (Your center will share the access code securely.)\n\nIf anything looks incorrect (missing students or sessions), please contact your center admin for help.",
-        "zhCN": "您好，\n\n您已被邀请访问 {centerName} 的家长端。\n\n链接：{portalUrl}\n登录邮箱：{parentEmail}\n\n请使用您的邮箱与校区提供的访问码登录。（访问码将由校区通过安全方式发送。）\n\n如信息有误（孩子或课程缺失），请联系校区管理员协助处理。"
+        "en": "Hi,\n\nYou’ve been invited to access the Parent Portal for {centerName}.\n\nPortal link: {portalUrl}\nLogin email: {parentEmail}\n\nTo sign in, open the portal link and enter your email. We’ll send a secure sign-in link to your inbox.\n\nIf anything looks incorrect (missing students or sessions), please contact your center admin for help.",
+        "zhCN": "您好，\n\n您已被邀请访问 {centerName} 的家长端。\n\n链接：{portalUrl}\n登录邮箱：{parentEmail}\n\n要登录，请打开链接并输入您的邮箱。我们会向您的邮箱发送安全的登录链接。\n\n如信息有误（孩子或课程缺失），请联系校区管理员协助处理。"
       }
     },
     "table": {
@@ -1179,36 +1179,128 @@
     "programs": "课程",
     "programsDesc": "维护课程项目与招生配置。"
   },
+  "parentAuth": {
+    "_comment": "Parent auth (magic link) login, verification, admin send-link, and email copy.",
+    "login": {
+      "title": "登录",
+      "subtitle": "我们会向您的邮箱发送安全的登录链接。",
+      "email": {
+        "label": "邮箱",
+        "placeholder": "name@example.com"
+      },
+      "rememberMe": {
+        "label": "在此设备上保持登录",
+        "help": "最长可保持登录 90 天（除非您退出登录或清除浏览器数据）。"
+      },
+      "cta": {
+        "sendLink": "发送登录链接",
+        "sending": "发送中…"
+      },
+      "help": {
+        "link": "需要帮助？"
+      },
+      "validation": {
+        "invalidEmail": "请输入有效的邮箱地址。"
+      },
+      "error": {
+        "generic": "出现错误，请重试。",
+        "rateLimited": "请求过于频繁，请稍后再试。",
+        "rateLimitedWithRetry": "请求过于频繁，请在 {minutes} 分钟后再试。"
+      },
+      "success": {
+        "title": "请查看邮箱",
+        "bodyNeutral": "如果该邮箱对应一个账户，我们会很快发送登录链接。",
+        "cta": {
+          "resend": "再发送一次",
+          "useDifferentEmail": "使用其他邮箱"
+        }
+      },
+      "securityNote": "为了您的安全，链接将在短时间后失效。"
+    },
+    "verify": {
+      "title": "正在登录",
+      "loading": "正在验证链接…",
+      "success": {
+        "title": "已登录",
+        "redirecting": "正在跳转…"
+      },
+      "expired": {
+        "title": "链接已过期",
+        "body": "该登录链接已过期，请重新获取链接。"
+      },
+      "invalid": {
+        "title": "链接无效",
+        "body": "该登录链接无效，请重新获取链接。"
+      },
+      "failure": {
+        "title": "无法登录",
+        "body": "我们无法为您登录，请重试。"
+      },
+      "cta": {
+        "newLink": "重新发送链接",
+        "backToLogin": "返回登录"
+      }
+    },
+    "admin": {
+      "sendLink": {
+        "label": "发送登录链接",
+        "confirm": {
+          "title": "发送登录链接？",
+          "body": "我们会向 {email} 发送安全的登录链接。",
+          "ctaSend": "发送",
+          "ctaCancel": "取消"
+        },
+        "toast": {
+          "success": "登录链接已发送。",
+          "error": "无法发送链接，请重试。"
+        },
+        "securityNote": "请安全地分享该邮件内容。"
+      }
+    },
+    "email": {
+      "subject": "登录 {appName}",
+      "greeting": "您好，",
+      "intro": "请使用以下链接登录。",
+      "cta": "登录",
+      "fallback": "如果按钮无法使用，请将以下链接复制到浏览器打开：",
+      "security": {
+        "title": "安全提示",
+        "body": "该链接将在 {expiresInMinutes} 分钟后失效，且只能使用一次。"
+      },
+      "notRequested": {
+        "title": "不是您本人操作？",
+        "body": "您可以忽略此邮件。如有疑虑，请联系支持团队：{supportEmail}。"
+      },
+      "signature": "谢谢，\\n{appName} 团队"
+    },
+    "landing": {
+      "title": "已登录",
+      "body": "您已登录家长端。",
+      "cta": "进入家长端"
+    }
+  },
   "parent": {
     "nav": {
       "dashboard": "??",
       "children": "??",
       "logout": "????"
     },
-    "login": {
-      "title": "家长登录",
-      "subtitle": "请输入邮箱和校区提供的访问码。",
+        "login": {
+      "title": "??",
+      "subtitle": "??????????????????",
       "email": {
-        "label": "邮箱",
-        "placeholder": "you@example.com"
+        "label": "??",
+        "placeholder": "name@example.com"
       },
-      "code": {
-        "label": "访问码",
-        "placeholder": "输入访问码",
-        "help": "可直接粘贴校区提供的访问码。"
-      },
-      "submit": "登录",
+      "submit": "??????",
       "error": {
-        "_comment": "????????????",
-        "emailRequired": "请输入邮箱。",
-        "emailInvalid": "请输入有效的邮箱地址。",
-        "codeRequired": "请输入访问码。",
-        "invalidCredentials": "登录失败，请检查邮箱和访问码是否正确。",
-        "throttled": "????????? {minutes} ??????",
-        "generic": "出现问题，请稍后重试。"
+        "_comment": "Legacy parent login validation messages (magic link flow).",
+        "emailRequired": "??????",
+        "emailInvalid": "???????????",
+        "generic": "???????????"
       }
     },
-    "actions": {
+"actions": {
       "language": "??"
     },
     "sections": {
@@ -1290,7 +1382,7 @@
         "signingIn": "正在登录…"
       },
       "error": {
-        "invalidCredentials": "无法登录，请检查邮箱和访问码。",
+        "invalidCredentials": "无法登录，请检查邮箱。",
         "generic": {
           "title": "无法登录",
           "body": "请稍后重试。如仍有问题，请联系校区。"
@@ -1635,7 +1727,7 @@
       },
       "guidance": {
         "missingStudents": "如果孩子信息缺失或不正确，请联系校区管理员。",
-        "securityTip": "安全提示：请妥善保管您的访问码。"
+        "securityTip": "安全提示：请妥善保管您的登录链接。"
       },
       "error": {
         "title": "无法加载账号信息",
@@ -1664,7 +1756,7 @@
         "troubleshooting": "问题排查"
       },
       "a": {
-        "login": "打开校区分享的家长端链接，输入邮箱与校区提供的访问码即可登录。如果提示尝试次数过多，请稍等几分钟后再试。",
+        "login": "打开校区分享的家长端链接，输入邮箱后，我们会发送登录链接。如果提示请求过于频繁，请稍等几分钟后再试。",
         "pages": "首页、我的孩子、课程、出勤、我的申请（如校区启用）、账号信息、帮助。",
         "scheduleAttendance": "课程会显示日期/时间与孩子姓名，时间以页面提示的时区显示。出勤由工作人员在课程后记录，家长端看到的留言为家长可见留言。",
         "incorrectInfo": "如果孩子、课程或时间不正确，请联系校区管理员核对账号关联与排课信息。",

@@ -3,12 +3,10 @@ import { CredentialsSignin, type NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { NextRequest } from "next/server";
 
-import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from "@/lib/audit/constants";
-import { writeAuditEvent } from "@/lib/audit/writeAuditEvent";
-import { checkParentAuthThrottle } from "@/lib/auth/checkParentAuthThrottle";
+import { hashMagicLinkToken } from "@/lib/auth/magicLink";
 import { prisma } from "@/lib/db/prisma";
 import { resolveTenant } from "@/lib/tenant/resolveTenant";
-import { AuditActorType, type Role } from "@/generated/prisma/client";
+import type { Role } from "@/generated/prisma/client";
 
 type AuthUser = {
   id: string;
@@ -18,17 +16,26 @@ type AuthUser = {
   role: Role;
   // Parent sessions store parentId explicitly for portal route guards.
   parentId?: string;
+  // Parent magic link sessions carry rememberMe for per-session TTL handling.
+  rememberMe?: boolean;
 };
 
 // Minimal shape we return from authorize so callbacks can enrich JWT/session.
 // This keeps all tenant-aware fields server-side and avoids extra lookups later.
 type AuthResult = AuthUser;
 
-// Custom error exposes a stable code prefix with retry seconds for throttled attempts.
-class ParentAuthThrottledError extends CredentialsSignin {
-  constructor(retryAfterSeconds: number) {
+// Explicit magic link errors let the UI render expired vs invalid states.
+class ParentMagicLinkExpiredError extends CredentialsSignin {
+  constructor() {
     super();
-    this.code = `AUTH_THROTTLED:${retryAfterSeconds}`;
+    this.code = "PARENT_MAGIC_LINK_EXPIRED";
+  }
+}
+
+class ParentMagicLinkInvalidError extends CredentialsSignin {
+  constructor() {
+    super();
+    this.code = "PARENT_MAGIC_LINK_INVALID";
   }
 }
 
@@ -62,6 +69,8 @@ function buildTenantRequest(
 export const authConfig: NextAuthConfig = {
   session: {
     strategy: "jwt",
+    // Keep global maxAge at the long-session ceiling; per-session TTL is enforced in callbacks.
+    maxAge: 90 * 24 * 60 * 60,
   },
   // Prefer AUTH_* envs (v5), but keep NEXTAUTH_* for compatibility.
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
@@ -120,24 +129,19 @@ export const authConfig: NextAuthConfig = {
       },
     }),
     Credentials({
-      id: "parent-credentials",
-      name: "Parent Credentials",
+      id: "parent-magic-link",
+      name: "Parent Magic Link",
       credentials: {
-        email: { label: "Email", type: "email" },
-        accessCode: { label: "Access code", type: "password" },
+        token: { label: "Token", type: "text" },
         tenantSlug: { label: "Tenant", type: "text" },
       },
       async authorize(credentials, req) {
-        const email = credentials?.email?.toString().trim().toLowerCase();
-        const accessCode = credentials?.accessCode
-          ?.toString()
-          .trim()
-          .toUpperCase();
+        const rawToken = credentials?.token?.toString().trim();
         const tenantSlug = credentials?.tenantSlug?.toString().trim().toLowerCase();
 
-        if (!email || !accessCode) return null;
+        if (!rawToken) return null;
 
-        // Resolve tenant from headers/host and validate access code within that tenant.
+        // Resolve tenant from headers/host so magic links remain tenant-scoped.
         const tenantRequest = buildTenantRequest(req, tenantSlug);
         if (!tenantRequest) return null;
 
@@ -145,118 +149,108 @@ export const authConfig: NextAuthConfig = {
         if (!("tenantId" in tenantResult)) return null;
         const tenantId = tenantResult.tenantId;
 
-        // Throttle parent auth before expensive hashing to avoid brute-force abuse.
-        const throttleResult = await checkParentAuthThrottle({
-          tenantId,
-          email,
-        });
-        if (!throttleResult.allowed) {
-          await writeAuditEvent({
-            tenantId,
-            actorType: AuditActorType.PARENT,
-            actorDisplay: email,
-            action: AUDIT_ACTIONS.PARENT_LOGIN_THROTTLED,
-            entityType: AUDIT_ENTITY_TYPES.ACCESS_CODE,
-            metadata: {
-              method: "email_access_code",
-              retryAfterSeconds: throttleResult.retryAfterSeconds,
+        const tokenHash = hashMagicLinkToken(rawToken);
+        const now = new Date();
+
+        const result = await prisma.$transaction(async (tx) => {
+          const token = await tx.parentMagicLinkToken.findFirst({
+            where: { tenantId, tokenHash },
+            select: {
+              id: true,
+              parentUserId: true,
+              rememberMe: true,
+              expiresAt: true,
+              consumedAt: true,
             },
-            request: tenantRequest,
           });
-          throw new ParentAuthThrottledError(throttleResult.retryAfterSeconds);
+
+          if (!token) return { status: "invalid" as const };
+          if (token.consumedAt) return { status: "invalid" as const };
+          if (token.expiresAt <= now) return { status: "expired" as const };
+
+          const parent = await tx.parent.findFirst({
+            where: { tenantId, id: token.parentUserId },
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          });
+
+          const linkedStudent = await tx.studentParent.findFirst({
+            where: { tenantId, parentId: token.parentUserId },
+            select: { id: true },
+          });
+
+          // Mark tokens as consumed atomically, even if eligibility fails.
+          await tx.parentMagicLinkToken.update({
+            where: { id: token.id },
+            data: { consumedAt: now },
+          });
+
+          if (!parent || !linkedStudent) {
+            return { status: "ineligible" as const };
+          }
+
+          return {
+            status: "ok" as const,
+            parent,
+            rememberMe: token.rememberMe,
+          };
+        });
+
+        if (result.status === "expired") {
+          throw new ParentMagicLinkExpiredError();
         }
-
-        const parent = await prisma.parent.findFirst({
-          where: {
-            tenantId,
-            email: { equals: email, mode: "insensitive" },
-          },
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            accessCodeHash: true,
-          },
-        });
-
-        if (!parent?.accessCodeHash) {
-          await writeAuditEvent({
-            tenantId,
-            actorType: AuditActorType.PARENT,
-            actorId: parent?.id ?? null,
-            actorDisplay: email,
-            action: AUDIT_ACTIONS.PARENT_LOGIN_FAILED,
-            entityType: AUDIT_ENTITY_TYPES.ACCESS_CODE,
-            entityId: parent?.id ?? null,
-            metadata: {
-              method: "email_access_code",
-              reason: "invalid_credentials",
-            },
-            request: tenantRequest,
-          });
+        if (result.status === "invalid") {
+          throw new ParentMagicLinkInvalidError();
+        }
+        if (result.status !== "ok") {
           return null;
         }
 
-        const accessCodeOk = await bcrypt.compare(
-          accessCode,
-          parent.accessCodeHash,
-        );
-        if (!accessCodeOk) {
-          await writeAuditEvent({
-            tenantId,
-            actorType: AuditActorType.PARENT,
-            actorId: parent.id,
-            actorDisplay: email,
-            action: AUDIT_ACTIONS.PARENT_LOGIN_FAILED,
-            entityType: AUDIT_ENTITY_TYPES.ACCESS_CODE,
-            entityId: parent.id,
-            metadata: {
-              method: "email_access_code",
-              reason: "invalid_credentials",
-            },
-            request: tenantRequest,
-          });
-          return null;
-        }
-
-        const displayName = [parent.firstName, parent.lastName]
+        const displayName = [result.parent.firstName, result.parent.lastName]
           .filter(Boolean)
           .join(" ");
 
-        await writeAuditEvent({
-          tenantId,
-          actorType: AuditActorType.PARENT,
-          actorId: parent.id,
-          actorDisplay: email,
-          action: AUDIT_ACTIONS.PARENT_LOGIN_SUCCEEDED,
-          entityType: AUDIT_ENTITY_TYPES.ACCESS_CODE,
-          entityId: parent.id,
-          metadata: { method: "email_access_code" },
-          request: tenantRequest,
-        });
-
         return {
-          id: parent.id,
-          parentId: parent.id,
-          email: parent.email,
+          id: result.parent.id,
+          parentId: result.parent.id,
+          email: result.parent.email,
           name: displayName || null,
           tenantId,
           role: "Parent",
+          rememberMe: result.rememberMe,
         } satisfies AuthResult;
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
+      // Enforce per-session expiration for short and long-lived sessions.
+      const sessionExpiresAt =
+        typeof token.sessionExpiresAt === "number"
+          ? token.sessionExpiresAt
+          : null;
+      if (sessionExpiresAt && Date.now() > sessionExpiresAt) {
+        return null;
+      }
+
       if (user) {
         const authUser = user as AuthUser;
+        const rememberMe =
+          authUser.role === "Parent" ? authUser.rememberMe ?? true : undefined;
+        const defaultDays = authUser.role === "Parent" ? (rememberMe ? 90 : 7) : 30;
+        const maxAgeSeconds = defaultDays * 24 * 60 * 60;
+
         // Persist tenant-aware fields in the JWT for session hydration.
         token.userId = authUser.id;
         token.tenantId = authUser.tenantId;
         token.role = authUser.role;
         // Parent sessions include parentId for route guards and APIs.
         token.parentId = authUser.parentId;
+        token.sessionExpiresAt = Date.now() + maxAgeSeconds * 1000;
       }
       return token;
     },
@@ -268,6 +262,15 @@ export const authConfig: NextAuthConfig = {
         session.user.role = token.role as Role;
         // Parent ID is optional and only set for parent credentials.
         session.user.parentId = token.parentId as string | undefined;
+        // Align session.expires with the per-session expiration policy.
+        const sessionExpiresAt =
+          typeof token.sessionExpiresAt === "number"
+            ? token.sessionExpiresAt
+            : null;
+        if (sessionExpiresAt) {
+          const expiresIso = new Date(sessionExpiresAt).toISOString();
+          session.expires = expiresIso as typeof session.expires;
+        }
       }
       return session;
     },
