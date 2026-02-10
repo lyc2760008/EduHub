@@ -86,7 +86,7 @@ function formatParentName(parent: ParentLink["parent"]) {
 }
 
 async function copyTextToClipboard(text: string) {
-  // Shared clipboard helper keeps invite + reset-code copy flows consistent.
+  // Shared clipboard helper keeps invite message copy consistent.
   if (navigator?.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
     return;
@@ -128,11 +128,9 @@ export default function StudentDetailClient({
   const [message, setMessage] = useState<string | null>(null);
   const [parentsError, setParentsError] = useState<string | null>(null);
   const [parentsMessage, setParentsMessage] = useState<string | null>(null);
-  const [resetTarget, setResetTarget] = useState<ParentLink | null>(null);
-  const [resetCode, setResetCode] = useState<string | null>(null);
-  const [resetError, setResetError] = useState<string | null>(null);
-  const [isResetting, setIsResetting] = useState(false);
-  const [hasCopiedCode, setHasCopiedCode] = useState(false);
+  const [sendLinkTarget, setSendLinkTarget] = useState<ParentLink | null>(null);
+  const [sendLinkError, setSendLinkError] = useState<string | null>(null);
+  const [isSendingLink, setIsSendingLink] = useState(false);
   const [inviteTarget, setInviteTarget] = useState<ParentLink | null>(null);
   const [inviteData, setInviteData] = useState<InviteData | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -144,7 +142,6 @@ export default function StudentDetailClient({
     Record<string, string>
   >({});
   const [showLinkForm, setShowLinkForm] = useState(false);
-  const copyTimeoutRef = useRef<number | null>(null);
   const inviteCopyTimeoutRef = useRef<number | null>(null);
 
   const loadStudent = useCallback(async () => {
@@ -280,9 +277,6 @@ export default function StudentDetailClient({
   useEffect(() => {
     return () => {
       // Clean up copy timeouts to avoid state updates after unmount.
-      if (copyTimeoutRef.current) {
-        window.clearTimeout(copyTimeoutRef.current);
-      }
       if (inviteCopyTimeoutRef.current) {
         window.clearTimeout(inviteCopyTimeoutRef.current);
       }
@@ -426,12 +420,11 @@ export default function StudentDetailClient({
     [loadParents, studentId, t, tenant],
   );
 
-  const openResetModal = useCallback((link: ParentLink) => {
-    // Reset flow starts in confirm state with clean error/result messaging.
-    setResetTarget(link);
-    setResetCode(null);
-    setResetError(null);
-    setHasCopiedCode(false);
+  const openSendLinkModal = useCallback((link: ParentLink) => {
+    // Send-link flow starts clean to avoid leaking previous state between parents.
+    setSendLinkTarget(link);
+    setSendLinkError(null);
+    setIsSendingLink(false);
   }, []);
 
   const openInviteModal = useCallback((link: ParentLink) => {
@@ -443,12 +436,10 @@ export default function StudentDetailClient({
     setInviteCopied(false);
   }, []);
 
-  const closeResetModal = useCallback(() => {
-    setResetTarget(null);
-    setResetCode(null);
-    setResetError(null);
-    setIsResetting(false);
-    setHasCopiedCode(false);
+  const closeSendLinkModal = useCallback(() => {
+    setSendLinkTarget(null);
+    setSendLinkError(null);
+    setIsSendingLink(false);
   }, []);
 
   const closeInviteModal = useCallback(() => {
@@ -460,45 +451,31 @@ export default function StudentDetailClient({
     setIsInviteLoading(false);
   }, []);
 
-  const handleResetAccessCode = useCallback(async () => {
-    if (!resetTarget) return;
-    setIsResetting(true);
-    setResetError(null);
+  const handleSendMagicLink = useCallback(async () => {
+    if (!sendLinkTarget) return;
+    setIsSendingLink(true);
+    setSendLinkError(null);
+    setParentsMessage(null);
 
-    const result = await fetchJson<{
-      accessCode: string;
-    }>(buildTenantApiUrl(tenant, `/parents/${resetTarget.parentId}/reset-access-code`), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    });
+    const result = await fetchJson<{ ok: boolean }>(
+      buildTenantApiUrl(tenant, `/parents/${sendLinkTarget.parentId}/send-magic-link`),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      },
+    );
 
     if (!result.ok) {
-      setResetError(t("admin.parents.resetCode.error.generic"));
-      setIsResetting(false);
+      setSendLinkError(t("parentAuth.admin.sendLink.toast.error"));
+      setIsSendingLink(false);
       return;
     }
 
-    setResetCode(result.data.accessCode);
-    setIsResetting(false);
-  }, [resetTarget, t, tenant]);
-
-  const handleCopyResetCode = useCallback(async () => {
-    if (!resetCode) return;
-
-    try {
-      await copyTextToClipboard(resetCode);
-      setHasCopiedCode(true);
-      if (copyTimeoutRef.current) {
-        window.clearTimeout(copyTimeoutRef.current);
-      }
-      copyTimeoutRef.current = window.setTimeout(() => {
-        setHasCopiedCode(false);
-      }, 2000);
-    } catch (error) {
-      console.error("Failed to copy parent access code", error);
-    }
-  }, [resetCode]);
+    setIsSendingLink(false);
+    setSendLinkTarget(null);
+    setParentsMessage(t("parentAuth.admin.sendLink.toast.success"));
+  }, [sendLinkTarget, t, tenant]);
 
   const handleCopyInvite = useCallback(async () => {
     if (!inviteTarget || !inviteData) return;
@@ -509,7 +486,7 @@ export default function StudentDetailClient({
         : "admin.invite.template.en";
 
     const centerName = inviteData.tenantDisplayName ?? "";
-    // Invite message intentionally excludes access codes and other secrets.
+    // Invite message intentionally excludes sensitive account data.
     const inviteMessage = t(templateKey, {
       portalUrl: inviteData.portalUrl,
       parentEmail: inviteData.parentEmail,
@@ -611,12 +588,12 @@ export default function StudentDetailClient({
             </button>
             <button
               className="rounded border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-              data-testid={`parent-reset-${link.parentId}`}
-              disabled={isReadOnly}
-              onClick={() => openResetModal(link)}
+              data-testid={`parent-send-link-${link.parentId}`}
+              disabled={isReadOnly || !link.parent.email}
+              onClick={() => openSendLinkModal(link)}
               type="button"
             >
-              {t("admin.parents.action.resetCode")}
+              {t("parentAuth.admin.sendLink.label")}
             </button>
             <button
               className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
@@ -639,7 +616,7 @@ export default function StudentDetailClient({
       isReadOnly,
       locale,
       openInviteModal,
-      openResetModal,
+      openSendLinkModal,
       t,
     ],
   );
@@ -908,107 +885,54 @@ export default function StudentDetailClient({
         </section>
       </div>
 
-      {resetTarget ? (
+      {sendLinkTarget ? (
         // Reuse the existing admin modal shell instead of shadcn Dialog for consistency.
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
           <div className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded border border-slate-200 bg-white p-6 shadow-xl">
             <AdminModalShell
-              title={t("admin.parents.resetCode.title")}
+              title={t("parentAuth.admin.sendLink.confirm.title")}
+              description={t("parentAuth.admin.sendLink.confirm.body", {
+                email: sendLinkTarget.parent.email,
+              })}
               footer={
-                resetCode ? (
-                  <>
-                    <button
-                      className="rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
-                      data-testid="parent-reset-close"
-                      onClick={closeResetModal}
-                      type="button"
-                    >
-                      {t("actions.close")}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      className="rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
-                      data-testid="parent-reset-cancel"
-                      disabled={isResetting}
-                      onClick={closeResetModal}
-                      type="button"
-                    >
-                      {t("actions.cancel")}
-                    </button>
-                    <button
-                      className="flex items-center gap-2 rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                      data-testid="parent-reset-confirm"
-                      disabled={isResetting}
-                      onClick={handleResetAccessCode}
-                      type="button"
-                    >
-                      {isResetting ? (
-                        <>
-                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                          {t("generic.loading")}
-                        </>
-                      ) : (
-                        t("admin.parents.resetCode.confirmButton")
-                      )}
-                    </button>
-                  </>
-                )
+                <>
+                  <button
+                    className="rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
+                    data-testid="parent-send-link-cancel"
+                    disabled={isSendingLink}
+                    onClick={closeSendLinkModal}
+                    type="button"
+                  >
+                    {t("parentAuth.admin.sendLink.confirm.ctaCancel")}
+                  </button>
+                  <button
+                    className="flex items-center gap-2 rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                    data-testid="parent-send-link-confirm"
+                    disabled={isSendingLink}
+                    onClick={handleSendMagicLink}
+                    type="button"
+                  >
+                    {isSendingLink ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                        {t("generic.loading")}
+                      </>
+                    ) : (
+                      t("parentAuth.admin.sendLink.confirm.ctaSend")
+                    )}
+                  </button>
+                </>
               }
-              testId="parent-reset-code-modal"
+              testId="parent-send-link-modal"
             >
-              {resetError ? (
+              {sendLinkError ? (
                 <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {resetError}
+                  {sendLinkError}
                 </div>
               ) : null}
-
-              {resetCode ? (
-                <div className="space-y-3">
-                  <p className="text-sm font-semibold text-slate-900">
-                    {t("admin.parents.resetCode.successTitle")}
-                  </p>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-600">
-                      {t("admin.parents.resetCode.codeLabel")}
-                    </p>
-                    <div className="mt-2 rounded border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-sm text-slate-900">
-                      {/* data-testid lets E2E read the generated code without parsing labels. */}
-                      <span data-testid="parent-reset-code-value">
-                      {resetCode}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      className="rounded border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-                      disabled={!resetCode}
-                      onClick={handleCopyResetCode}
-                      type="button"
-                    >
-                      {t("admin.parents.resetCode.copyButton")}
-                    </button>
-                    {hasCopiedCode ? (
-                      <span className="text-xs text-green-600">
-                        {t("admin.parents.resetCode.copiedToast")}
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="text-xs text-slate-600">
-                    {t("admin.parents.resetCode.securityGuidance")}
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-sm text-slate-700">
-                    {t("admin.parents.resetCode.confirmBody")}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {resetTarget.parent.email}
-                  </p>
-                </div>
-              )}
+              <p className="text-xs text-slate-600">
+                {t("parentAuth.admin.sendLink.securityNote")}
+              </p>
             </AdminModalShell>
           </div>
         </div>

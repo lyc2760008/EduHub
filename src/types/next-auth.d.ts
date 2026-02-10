@@ -30,5 +30,7 @@ declare module "next-auth/jwt" {
     role?: Role;
     // Parent sessions persist parentId separately from userId.
     parentId?: string;
+    // Per-session expiration timestamp (ms) to enforce remember-me vs short sessions.
+    sessionExpiresAt?: number;
   }
 }

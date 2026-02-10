@@ -24,7 +24,6 @@ export type PortalParentContext = {
     email: string;
     firstName: string;
     lastName: string;
-    accessCodeHash: string | null;
     // Welcome flag supports first-login onboarding in the parent portal.
     hasSeenWelcome: boolean;
   };
@@ -104,7 +103,6 @@ export async function requirePortalParent(
       email: true,
       firstName: true,
       lastName: true,
-      accessCodeHash: true,
       hasSeenWelcome: true,
     },
   });
@@ -115,8 +113,13 @@ export async function requirePortalParent(
     });
   }
 
-  if (!parent.accessCodeHash) {
-    // Treat missing access code as inactive parent access to prevent stale sessions.
+  const linkedStudent = await prisma.studentParent.findFirst({
+    where: { tenantId: tenantResult.tenantId, parentId: parent.id },
+    select: { id: true },
+  });
+
+  if (!linkedStudent) {
+    // Require at least one linked student to keep parent access tenant-safe.
     return buildPortalError(403, "FORBIDDEN", {
       reason: "ParentInactive",
     });

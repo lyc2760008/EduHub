@@ -93,7 +93,7 @@ export default function LoginPage({ params }: PageProps) {
             className="text-slate-700 underline decoration-slate-300 underline-offset-4"
             href={`/${tenant}/parent/login`}
           >
-            {t("parent.login.title")}
+            {t("parentAuth.login.title")}
           </Link>
         </div>
       </form>

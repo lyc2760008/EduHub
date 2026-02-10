@@ -56,6 +56,10 @@ model Tenant {
   sessionNotes    SessionNote[]
   // Parent-initiated requests scoped to this tenant.
   parentRequests  ParentRequest[]
+  // Magic link tokens issued for parent passwordless auth flows.
+  parentMagicLinkTokens ParentMagicLinkToken[]
+  // Auth rate limit events scoped to this tenant when available.
+  authRateLimitEvents AuthRateLimitEvent[]
 }
 
 // User is a credentials-auth entity (email + passwordHash required).
@@ -226,10 +230,6 @@ model Parent {
   email     String
   phone     String?
   notes     String?
-  // Hashed parent portal access code (set/reset by admins; never store plaintext).
-  accessCodeHash String?
-  // Timestamp of the last access-code rotation for auditing.
-  accessCodeUpdatedAt DateTime?
   // Tracks whether the parent has dismissed the first-login welcome card in the portal.
   hasSeenWelcome Boolean @default(false)
   createdAt DateTime @default(now())
@@ -239,10 +239,49 @@ model Parent {
   students StudentParent[]
   // Parent-initiated requests tied to this parent.
   parentRequests ParentRequest[]
+  // Parent-issued magic link tokens for passwordless auth.
+  magicLinkTokens ParentMagicLinkToken[]
 
   // A parent email should be unique per tenant when provided
   @@unique([tenantId, email])
   @@index([tenantId, lastName])
+}
+
+// Magic link tokens for parent passwordless sign-in (single-use + short TTL).
+model ParentMagicLinkToken {
+  id           String   @id @default(cuid())
+  tenantId     String
+  parentUserId String
+  tokenHash    String   @unique
+  rememberMe   Boolean  @default(true)
+  expiresAt    DateTime
+  consumedAt   DateTime?
+  createdAt    DateTime @default(now())
+  // Hashed IP stored for rate limiting and abuse detection (no raw IPs).
+  createdIpHash String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent Parent @relation(fields: [parentUserId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, parentUserId])
+  @@index([expiresAt])
+  @@index([consumedAt])
+}
+
+// Auth rate limit events to support serverless-safe throttling (no raw PII).
+model AuthRateLimitEvent {
+  id        String   @id @default(cuid())
+  kind      String
+  tenantId  String?
+  ipHash    String
+  emailHash String
+  createdAt DateTime @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([kind, createdAt])
+  @@index([kind, ipHash, createdAt])
+  @@index([kind, emailHash, createdAt])
 }
 
 model StudentParent {

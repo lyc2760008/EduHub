@@ -536,8 +536,6 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       update: {
         firstName: parentA0Name.firstName,
         lastName: parentA0Name.lastName,
-        accessCodeHash,
-        accessCodeUpdatedAt: now,
         // Reset welcome flag so onboarding tests start from a known state.
         hasSeenWelcome: false,
       },
@@ -546,8 +544,6 @@ export async function upsertE2EFixtures(prisma: DbClient) {
         firstName: parentA0Name.firstName,
         lastName: parentA0Name.lastName,
         email: parentA0Email,
-        accessCodeHash,
-        accessCodeUpdatedAt: now,
         // Welcome flag defaults to false; set explicitly for clarity in fixtures.
         hasSeenWelcome: false,
       },
@@ -559,8 +555,6 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       update: {
         firstName: parentA1Name.firstName,
         lastName: parentA1Name.lastName,
-        accessCodeHash,
-        accessCodeUpdatedAt: now,
         // Reset welcome flag so onboarding tests start from a known state.
         hasSeenWelcome: false,
       },
@@ -569,8 +563,6 @@ export async function upsertE2EFixtures(prisma: DbClient) {
         firstName: parentA1Name.firstName,
         lastName: parentA1Name.lastName,
         email: parentA1Email,
-        accessCodeHash,
-        accessCodeUpdatedAt: now,
         // Welcome flag defaults to false; set explicitly for clarity in fixtures.
         hasSeenWelcome: false,
       },
