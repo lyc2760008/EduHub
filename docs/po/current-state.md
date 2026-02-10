@@ -1,4 +1,4 @@
-<!-- Curated snapshot for PO planning. Keep secrets out; update via scripts/generate-current-state.mjs. -->
+Ôªø<!-- Curated snapshot for PO planning. Keep secrets out; update via scripts/generate-current-state.mjs. -->
 # EduHub Current State Snapshot
 
 Last updated: 2026-02-10
@@ -11,6 +11,7 @@ Owners:
 How to use: Paste this doc before PO planning.
 
 Change log:
+- 2026-02-10: DevOps ‚Äî Refresh DevOps deploy/env/migrations snapshot (staging+prod), add runbook paths + env var names.
 - 2026-02-10: Initial snapshot scaffold seeded from repo scan.
 
 ---
@@ -18,17 +19,17 @@ Change log:
 **Dev-Owned**
 
 ## Implemented Feature Inventory (Steps)
-- TODO: confirm Step ID ó Admin dashboard + quick links. Routes: `/[tenant]/admin`.
-- TODO: confirm Step ID ó People management (students/parents/staff). Routes: `/[tenant]/admin/students`, `/[tenant]/admin/students/[id]`, `/[tenant]/admin/parents`, `/[tenant]/admin/users`.
-- TODO: confirm Step ID ó Catalog & setup (centers, groups, programs, subjects, levels). Routes: `/[tenant]/admin/catalog`, `/[tenant]/admin/centers`, `/[tenant]/admin/groups`, `/[tenant]/admin/groups/[id]`, `/[tenant]/admin/programs`, `/[tenant]/admin/subjects`, `/[tenant]/admin/levels`.
-- TODO: confirm Step ID ó Scheduling & attendance (sessions, notes, attendance tooling). Routes: `/[tenant]/admin/sessions`, `/[tenant]/admin/sessions/[id]`.
-- TODO: confirm Step ID ó Parent requests workflow (admin review). Routes: `/[tenant]/admin/requests`.
-- TODO: confirm Step ID ó Reports hub + report pages. Routes: `/[tenant]/admin/reports`, `/[tenant]/admin/reports/upcoming-sessions`, `/[tenant]/admin/reports/attendance-summary`, `/[tenant]/admin/reports/absence-requests`, `/[tenant]/admin/reports/tutor-workload`, `/[tenant]/admin/reports/students-directory`.
-- TODO: confirm Step ID ó Audit log visibility. Routes: `/[tenant]/admin/audit`.
-- TODO: confirm Step ID ó Admin help hub. Routes: `/[tenant]/admin/help`.
-- TODO: confirm Step ID ó Parent portal home + sessions + requests + students. Routes: `/[tenant]/portal`, `/[tenant]/portal/sessions`, `/[tenant]/portal/sessions/[id]`, `/[tenant]/portal/requests`, `/[tenant]/portal/students`, `/[tenant]/portal/students/[id]`.
-- TODO: confirm Step ID ó Parent portal account/help views. Routes: `/[tenant]/portal/account`, `/[tenant]/portal/help`.
-- TODO: confirm Step ID ó Parent auth (magic link + verify). Routes: `/[tenant]/parent/login`, `/[tenant]/parent/auth/verify`.
+- TODO: confirm Step ID ‚Äî Admin dashboard + quick links. Routes: `/[tenant]/admin`.
+- TODO: confirm Step ID ‚Äî People management (students/parents/staff). Routes: `/[tenant]/admin/students`, `/[tenant]/admin/students/[id]`, `/[tenant]/admin/parents`, `/[tenant]/admin/users`.
+- TODO: confirm Step ID ‚Äî Catalog & setup (centers, groups, programs, subjects, levels). Routes: `/[tenant]/admin/catalog`, `/[tenant]/admin/centers`, `/[tenant]/admin/groups`, `/[tenant]/admin/groups/[id]`, `/[tenant]/admin/programs`, `/[tenant]/admin/subjects`, `/[tenant]/admin/levels`.
+- TODO: confirm Step ID ‚Äî Scheduling & attendance (sessions, notes, attendance tooling). Routes: `/[tenant]/admin/sessions`, `/[tenant]/admin/sessions/[id]`.
+- TODO: confirm Step ID ‚Äî Parent requests workflow (admin review). Routes: `/[tenant]/admin/requests`.
+- TODO: confirm Step ID ‚Äî Reports hub + report pages. Routes: `/[tenant]/admin/reports`, `/[tenant]/admin/reports/upcoming-sessions`, `/[tenant]/admin/reports/attendance-summary`, `/[tenant]/admin/reports/absence-requests`, `/[tenant]/admin/reports/tutor-workload`, `/[tenant]/admin/reports/students-directory`.
+- TODO: confirm Step ID ‚Äî Audit log visibility. Routes: `/[tenant]/admin/audit`.
+- TODO: confirm Step ID ‚Äî Admin help hub. Routes: `/[tenant]/admin/help`.
+- TODO: confirm Step ID ‚Äî Parent portal home + sessions + requests + students. Routes: `/[tenant]/portal`, `/[tenant]/portal/sessions`, `/[tenant]/portal/sessions/[id]`, `/[tenant]/portal/requests`, `/[tenant]/portal/students`, `/[tenant]/portal/students/[id]`.
+- TODO: confirm Step ID ‚Äî Parent portal account/help views. Routes: `/[tenant]/portal/account`, `/[tenant]/portal/help`.
+- TODO: confirm Step ID ‚Äî Parent auth (magic link + verify). Routes: `/[tenant]/parent/login`, `/[tenant]/parent/auth/verify`.
 
 ## Route Inventory
 
@@ -143,12 +144,12 @@ Duplicate/ambiguous nav labels to confirm:
 **DevOps-Owned**
 
 ## Deploy/Env/Migrations (NAMES only)
-- Deploy/runbook docs: `docs/devops/deploy-runbook.md`, `docs/devops/vercel-neon-deploy.md`, `docs/ops/deployment.md`.
-- Observability docs: `docs/devops/observability.md`, `docs/ops/observability.md`.
-- DB/ops runbooks: `docs/ops/db-runbook.md`, `docs/ops/tenant-provisioning.md`.
-- Env var names (from `.env.example`, values omitted):
-- APP_ENV, NODE_ENV, PORT, TENANT_BASE_DOMAIN, TENANT_DEV_BASE_DOMAIN, DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL, SEED_OWNER_PASSWORD, SEED_DEFAULT_PASSWORD, SEED_DEMO_TENANT_SLUG, SEED_DEMO_TENANT_NAME, SEED_SECOND_TENANT_SLUG, SEED_SECOND_TENANT_NAME, SEED_OWNER_EMAIL, SEED_TUTOR_EMAIL, SEED_PARENT_EMAIL, SEED_ACME_OWNER_EMAIL, SEED_OWNER_NAME, SEED_TUTOR_NAME, SEED_PARENT_NAME, SEED_ACME_OWNER_NAME, SEED_TUTOR_PASSWORD, SEED_PARENT_PASSWORD, SEED_ACME_OWNER_PASSWORD, E2E_BASE_URL, E2E_TENANT_SLUG, E2E_RUN_ID, E2E_ADMIN_EMAIL, E2E_ADMIN_PASSWORD, E2E_TUTOR_EMAIL, E2E_TUTOR_PASSWORD, BASELINE_BROWSER_MAPPING_IGNORE_OLD_DATA, BROWSERSLIST_IGNORE_OLD_DATA, AUTH_SECRET, AUTH_URL, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_SECURE, EMAIL_FROM, MAGIC_LINK_TTL_MINUTES, AUTH_RATE_LIMIT_EMAIL_MAX, AUTH_RATE_LIMIT_EMAIL_WINDOW_MINUTES, AUTH_RATE_LIMIT_IP_MAX, AUTH_RATE_LIMIT_IP_WINDOW_MINUTES.
-- TODO: confirm migration procedures (see `docs/devops/seeding-staging.md` and `scripts/devops/`).
+<!-- DevOps snapshot: update from docs/ops/env-vars.md, .env files, and process.env usage; names only. -->
+- Environments (high level): Staging + production run the Next.js app on Vercel with Neon Postgres; deploys are staging-first before production.
+- Deploy/runbook docs: `docs/devops/deploy-runbook.md`, `docs/devops/vercel-neon-deploy.md`, `docs/devops/incident-triage.md`, `docs/devops/observability.md`, `docs/devops/seeding-staging.md`, `docs/ops/deployment.md`, `docs/ops/db-runbook.md`, `docs/ops/tenant-provisioning.md`, `docs/ops/env-vars.md`, `docs/ops/observability.md`.
+- Env var names (shared across envs): APP_ENV, AUTH_RATE_LIMIT_EMAIL_MAX, AUTH_RATE_LIMIT_EMAIL_WINDOW_MINUTES, AUTH_RATE_LIMIT_IP_MAX, AUTH_RATE_LIMIT_IP_WINDOW_MINUTES, AUTH_SECRET, AUTH_URL, BASELINE_BROWSER_MAPPING_IGNORE_OLD_DATA, BROWSERSLIST_IGNORE_OLD_DATA, DATABASE_URL, DIRECT_URL, EMAIL_FROM, GIT_COMMIT_SHA, MAGIC_LINK_TTL_MINUTES, NEXT_PUBLIC_APP_ENV, NEXT_PUBLIC_SENTRY_DSN, NEXT_RUNTIME, NEXTAUTH_SECRET, NEXTAUTH_URL, NODE_ENV, PORT, SENTRY_DSN, SENTRY_RELEASE, SENTRY_TRACES_SAMPLE_RATE, SMTP_HOST, SMTP_PASSWORD, SMTP_PORT, SMTP_SECURE, SMTP_USER, TENANT_BASE_DOMAIN, TENANT_DEV_BASE_DOMAIN, VERCEL_GIT_COMMIT_SHA.
+- Env var names (env-specific / QA / local): E2E_ADMIN_EMAIL, E2E_ADMIN_PASSWORD, E2E_BASE_URL, E2E_GO_LIVE_SESSION_ID, E2E_GO_LIVE_STUDENT_ID, E2E_RUN_ID, E2E_TENANT_SLUG, E2E_TUTOR_EMAIL, E2E_TUTOR_PASSWORD, NEW_PASSWORD, SEED_ACME_OWNER_EMAIL, SEED_ACME_OWNER_NAME, SEED_ACME_OWNER_PASSWORD, SEED_ADMIN_EMAIL, SEED_DEFAULT_PASSWORD, SEED_DEMO_TENANT_NAME, SEED_DEMO_TENANT_SLUG, SEED_OWNER_EMAIL, SEED_OWNER_NAME, SEED_OWNER_PASSWORD, SEED_PARENT_EMAIL, SEED_PARENT_NAME, SEED_PARENT_PASSWORD, SEED_PARENT_TWO_EMAIL, SEED_SECOND_TENANT_NAME, SEED_SECOND_TENANT_SLUG, SEED_TUTOR_EMAIL, SEED_TUTOR_NAME, SEED_TUTOR_PASSWORD, SEED_TUTOR_TWO_EMAIL.
+- Migration/deploy notes (high level): Prisma migrations via `pnpm prisma migrate deploy`, staging-first with a QA gate before production; rollback is app-first. Tenant isolation + RBAC are P0 in deploy/migration validation.
 
 ---
 
@@ -160,4 +161,6 @@ Duplicate/ambiguous nav labels to confirm:
 - Run `pnpm docs:state`.
 - Review `docs/po/current-state.generated.md` for accuracy.
 - Merge relevant details into this curated doc.
-- Update ìLast updatedî and Change log entry.
+- Update ‚ÄúLast updated‚Äù and Change log entry.
+
+
