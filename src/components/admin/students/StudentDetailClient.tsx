@@ -58,6 +58,21 @@ type InviteData = {
 
 type InviteLocale = "en" | "zh-CN";
 
+type SendLinkReason =
+  | "UNAUTHORIZED"
+  | "NOT_FOUND"
+  | "MISSING_EMAIL"
+  | "NOT_LINKED"
+  | "NOT_ELIGIBLE"
+  | "RATE_LIMITED"
+  | "UNKNOWN";
+
+type SendLinkToast = {
+  tone: "success" | "error";
+  title: string;
+  body: string;
+};
+
 type StudentDetailClientProps = {
   studentId: string;
   tenant: string;
@@ -83,6 +98,16 @@ const emptyForm: StudentFormState = {
 
 function formatParentName(parent: ParentLink["parent"]) {
   return `${parent.firstName} ${parent.lastName}`.trim();
+}
+
+function extractSendLinkReason(details: unknown): SendLinkReason | null {
+  if (!details || typeof details !== "object") return null;
+  const error = (details as { error?: { details?: { reason?: unknown } } }).error;
+  const reason =
+    error && typeof error === "object" && "details" in error
+      ? (error as { details?: { reason?: unknown } }).details?.reason
+      : null;
+  return typeof reason === "string" ? (reason as SendLinkReason) : null;
 }
 
 async function copyTextToClipboard(text: string) {
@@ -128,9 +153,8 @@ export default function StudentDetailClient({
   const [message, setMessage] = useState<string | null>(null);
   const [parentsError, setParentsError] = useState<string | null>(null);
   const [parentsMessage, setParentsMessage] = useState<string | null>(null);
-  const [sendLinkTarget, setSendLinkTarget] = useState<ParentLink | null>(null);
-  const [sendLinkError, setSendLinkError] = useState<string | null>(null);
-  const [isSendingLink, setIsSendingLink] = useState(false);
+  const [sendingParentId, setSendingParentId] = useState<string | null>(null);
+  const [sendLinkToast, setSendLinkToast] = useState<SendLinkToast | null>(null);
   const [inviteTarget, setInviteTarget] = useState<ParentLink | null>(null);
   const [inviteData, setInviteData] = useState<InviteData | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -420,13 +444,6 @@ export default function StudentDetailClient({
     [loadParents, studentId, t, tenant],
   );
 
-  const openSendLinkModal = useCallback((link: ParentLink) => {
-    // Send-link flow starts clean to avoid leaking previous state between parents.
-    setSendLinkTarget(link);
-    setSendLinkError(null);
-    setIsSendingLink(false);
-  }, []);
-
   const openInviteModal = useCallback((link: ParentLink) => {
     // Invite flow resets local state so admins always see fresh data.
     setInviteTarget(link);
@@ -434,12 +451,6 @@ export default function StudentDetailClient({
     setInviteError(null);
     setInviteCopyError(null);
     setInviteCopied(false);
-  }, []);
-
-  const closeSendLinkModal = useCallback(() => {
-    setSendLinkTarget(null);
-    setSendLinkError(null);
-    setIsSendingLink(false);
   }, []);
 
   const closeInviteModal = useCallback(() => {
@@ -451,31 +462,77 @@ export default function StudentDetailClient({
     setIsInviteLoading(false);
   }, []);
 
-  const handleSendMagicLink = useCallback(async () => {
-    if (!sendLinkTarget) return;
-    setIsSendingLink(true);
-    setSendLinkError(null);
-    setParentsMessage(null);
+  const handleSendMagicLink = useCallback(
+    async (link: ParentLink) => {
+      setSendingParentId(link.parentId);
+      setSendLinkToast(null);
+      setParentsMessage(null);
 
-    const result = await fetchJson<{ ok: boolean }>(
-      buildTenantApiUrl(tenant, `/parents/${sendLinkTarget.parentId}/send-magic-link`),
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      },
-    );
+      const result = await fetchJson<{ ok: boolean }>(
+        buildTenantApiUrl(
+          tenant,
+          `/parents/${link.parentId}/send-magic-link`,
+        ),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ studentId }),
+        },
+      );
 
-    if (!result.ok) {
-      setSendLinkError(t("parentAuth.admin.sendLink.toast.error"));
-      setIsSendingLink(false);
-      return;
-    }
+      if (!result.ok) {
+        const reason = extractSendLinkReason(result.details) ?? "UNKNOWN";
+        const toastKeys = {
+          RATE_LIMITED: {
+            title: "adminParentAuth.toast.rateLimited.title",
+            body: "adminParentAuth.toast.rateLimited.body",
+          },
+          UNAUTHORIZED: {
+            title: "adminParentAuth.toast.unauthorized.title",
+            body: "adminParentAuth.toast.unauthorized.body",
+          },
+          NOT_FOUND: {
+            title: "adminParentAuth.toast.notFound.title",
+            body: "adminParentAuth.toast.notFound.body",
+          },
+          NOT_ELIGIBLE: {
+            title: "adminParentAuth.toast.notEligible.title",
+            body: "adminParentAuth.toast.notEligible.body",
+          },
+          NOT_LINKED: {
+            title: "adminParentAuth.toast.notEligible.title",
+            body: "adminParentAuth.toast.notEligible.body",
+          },
+          MISSING_EMAIL: {
+            title: "adminParentAuth.toast.notEligible.title",
+            body: "adminParentAuth.toast.notEligible.body",
+          },
+          UNKNOWN: {
+            title: "adminParentAuth.toast.error.title",
+            body: "adminParentAuth.toast.error.body",
+          },
+        } satisfies Record<SendLinkReason, { title: string; body: string }>;
 
-    setIsSendingLink(false);
-    setSendLinkTarget(null);
-    setParentsMessage(t("parentAuth.admin.sendLink.toast.success"));
-  }, [sendLinkTarget, t, tenant]);
+        const toastCopy =
+          toastKeys[reason] ?? toastKeys.UNKNOWN;
+        setSendLinkToast({
+          tone: "error",
+          title: t(toastCopy.title),
+          body: t(toastCopy.body),
+        });
+        setSendingParentId(null);
+        return;
+      }
+
+      setSendingParentId(null);
+      setSendLinkToast({
+        tone: "success",
+        title: t("adminParentAuth.toast.success.title"),
+        body: t("adminParentAuth.toast.success.body"),
+      });
+    },
+    [studentId, t, tenant],
+  );
 
   const handleCopyInvite = useCallback(async () => {
     if (!inviteTarget || !inviteData) return;
@@ -575,37 +632,66 @@ export default function StudentDetailClient({
       },
       {
         header: t("admin.students.table.actions"),
-        cell: (link) => (
-          <div className="flex items-center justify-end gap-2">
-            <button
-              className="rounded border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-              data-testid={`parent-invite-${link.parentId}`}
-              disabled={isReadOnly || !link.parent.email}
-              onClick={() => openInviteModal(link)}
-              type="button"
-            >
-              {t("admin.parents.action.copyInvite")}
-            </button>
-            <button
-              className="rounded border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-              data-testid={`parent-send-link-${link.parentId}`}
-              disabled={isReadOnly || !link.parent.email}
-              onClick={() => openSendLinkModal(link)}
-              type="button"
-            >
-              {t("parentAuth.admin.sendLink.label")}
-            </button>
-            <button
-              className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
-              data-testid={`parent-unlink-${link.parentId}`}
-              disabled={isReadOnly}
-              onClick={() => handleUnlinkParent(link.parentId)}
-              type="button"
-            >
-              {t("admin.students.parents.unlink")}
-            </button>
-          </div>
-        ),
+        cell: (link) => {
+          const hasEmail = Boolean(link.parent.email?.trim());
+          const isLinked = Boolean(link.parentId);
+          const isSending = sendingParentId === link.parentId;
+          const missingEmail = !hasEmail;
+          const missingLink = !isLinked;
+          const disabledReasonKey = missingEmail
+            ? "adminParentAuth.disabled.missingEmail"
+            : missingLink
+              ? "adminParentAuth.disabled.notLinked"
+              : null;
+          const sendDisabled =
+            isReadOnly || isSending || Boolean(disabledReasonKey);
+
+          return (
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  className="rounded border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                  data-testid={`parent-invite-${link.parentId}`}
+                  disabled={isReadOnly || !link.parent.email}
+                  onClick={() => openInviteModal(link)}
+                  type="button"
+                >
+                  {t("admin.parents.action.copyInvite")}
+                </button>
+                <button
+                  className="rounded border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                  data-testid={`parent-send-link-${link.parentId}`}
+                  disabled={sendDisabled}
+                  onClick={() => void handleSendMagicLink(link)}
+                  type="button"
+                >
+                  {isSending ? (
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-400/40 border-t-slate-600" />
+                      {t("adminParentAuth.sending.label")}
+                    </span>
+                  ) : (
+                    t("adminParentAuth.sendLink.label")
+                  )}
+                </button>
+                <button
+                  className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-60"
+                  data-testid={`parent-unlink-${link.parentId}`}
+                  disabled={isReadOnly}
+                  onClick={() => handleUnlinkParent(link.parentId)}
+                  type="button"
+                >
+                  {t("admin.students.parents.unlink")}
+                </button>
+              </div>
+              {disabledReasonKey ? (
+                <span className="text-[11px] text-slate-500">
+                  {t(disabledReasonKey)}
+                </span>
+              ) : null}
+            </div>
+          );
+        },
         headClassName: "px-4 py-3",
         cellClassName: "px-4 py-3",
       },
@@ -615,8 +701,9 @@ export default function StudentDetailClient({
       inviteCopiedAtByParent,
       isReadOnly,
       locale,
+      handleSendMagicLink,
       openInviteModal,
-      openSendLinkModal,
+      sendingParentId,
       t,
     ],
   );
@@ -799,6 +886,10 @@ export default function StudentDetailClient({
           className="rounded border border-slate-200 bg-white p-5"
           data-testid="parents-section"
         >
+          {/*
+            UI Contract Placeholder — Step 22.2 Admin Invite/Resend (Parent Magic Link)
+            Paste the Designer micro contract here when available.
+          */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-semibold text-slate-900">
               {t("admin.parents.section.title")}
@@ -868,6 +959,19 @@ export default function StudentDetailClient({
         {parentsMessage ? (
           <p className="mt-3 text-sm text-green-600">{parentsMessage}</p>
         ) : null}
+        {sendLinkToast ? (
+          <div
+            className={`mt-3 rounded border px-3 py-2 ${
+              sendLinkToast.tone === "success"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-red-200 bg-red-50 text-red-700"
+            }`}
+            data-testid="parent-send-link-toast"
+          >
+            <p className="text-sm font-semibold">{sendLinkToast.title}</p>
+            <p className="text-xs">{sendLinkToast.body}</p>
+          </div>
+        ) : null}
 
         {parents.length > 0 || isParentsLoading ? (
           <div className="mt-4">
@@ -884,59 +988,6 @@ export default function StudentDetailClient({
         ) : null}
         </section>
       </div>
-
-      {sendLinkTarget ? (
-        // Reuse the existing admin modal shell instead of shadcn Dialog for consistency.
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-          <div className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded border border-slate-200 bg-white p-6 shadow-xl">
-            <AdminModalShell
-              title={t("parentAuth.admin.sendLink.confirm.title")}
-              description={t("parentAuth.admin.sendLink.confirm.body", {
-                email: sendLinkTarget.parent.email,
-              })}
-              footer={
-                <>
-                  <button
-                    className="rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
-                    data-testid="parent-send-link-cancel"
-                    disabled={isSendingLink}
-                    onClick={closeSendLinkModal}
-                    type="button"
-                  >
-                    {t("parentAuth.admin.sendLink.confirm.ctaCancel")}
-                  </button>
-                  <button
-                    className="flex items-center gap-2 rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                    data-testid="parent-send-link-confirm"
-                    disabled={isSendingLink}
-                    onClick={handleSendMagicLink}
-                    type="button"
-                  >
-                    {isSendingLink ? (
-                      <>
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                        {t("generic.loading")}
-                      </>
-                    ) : (
-                      t("parentAuth.admin.sendLink.confirm.ctaSend")
-                    )}
-                  </button>
-                </>
-              }
-              testId="parent-send-link-modal"
-            >
-              {sendLinkError ? (
-                <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {sendLinkError}
-                </div>
-              ) : null}
-              <p className="text-xs text-slate-600">
-                {t("parentAuth.admin.sendLink.securityNote")}
-              </p>
-            </AdminModalShell>
-          </div>
-        </div>
-      ) : null}
 
       {inviteTarget ? (
         // Invite modal lives in the parents section so admins can copy onboarding messages quickly.

@@ -1,23 +1,18 @@
 // Parent magic link request endpoint (tenant-scoped, neutral responses).
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
-import { getTranslations } from "next-intl/server";
 
 import {
-  generateMagicLinkToken,
-  getMagicLinkConfig,
   getRequestIp,
-  getRequestOrigin,
   hashIdentifier,
   normalizeEmail,
 } from "@/lib/auth/magicLink";
-import { buildMagicLinkEmail } from "@/lib/auth/magicLinkEmail";
 import {
   checkMagicLinkRateLimit,
   recordMagicLinkRateLimitEvent,
 } from "@/lib/auth/magicLinkRateLimit";
+import { sendParentMagicLink } from "@/lib/auth/parentMagicLink";
 import { prisma } from "@/lib/db/prisma";
-import { sendEmail } from "@/lib/email/smtp";
 
 export const runtime = "nodejs";
 
@@ -126,54 +121,33 @@ export async function POST(req: NextRequest, context: Params) {
     return buildOkResponse();
   }
 
-  const { rawToken, tokenHash } = generateMagicLinkToken();
-  const config = getMagicLinkConfig();
-  const expiresAt = new Date(Date.now() + config.ttlMinutes * 60 * 1000);
-
-  await prisma.$transaction(async (tx) => {
-    await recordMagicLinkRateLimitEvent(tx, {
+  // Delegate token issuance + email send to the shared parent magic link helper.
+  const sendResult = await sendParentMagicLink({
+    tenant: {
+      id: tenantRecord.id,
+      slug: tenantSlug,
+      name: tenantRecord.name,
+      supportEmail: tenantRecord.supportEmail,
+    },
+    parent: { id: parent.id, email: parent.email },
+    rememberMe,
+    initiatedBy: "parent",
+    request: req,
+    rateLimit: {
       kind: RATE_LIMIT_KIND,
       tenantId: tenantRecord.id,
       ipHash,
       emailHash,
-    });
-
-    await tx.parentMagicLinkToken.create({
-      data: {
-        tenantId: tenantRecord.id,
-        parentUserId: parent.id,
-        tokenHash,
-        rememberMe,
-        expiresAt,
-        createdIpHash: ipHash,
-      },
-    });
+      skipCheck: true,
+    },
   });
 
-  const origin = getRequestOrigin(req);
-  if (!origin) {
-    // Without a reliable origin we cannot build an absolute link; return neutral.
-    return buildOkResponse();
+  if (!sendResult.ok && sendResult.reason === "RATE_LIMITED") {
+    return buildOkResponse({
+      rateLimited: true,
+      retryAfterSeconds: sendResult.retryAfterSeconds,
+    });
   }
-
-  const signInUrl = `${origin}/${tenantSlug}/parent/auth/verify?token=${encodeURIComponent(
-    rawToken,
-  )}`;
-
-  const t = await getTranslations();
-  const { subject, html, text } = buildMagicLinkEmail(t, {
-    appName: tenantRecord.name,
-    signInUrl,
-    expiresInMinutes: config.ttlMinutes,
-    supportEmail: tenantRecord.supportEmail ?? process.env.EMAIL_FROM ?? "",
-  });
-
-  await sendEmail({
-    to: parent.email,
-    subject,
-    html,
-    text,
-  });
 
   return buildOkResponse();
 }

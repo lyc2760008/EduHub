@@ -12,6 +12,7 @@ How to use: Paste this doc before PO planning.
 
 Change log:
 - 2026-02-10: DevOps — Refresh DevOps deploy/env/migrations snapshot (staging+prod), add runbook paths + env var names.
+- 2026-02-10: Dev — Step 22.2 admin send/resend parent magic link from Student Detail parents section; shared helper + admin endpoint.
 - 2026-02-10: Initial snapshot scaffold seeded from repo scan.
 
 ---
@@ -30,6 +31,8 @@ Change log:
 - TODO: confirm Step ID — Parent portal home + sessions + requests + students. Routes: `/[tenant]/portal`, `/[tenant]/portal/sessions`, `/[tenant]/portal/sessions/[id]`, `/[tenant]/portal/requests`, `/[tenant]/portal/students`, `/[tenant]/portal/students/[id]`.
 - TODO: confirm Step ID — Parent portal account/help views. Routes: `/[tenant]/portal/account`, `/[tenant]/portal/help`.
 - TODO: confirm Step ID — Parent auth (magic link + verify). Routes: `/[tenant]/parent/login`, `/[tenant]/parent/auth/verify`.
+<!-- Step 22.2: Admin send/resend parent magic link from Student Detail parents section. -->
+- Step 22.2 — Admin parent magic link invite/resend from Student Detail → Parents section. Route: `/[tenant]/admin/students/[id]`. Endpoint: `src/app/api/parents/[parentId]/send-magic-link/route.ts`. Shared helper: `src/lib/auth/parentMagicLink.ts`.
 
 ## Route Inventory
 

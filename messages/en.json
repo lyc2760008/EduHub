@@ -1721,6 +1721,52 @@
       "cta": "Go to Parent Portal"
     }
   },
+  "adminParentAuth": {
+    "_comment": "Admin parent magic link send/resend copy (Step 22.2).",
+    "sendLink": {
+      "label": "Send sign-in link"
+    },
+    "resendLink": {
+      "label": "Resend sign-in link"
+    },
+    "sending": {
+      "label": "Sending..."
+    },
+    "disabled": {
+      "missingEmail": "Parent email required",
+      "notLinked": "Link a parent to send a sign-in link",
+      "noPermission": "You don't have permission to send sign-in links"
+    },
+    "toast": {
+      "success": {
+        "title": "Sign-in link sent",
+        "body": "Ask the parent to check their inbox and spam folder."
+      },
+      "error": {
+        "title": "Unable to send sign-in link",
+        "body": "Please try again. If the problem continues, contact support."
+      },
+      "rateLimited": {
+        "title": "Unable to send sign-in link",
+        "body": "Too many requests. Please try again soon."
+      },
+      "unauthorized": {
+        "title": "Unable to send sign-in link",
+        "body": "You don't have permission to send sign-in links."
+      },
+      "notFound": {
+        "title": "Unable to send sign-in link",
+        "body": "The parent or student could not be found in this center."
+      },
+      "notEligible": {
+        "title": "Unable to send sign-in link",
+        "body": "Link a parent to a student before sending a sign-in link."
+      }
+    },
+    "lastSent": {
+      "label": "Last sent {time}"
+    }
+  },
   "parent": {
     "nav": {
       "dashboard": "Dashboard",
