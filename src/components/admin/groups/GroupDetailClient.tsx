@@ -74,6 +74,7 @@ export default function GroupDetailClient({
   const [studentFilter, setStudentFilter] = useState("");
   const [isSavingTutors, setIsSavingTutors] = useState(false);
   const [isSavingStudents, setIsSavingStudents] = useState(false);
+  const [isSyncingStudents, setIsSyncingStudents] = useState(false);
   const [tutorError, setTutorError] = useState<string | null>(null);
   const [studentError, setStudentError] = useState<string | null>(null);
   const [tutorMessage, setTutorMessage] = useState<string | null>(null);
@@ -198,6 +199,41 @@ export default function GroupDetailClient({
     setIsSavingStudents(false);
   }
 
+  async function syncStudentsToFutureSessions() {
+    setIsSyncingStudents(true);
+    setStudentError(null);
+    setStudentMessage(null);
+
+    const result = await fetchJson<{
+      totalFutureSessions: number;
+      sessionsUpdated: number;
+      studentsAdded: number;
+    }>(buildTenantApiUrl(tenant, `/groups/${group.id}/sync-future-sessions`), {
+      method: "POST",
+    });
+
+    if (!result.ok && (result.status === 401 || result.status === 403)) {
+      setStudentError(t("admin.groups.messages.forbidden"));
+      setIsSyncingStudents(false);
+      return;
+    }
+
+    if (!result.ok) {
+      setStudentError(t("admin.groups.messages.loadError"));
+      setIsSyncingStudents(false);
+      return;
+    }
+
+    // Surface non-sensitive sync counts so admins can confirm action impact quickly.
+    setStudentMessage(
+      t("admin.groups.messages.futureSessionsSynced", {
+        sessions: result.data.sessionsUpdated,
+        students: result.data.studentsAdded,
+      }),
+    );
+    setIsSyncingStudents(false);
+  }
+
   const tutorEmpty = tutors.length === 0;
   const studentEmpty = students.length === 0;
 
@@ -308,17 +344,30 @@ export default function GroupDetailClient({
           <h2 className="text-lg font-semibold text-slate-900">
             {t("admin.groups.sections.students")}
           </h2>
-          <button
-            className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-            data-testid="save-group-students-button"
-            disabled={isSavingStudents}
-            onClick={saveStudents}
-            type="button"
-          >
-            {isSavingStudents
-              ? t("common.loading")
-              : t("admin.groups.actions.saveStudents")}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              className="rounded border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
+              data-testid="sync-group-future-sessions-button"
+              disabled={isSavingStudents || isSyncingStudents}
+              onClick={syncStudentsToFutureSessions}
+              type="button"
+            >
+              {isSyncingStudents
+                ? t("admin.groups.actions.syncFutureSessionsLoading")
+                : t("admin.groups.actions.syncFutureSessions")}
+            </button>
+            <button
+              className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              data-testid="save-group-students-button"
+              disabled={isSavingStudents || isSyncingStudents}
+              onClick={saveStudents}
+              type="button"
+            >
+              {isSavingStudents
+                ? t("common.loading")
+                : t("admin.groups.actions.saveStudents")}
+            </button>
+          </div>
         </div>
 
         <div className="mt-4">

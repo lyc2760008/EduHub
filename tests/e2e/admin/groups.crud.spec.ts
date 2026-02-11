@@ -2,8 +2,8 @@
 import { expect, test } from "@playwright/test";
 
 import { loginViaUI } from "..\/helpers/auth";
-import { uniqueString } from "..\/helpers/data";
-import { buildTenantPath } from "..\/helpers/tenant";
+import { fetchCenters, uniqueString } from "..\/helpers/data";
+import { buildTenantApiPath, buildTenantPath } from "..\/helpers/tenant";
 
 // Tagged for Playwright suite filtering.
 test.describe("[regression] Groups - CRUD", () => {
@@ -57,6 +57,12 @@ test.describe("[regression] Groups - CRUD", () => {
     const row = page.getByTestId("groups-table").locator("tr", {
       hasText: groupName,
     });
+    const rowTestId = await row.getAttribute("data-testid");
+    if (!rowTestId || !rowTestId.startsWith("group-row-")) {
+      throw new Error("Expected a group row data-testid to resolve group id.");
+    }
+    const groupId = rowTestId.replace("group-row-", "");
+
     await row.getByTestId("manage-group-link").click();
 
     await expect(page.getByTestId("group-detail-page")).toBeVisible();
@@ -65,6 +71,7 @@ test.describe("[regression] Groups - CRUD", () => {
     const tutorOptions = tutorContainer.locator("input[type=checkbox]");
     const tutorOptionCount = await tutorOptions.count();
     let expectedTutorsCount = 0;
+    let selectedTutorId: string | null = null;
 
     if (tutorOptionCount > 0) {
       await tutorOptions.first().check();
@@ -80,6 +87,10 @@ test.describe("[regression] Groups - CRUD", () => {
       await page.getByTestId("save-group-tutors-button").click();
       const tutorSaveResponse = await tutorSavePromise;
       expect(tutorSaveResponse.ok()).toBeTruthy();
+      const tutorSavePayload = (await tutorSaveResponse.json()) as {
+        tutorIds?: string[];
+      };
+      selectedTutorId = tutorSavePayload.tutorIds?.[0] ?? null;
 
       await expect(tutorOptions.first()).toBeChecked();
     } else {
@@ -90,6 +101,8 @@ test.describe("[regression] Groups - CRUD", () => {
     const studentOptions = studentContainer.locator("input[type=checkbox]");
     const studentOptionCount = await studentOptions.count();
     let expectedStudentsCount = 0;
+    let firstRosterSnapshot: string[] = [];
+    let secondRosterSnapshot: string[] = [];
 
     if (studentOptionCount > 0) {
       await studentOptions.first().check();
@@ -105,6 +118,11 @@ test.describe("[regression] Groups - CRUD", () => {
       await page.getByTestId("save-group-students-button").click();
       const studentSaveResponse = await studentSavePromise;
       expect(studentSaveResponse.ok()).toBeTruthy();
+      const studentSavePayload = (await studentSaveResponse.json()) as {
+        studentIds?: string[];
+      };
+      firstRosterSnapshot = studentSavePayload.studentIds ?? [];
+      expectedStudentsCount = firstRosterSnapshot.length;
 
       await expect(studentOptions.first()).toBeChecked();
 
@@ -121,6 +139,108 @@ test.describe("[regression] Groups - CRUD", () => {
       expect(studentResaveResponse.ok()).toBeTruthy();
 
       await expect(studentOptions.first()).toBeChecked();
+
+      if (
+        selectedTutorId &&
+        studentOptionCount > 1 &&
+        firstRosterSnapshot.length > 0
+      ) {
+        const centers = await fetchCenters(page, tenantSlug);
+        const center = centers.find((entry) => entry.id === centerValue);
+        if (!center) {
+          throw new Error("Expected selected center to resolve timezone.");
+        }
+
+        // Create one future group session before adding the second student.
+        const startAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+        const endAt = new Date(startAt.getTime() + 60 * 60 * 1000);
+        const createSessionResponse = await page.request.post(
+          buildTenantApiPath(tenantSlug, "/api/sessions"),
+          {
+            data: {
+              centerId: centerValue,
+              tutorId: selectedTutorId,
+              sessionType: "GROUP",
+              groupId,
+              startAt: startAt.toISOString(),
+              endAt: endAt.toISOString(),
+              timezone: center.timezone,
+            },
+          },
+        );
+        expect(createSessionResponse.status()).toBe(201);
+        const createSessionPayload = (await createSessionResponse.json()) as {
+          session?: { id?: string };
+        };
+        const sessionId = createSessionPayload.session?.id;
+        if (!sessionId) {
+          throw new Error("Expected a created session id for sync validation.");
+        }
+
+        const preSyncSessionResponse = await page.request.get(
+          buildTenantApiPath(tenantSlug, `/api/sessions/${sessionId}`),
+        );
+        expect(preSyncSessionResponse.status()).toBe(200);
+        const preSyncSessionPayload = (await preSyncSessionResponse.json()) as {
+          session?: { roster?: Array<{ id: string }> };
+        };
+        const preSyncRosterIds = (preSyncSessionPayload.session?.roster ?? []).map(
+          (student) => student.id,
+        );
+        expect(preSyncRosterIds).toEqual(firstRosterSnapshot);
+
+        // Add one more student to the group roster so sync has a deterministic delta.
+        await studentOptions.nth(1).check();
+        const secondSavePromise = page.waitForResponse(
+          (response) =>
+            response.url().includes("/api/groups/") &&
+            response.url().endsWith("/students") &&
+            response.request().method() === "PUT",
+        );
+        await page.getByTestId("save-group-students-button").click();
+        const secondSaveResponse = await secondSavePromise;
+        expect(secondSaveResponse.ok()).toBeTruthy();
+        const secondSavePayload = (await secondSaveResponse.json()) as {
+          studentIds?: string[];
+        };
+        secondRosterSnapshot = secondSavePayload.studentIds ?? [];
+        expectedStudentsCount = secondRosterSnapshot.length;
+
+        const newlyAddedStudentIds = secondRosterSnapshot.filter(
+          (studentId) => !firstRosterSnapshot.includes(studentId),
+        );
+        expect(newlyAddedStudentIds.length).toBeGreaterThan(0);
+
+        const syncResponsePromise = page.waitForResponse(
+          (response) =>
+            response.url().includes(`/api/groups/${groupId}/sync-future-sessions`) &&
+            response.request().method() === "POST",
+        );
+
+        await page.getByTestId("sync-group-future-sessions-button").click();
+        const syncResponse = await syncResponsePromise;
+        expect(syncResponse.ok()).toBeTruthy();
+        const syncPayload = (await syncResponse.json()) as {
+          studentsAdded?: number;
+        };
+        expect(syncPayload.studentsAdded ?? 0).toBeGreaterThanOrEqual(
+          newlyAddedStudentIds.length,
+        );
+
+        const postSyncSessionResponse = await page.request.get(
+          buildTenantApiPath(tenantSlug, `/api/sessions/${sessionId}`),
+        );
+        expect(postSyncSessionResponse.status()).toBe(200);
+        const postSyncSessionPayload = (await postSyncSessionResponse.json()) as {
+          session?: { roster?: Array<{ id: string }> };
+        };
+        const postSyncRosterIds = (
+          postSyncSessionPayload.session?.roster ?? []
+        ).map((student) => student.id);
+        for (const studentId of newlyAddedStudentIds) {
+          expect(postSyncRosterIds).toContain(studentId);
+        }
+      }
     } else {
       await expect(page.getByTestId("student-empty-state")).toBeVisible();
     }

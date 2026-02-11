@@ -1,7 +1,7 @@
 ﻿<!-- Curated snapshot for PO planning. Keep secrets out; update via scripts/generate-current-state.mjs. -->
 # EduHub Current State Snapshot
 
-Last updated: 2026-02-10
+Last updated: 2026-02-11
 
 Owners:
 - Dev: TODO (name)
@@ -11,6 +11,7 @@ Owners:
 How to use: Paste this doc before PO planning.
 
 Change log:
+- 2026-02-11: QA — Step 22.2 QA automation coverage updated (admin invite/resend), E2E status refreshed from STAGING run.
 - 2026-02-10: DevOps — Refresh DevOps deploy/env/migrations snapshot (staging+prod), add runbook paths + env var names.
 - 2026-02-10: Dev — Step 22.2 admin send/resend parent magic link from Student Detail parents section; shared helper + admin endpoint.
 - 2026-02-10: Initial snapshot scaffold seeded from repo scan.
@@ -137,10 +138,24 @@ Duplicate/ambiguous nav labels to confirm:
 **QA-Owned**
 
 ## Test Coverage Status (Playwright)
-- Tests live under `tests/e2e/` with admin, portal, smoke, golden, and go-live suites.
-- Admin flows covered (best-effort from filenames): users, students, groups, catalog, sessions, attendance, audit log, reports, navigation, RBAC/tenant isolation.
-- Parent portal flows covered (best-effort from filenames): auth, onboarding, sessions detail, requests lifecycle, access control, i18n, tenant isolation, logout.
-- TODO: confirm coverage gaps and update with definitive list.
+<!-- Step 22.2 QA coverage snapshot: keep this section focused on verified automation behavior. -->
+- Tests live under `tests/e2e/` with `setup-admin`, `setup-parent`, `smoke`, `portal`, `admin`, `golden`, and `go-live` projects.
+- Step 22.2 invite/resend automated coverage: `tests/e2e/admin/parent-magic-link-invite.admin.spec.ts`.
+- Step 22.2 covered cases:
+- Admin can trigger send-link from Student Detail -> Parents; backend response is asserted (`200` or `409`) and success feedback toast is visible.
+- Missing-email parent row renders disabled send-link action with helper text.
+- Non-admin (Tutor) is blocked at UI (access denied) and API (`401/403`) for invite endpoint.
+- Cross-tenant Student Detail navigation is blocked (best-effort tenant isolation assertion).
+- i18n guard: Step 22.2 spec asserts no raw `adminParentAuth.*` key leakage in rendered UI.
+- No real inbox dependency in E2E automation: auth/login flows use deterministic test auth helpers and guarded test endpoint flows where required.
+
+## Current E2E Status
+<!-- Update this after each QA automation pass so PO has an at-a-glance quality signal. -->
+- Last full run date: 2026-02-11 (America/Edmonton).
+- Target: `https://eduhub-staging.vercel.app` (tenant `e2e-testing`).
+- Command: `pnpm e2e:full`.
+- Result: `108 passed`, `6 skipped`, `0 failed`.
+- Skip notes: skipped specs are conditional go-live/tenant-data scenarios and are expected in this STAGING profile.
 
 ---
 
