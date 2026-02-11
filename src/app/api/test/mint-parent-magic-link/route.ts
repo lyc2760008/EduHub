@@ -26,14 +26,23 @@ function isE2ETestEndpointEnabled(): boolean {
   const vercelEnv = (process.env.VERCEL_ENV || "").trim().toLowerCase();
   const appEnv = (process.env.APP_ENV || "").trim().toLowerCase();
   const nodeEnv = (process.env.NODE_ENV || "").trim().toLowerCase();
-  // NOTE: On Vercel Preview, `NODE_ENV` is typically "production". We only use NODE_ENV as a
-  // blocker when VERCEL_ENV is not present.
-  if (vercelEnv) {
-    if (vercelEnv === "production") return false;
-  } else if (nodeEnv === "production") {
-    return false;
-  }
+
+  // `APP_ENV` is the authoritative "this is real production" signal.
+  // It must be set to "production" in PROD, and should be set to "staging" for STAGING.
   if (appEnv === "production") return false;
+
+  // NOTE:
+  // - On Vercel Preview, `NODE_ENV` is typically "production", so we cannot rely on it.
+  // - Some teams deploy STAGING as a separate Vercel *project* whose primary domain is still a
+  //   Vercel "production" deployment. In that case we allow the endpoint only when `APP_ENV`
+  //   is explicitly set to a non-production value (ex: "staging").
+  if (vercelEnv === "production") {
+    if (!appEnv) return false;
+    return true;
+  }
+
+  // Non-Vercel or unknown Vercel env: keep the conservative NODE_ENV guard.
+  if (!vercelEnv && nodeEnv === "production") return false;
 
   return true;
 }

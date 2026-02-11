@@ -331,7 +331,8 @@ export async function loginAsParentWithAccessCode(
       // Avoid including PII like the email value; keep the failure actionable for operators.
       throw new Error(
         `E2E parent magic-link mint endpoint unavailable (status ${response.status()}). ` +
-          "Ensure the target deployment has E2E_TEST_MODE=1 and E2E_TEST_SECRET configured.",
+          "Ensure the target deployment has E2E_TEST_MODE=1 and E2E_TEST_SECRET configured, " +
+          "and that APP_ENV is set to a non-production value (e.g. 'staging') on the target deployment.",
       );
     }
 
