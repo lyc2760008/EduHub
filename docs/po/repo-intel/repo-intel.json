@@ -1,0 +1,2455 @@
+{
+  "generatedAt": "2026-02-11T17:10:10.047Z",
+  "routes": [
+    {
+      "route": "/",
+      "area": "shared",
+      "capabilities": [
+        "view:list home"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/page.tsx",
+          "symbol": "Home",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin",
+      "area": "admin",
+      "capabilities": [
+        "view:list admin_dashboard"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/page.tsx",
+          "symbol": "AdminPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/audit",
+      "area": "admin",
+      "capabilities": [
+        "view:list audit"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/audit/page.tsx",
+          "symbol": "AuditLogPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/catalog",
+      "area": "admin",
+      "capabilities": [
+        "view:list catalog"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/catalog/page.tsx",
+          "symbol": "CatalogHubPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/centers",
+      "area": "admin",
+      "capabilities": [
+        "view:list centers"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/centers/page.tsx",
+          "symbol": "CentersPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/groups",
+      "area": "admin",
+      "capabilities": [
+        "view:list groups"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/groups/page.tsx",
+          "symbol": "GroupsPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/groups/[id]",
+      "area": "admin",
+      "capabilities": [
+        "view:detail groups"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/groups/[id]/page.tsx",
+          "symbol": "GroupDetailPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/help",
+      "area": "admin",
+      "capabilities": [
+        "view:list help"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/help/page.tsx",
+          "symbol": "AdminHelpPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/levels",
+      "area": "admin",
+      "capabilities": [
+        "view:list levels"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/levels/page.tsx",
+          "symbol": "LevelsPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/parents",
+      "area": "admin",
+      "capabilities": [
+        "view:list parents"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/parents/page.tsx",
+          "symbol": "ParentsPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/programs",
+      "area": "admin",
+      "capabilities": [
+        "view:list programs"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/programs/page.tsx",
+          "symbol": "ProgramsPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/reports",
+      "area": "admin",
+      "capabilities": [
+        "view:list reports"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/reports/page.tsx",
+          "symbol": "ReportsIndexPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/reports/absence-requests",
+      "area": "admin",
+      "capabilities": [
+        "view:list absence_requests"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/reports/absence-requests/page.tsx",
+          "symbol": "AbsenceRequestsPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/reports/attendance-summary",
+      "area": "admin",
+      "capabilities": [
+        "view:list attendance_summary"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/reports/attendance-summary/page.tsx",
+          "symbol": "AttendanceSummaryPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/reports/students-directory",
+      "area": "admin",
+      "capabilities": [
+        "view:list students_directory"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/reports/students-directory/page.tsx",
+          "symbol": "StudentsDirectoryPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/reports/tutor-workload",
+      "area": "admin",
+      "capabilities": [
+        "view:list tutor_workload"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/reports/tutor-workload/page.tsx",
+          "symbol": "TutorWorkloadPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/reports/upcoming-sessions",
+      "area": "admin",
+      "capabilities": [
+        "view:list upcoming_sessions"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/reports/upcoming-sessions/page.tsx",
+          "symbol": "UpcomingSessionsPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/requests",
+      "area": "admin",
+      "capabilities": [
+        "view:list requests"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/requests/page.tsx",
+          "symbol": "RequestsPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/sessions",
+      "area": "admin",
+      "capabilities": [
+        "view:list sessions"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/sessions/page.tsx",
+          "symbol": "SessionsPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/sessions/[id]",
+      "area": "admin",
+      "capabilities": [
+        "view:detail sessions",
+        "report_absence:create_request"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/sessions/[id]/page.tsx",
+          "symbol": "SessionDetailPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/students",
+      "area": "admin",
+      "capabilities": [
+        "view:list students"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/students/page.tsx",
+          "symbol": "StudentsPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/students/[id]",
+      "area": "admin",
+      "capabilities": [
+        "view:detail students",
+        "parent_invite:send_signin_link"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/students/[id]/page.tsx",
+          "symbol": "StudentDetailPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/subjects",
+      "area": "admin",
+      "capabilities": [
+        "view:list subjects"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/subjects/page.tsx",
+          "symbol": "SubjectsPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/users",
+      "area": "admin",
+      "capabilities": [
+        "view:list users"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(admin)/admin/users/page.tsx",
+          "symbol": "UsersPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/api/parent-auth/magic-link/consume",
+      "area": "parent",
+      "capabilities": [
+        "view:list consume"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/api/parent-auth/magic-link/consume/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/api/parent-auth/magic-link/request",
+      "area": "parent",
+      "capabilities": [
+        "create request"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/api/parent-auth/magic-link/request/route.ts",
+          "symbol": "POST",
+          "note": "@state.capabilities",
+          "inferred": false
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/login",
+      "area": "shared",
+      "capabilities": [
+        "view:list staff_login"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/login/page.tsx",
+          "symbol": "LoginPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/parent",
+      "area": "parent",
+      "capabilities": [
+        "view:list parent_landing"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(parent)/parent/page.tsx",
+          "symbol": "ParentLandingPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/parent/auth/verify",
+      "area": "parent",
+      "capabilities": [
+        "view:list magic_link_verification"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(parent-auth)/parent/auth/verify/page.tsx",
+          "symbol": "ParentVerifyPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/parent/login",
+      "area": "parent",
+      "capabilities": [
+        "view:list parent_login"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(parent-auth)/parent/login/page.tsx",
+          "symbol": "ParentLoginPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/portal",
+      "area": "parent",
+      "capabilities": [
+        "view:list portal_dashboard"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(parent)/portal/page.tsx",
+          "symbol": "PortalDashboardPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/portal/account",
+      "area": "parent",
+      "capabilities": [
+        "view:list account"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(parent)/portal/account/page.tsx",
+          "symbol": "PortalAccountPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/portal/help",
+      "area": "parent",
+      "capabilities": [
+        "view:list help"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(parent)/portal/help/page.tsx",
+          "symbol": "PortalHelpPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/portal/requests",
+      "area": "parent",
+      "capabilities": [
+        "view:list requests",
+        "report_absence:create_request",
+        "request:withdraw"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(parent)/portal/requests/page.tsx",
+          "symbol": "PortalRequestsPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/portal/sessions",
+      "area": "parent",
+      "capabilities": [
+        "view:list sessions"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(parent)/portal/sessions/page.tsx",
+          "symbol": "PortalSessionsPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/portal/sessions/[id]",
+      "area": "parent",
+      "capabilities": [
+        "view:detail sessions",
+        "report_absence:create_request",
+        "request:withdraw",
+        "request:resubmit"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(parent)/portal/sessions/[id]/page.tsx",
+          "symbol": "PortalSessionDetailPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/portal/students",
+      "area": "parent",
+      "capabilities": [
+        "view:list students"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(parent)/portal/students/page.tsx",
+          "symbol": "PortalStudentsPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/[tenant]/portal/students/[id]",
+      "area": "parent",
+      "capabilities": [
+        "view:detail students"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/[tenant]/(parent)/portal/students/[id]/page.tsx",
+          "symbol": "PortalStudentDetailPage",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/__debug/sentry-test",
+      "area": "shared",
+      "capabilities": [
+        "view:list sentry_test"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/__debug/sentry-test/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/admin/audit",
+      "area": "admin",
+      "capabilities": [
+        "view:list audit"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/admin/audit/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/admin/audit/[id]",
+      "area": "admin",
+      "capabilities": [
+        "view:detail audit"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/admin/audit/[id]/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/admin/reports/[reportId]",
+      "area": "admin",
+      "capabilities": [
+        "view:detail reports"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/admin/reports/[reportId]/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/admin/reports/[reportId]/export",
+      "area": "admin",
+      "capabilities": [
+        "view:detail export"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/admin/reports/[reportId]/export/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/admin/reports/absence-requests",
+      "area": "admin",
+      "capabilities": [
+        "view:list absence_requests"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/admin/reports/absence-requests/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/admin/reports/attendance-summary",
+      "area": "admin",
+      "capabilities": [
+        "view:list attendance_summary"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/admin/reports/attendance-summary/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/admin/reports/students-directory",
+      "area": "admin",
+      "capabilities": [
+        "view:list students_directory"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/admin/reports/students-directory/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/admin/reports/tutor-workload",
+      "area": "admin",
+      "capabilities": [
+        "view:list tutor_workload"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/admin/reports/tutor-workload/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/admin/reports/upcoming-sessions",
+      "area": "admin",
+      "capabilities": [
+        "view:list upcoming_sessions"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/admin/reports/upcoming-sessions/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/admin/students/[id]/invite-copied",
+      "area": "admin",
+      "capabilities": [
+        "create invite copied"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/admin/students/[id]/invite-copied/route.ts",
+          "symbol": "POST",
+          "note": "@state.capabilities",
+          "inferred": false
+        }
+      ]
+    },
+    {
+      "route": "/api/admin/students/[id]/invite-data",
+      "area": "admin",
+      "capabilities": [
+        "view:detail invite_data"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/admin/students/[id]/invite-data/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/attendance/suggestion",
+      "area": "shared",
+      "capabilities": [
+        "view:list suggestion",
+        "report_absence:create_request"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/attendance/suggestion/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/auth/[...nextauth]",
+      "area": "shared",
+      "capabilities": [
+        "view:detail auth_session",
+        "create auth_session"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/auth/[...nextauth]/route.ts",
+          "symbol": "re-exported handlers",
+          "note": "handler/route inference",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/centers",
+      "area": "shared",
+      "capabilities": [
+        "view:list centers",
+        "create center"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/centers/route.ts",
+          "symbol": "GET, POST",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/centers/[id]",
+      "area": "shared",
+      "capabilities": [
+        "view:detail centers",
+        "update center"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/centers/[id]/route.ts",
+          "symbol": "GET, PATCH",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/debug/sentry-test",
+      "area": "shared",
+      "capabilities": [
+        "view:list sentry_test"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/debug/sentry-test/route.ts",
+          "symbol": "re-exported handlers",
+          "note": "handler/route inference",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/groups",
+      "area": "shared",
+      "capabilities": [
+        "view:list groups",
+        "create group"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/groups/route.ts",
+          "symbol": "GET, POST",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/groups/[id]",
+      "area": "shared",
+      "capabilities": [
+        "view:detail groups",
+        "update group"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/groups/[id]/route.ts",
+          "symbol": "GET, PATCH",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/groups/[id]/students",
+      "area": "shared",
+      "capabilities": [
+        "update student"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/groups/[id]/students/route.ts",
+          "symbol": "PUT",
+          "note": "@state.capabilities",
+          "inferred": false
+        }
+      ]
+    },
+    {
+      "route": "/api/groups/[id]/sync-future-sessions",
+      "area": "shared",
+      "capabilities": [
+        "create sync future session"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/groups/[id]/sync-future-sessions/route.ts",
+          "symbol": "POST",
+          "note": "@state.capabilities",
+          "inferred": false
+        }
+      ]
+    },
+    {
+      "route": "/api/groups/[id]/tutors",
+      "area": "shared",
+      "capabilities": [
+        "update tutor"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/groups/[id]/tutors/route.ts",
+          "symbol": "PUT",
+          "note": "@state.capabilities",
+          "inferred": false
+        }
+      ]
+    },
+    {
+      "route": "/api/health",
+      "area": "shared",
+      "capabilities": [
+        "view:list health"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/health/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/levels",
+      "area": "shared",
+      "capabilities": [
+        "view:list levels",
+        "create level"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/levels/route.ts",
+          "symbol": "GET, POST",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/levels/[id]",
+      "area": "shared",
+      "capabilities": [
+        "view:detail levels",
+        "update level"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/levels/[id]/route.ts",
+          "symbol": "GET, PATCH",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/me",
+      "area": "shared",
+      "capabilities": [
+        "view:list me"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/me/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/parents",
+      "area": "parent",
+      "capabilities": [
+        "view:list parents",
+        "create parent"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/parents/route.ts",
+          "symbol": "GET, POST",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/parents/[parentId]",
+      "area": "parent",
+      "capabilities": [
+        "view:detail parents",
+        "update parent"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/parents/[parentId]/route.ts",
+          "symbol": "GET, PATCH",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/parents/[parentId]/send-magic-link",
+      "area": "parent",
+      "capabilities": [
+        "create send magic link",
+        "parent_invite:send_signin_link"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/parents/[parentId]/send-magic-link/route.ts",
+          "symbol": "POST",
+          "note": "@state.capabilities",
+          "inferred": false
+        }
+      ]
+    },
+    {
+      "route": "/api/portal/attendance",
+      "area": "parent",
+      "capabilities": [
+        "view:list attendance"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/portal/attendance/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/portal/me",
+      "area": "parent",
+      "capabilities": [
+        "view:list me"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/portal/me/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/portal/onboarding/dismiss",
+      "area": "parent",
+      "capabilities": [
+        "onboarding:dismiss_welcome"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/portal/onboarding/dismiss/route.ts",
+          "symbol": "POST",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/portal/requests",
+      "area": "parent",
+      "capabilities": [
+        "view:list requests",
+        "create request",
+        "report_absence:create_request"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/portal/requests/route.ts",
+          "symbol": "GET, POST",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/portal/requests/[id]/resubmit",
+      "area": "parent",
+      "capabilities": [
+        "create resubmit",
+        "request:resubmit"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/portal/requests/[id]/resubmit/route.ts",
+          "symbol": "POST",
+          "note": "@state.capabilities",
+          "inferred": false
+        }
+      ]
+    },
+    {
+      "route": "/api/portal/requests/[id]/withdraw",
+      "area": "parent",
+      "capabilities": [
+        "create withdraw",
+        "request:withdraw"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/portal/requests/[id]/withdraw/route.ts",
+          "symbol": "POST",
+          "note": "@state.capabilities",
+          "inferred": false
+        }
+      ]
+    },
+    {
+      "route": "/api/portal/sessions",
+      "area": "parent",
+      "capabilities": [
+        "view:list sessions"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/portal/sessions/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/portal/sessions/[id]",
+      "area": "parent",
+      "capabilities": [
+        "view:detail sessions"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/portal/sessions/[id]/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/portal/students",
+      "area": "parent",
+      "capabilities": [
+        "view:list students"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/portal/students/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/portal/students/[id]",
+      "area": "parent",
+      "capabilities": [
+        "view:detail students"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/portal/students/[id]/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/programs",
+      "area": "shared",
+      "capabilities": [
+        "view:list programs",
+        "create program"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/programs/route.ts",
+          "symbol": "GET, POST",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/programs/[id]",
+      "area": "shared",
+      "capabilities": [
+        "view:detail programs",
+        "update program"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/programs/[id]/route.ts",
+          "symbol": "GET, PATCH",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/reports/student-activity",
+      "area": "shared",
+      "capabilities": [
+        "view:list student_activity"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/reports/student-activity/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/reports/upcoming-sessions",
+      "area": "shared",
+      "capabilities": [
+        "view:list upcoming_sessions"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/reports/upcoming-sessions/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/reports/weekly-attendance",
+      "area": "shared",
+      "capabilities": [
+        "view:list weekly_attendance"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/reports/weekly-attendance/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/requests",
+      "area": "shared",
+      "capabilities": [
+        "view:list requests",
+        "request:withdraw",
+        "request:resubmit"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/requests/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/requests/[id]/resolve",
+      "area": "shared",
+      "capabilities": [
+        "create resolve"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/requests/[id]/resolve/route.ts",
+          "symbol": "POST",
+          "note": "@state.capabilities",
+          "inferred": false
+        }
+      ]
+    },
+    {
+      "route": "/api/sessions",
+      "area": "shared",
+      "capabilities": [
+        "view:list sessions",
+        "create session",
+        "report_absence:create_request"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/sessions/route.ts",
+          "symbol": "GET, POST",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/sessions/[id]",
+      "area": "shared",
+      "capabilities": [
+        "view:detail sessions"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/sessions/[id]/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/sessions/[id]/attendance",
+      "area": "shared",
+      "capabilities": [
+        "view:detail attendance",
+        "update attendance",
+        "report_absence:create_request"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/sessions/[id]/attendance/route.ts",
+          "symbol": "GET, PUT",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/sessions/[id]/notes",
+      "area": "shared",
+      "capabilities": [
+        "view:detail notes",
+        "update note"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/sessions/[id]/notes/route.ts",
+          "symbol": "GET, PUT",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/sessions/generate",
+      "area": "shared",
+      "capabilities": [
+        "create generate"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/sessions/generate/route.ts",
+          "symbol": "POST",
+          "note": "@state.capabilities",
+          "inferred": false
+        }
+      ]
+    },
+    {
+      "route": "/api/students",
+      "area": "shared",
+      "capabilities": [
+        "view:list students",
+        "create student"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/students/route.ts",
+          "symbol": "GET, POST",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/students/[studentId]",
+      "area": "shared",
+      "capabilities": [
+        "view:detail students",
+        "update student"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/students/[studentId]/route.ts",
+          "symbol": "GET, PATCH",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/students/[studentId]/parents",
+      "area": "parent",
+      "capabilities": [
+        "view:detail parents",
+        "create parent"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/students/[studentId]/parents/route.ts",
+          "symbol": "GET, POST",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/students/[studentId]/parents/[parentId]",
+      "area": "parent",
+      "capabilities": [
+        "delete parent"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/students/[studentId]/parents/[parentId]/route.ts",
+          "symbol": "DELETE",
+          "note": "@state.capabilities",
+          "inferred": false
+        }
+      ]
+    },
+    {
+      "route": "/api/students/[studentId]/parents/create",
+      "area": "parent",
+      "capabilities": [
+        "create create"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/students/[studentId]/parents/create/route.ts",
+          "symbol": "POST",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/subjects",
+      "area": "shared",
+      "capabilities": [
+        "view:list subjects",
+        "create subject"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/subjects/route.ts",
+          "symbol": "GET, POST",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/subjects/[id]",
+      "area": "shared",
+      "capabilities": [
+        "view:detail subjects",
+        "update subject"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/subjects/[id]/route.ts",
+          "symbol": "GET, PATCH",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/tenant",
+      "area": "shared",
+      "capabilities": [
+        "view:list tenant"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/tenant/route.ts",
+          "symbol": "GET",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/test/mint-parent-magic-link",
+      "area": "shared",
+      "capabilities": [
+        "create mint parent magic link"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/test/mint-parent-magic-link/route.ts",
+          "symbol": "POST",
+          "note": "@state.capabilities",
+          "inferred": false
+        }
+      ]
+    },
+    {
+      "route": "/api/users",
+      "area": "shared",
+      "capabilities": [
+        "view:list users",
+        "create user"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/users/route.ts",
+          "symbol": "GET, POST",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "route": "/api/users/[id]",
+      "area": "shared",
+      "capabilities": [
+        "view:detail users",
+        "update user"
+      ],
+      "evidence": [
+        {
+          "path": "src/app/api/users/[id]/route.ts",
+          "symbol": "GET, PATCH",
+          "note": "@state.capabilities",
+          "inferred": true
+        }
+      ]
+    }
+  ],
+  "mutations": [
+    {
+      "model": "attendance",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "prisma/seed.ts",
+          "symbol": "module-scope",
+          "note": "line ~1326; raw op createMany; trigger pnpm db:seed"
+        }
+      ]
+    },
+    {
+      "model": "attendance",
+      "op": "upsert",
+      "evidence": [
+        {
+          "path": "src/app/api/sessions/[id]/attendance/route.ts",
+          "symbol": "module-scope",
+          "note": "line ~427; raw op upsert; trigger /api/sessions/[id]/attendance"
+        }
+      ]
+    },
+    {
+      "model": "attendance",
+      "op": "delete",
+      "evidence": [
+        {
+          "path": "src/app/api/sessions/[id]/attendance/route.ts",
+          "symbol": "module-scope",
+          "note": "line ~468; raw op deleteMany; trigger /api/sessions/[id]/attendance"
+        }
+      ]
+    },
+    {
+      "model": "auditEvent",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/lib/audit/writeAuditEvent.ts",
+          "symbol": "writeAuditEvent",
+          "note": "line ~113; raw op create; trigger Shared helper invoked by multiple request/attendance/invite endpoints"
+        }
+      ]
+    },
+    {
+      "model": "center",
+      "op": "upsert",
+      "evidence": [
+        {
+          "path": "prisma/seed.ts",
+          "symbol": "upsertCenter",
+          "note": "line ~130; raw op upsert; trigger pnpm db:seed"
+        }
+      ]
+    },
+    {
+      "model": "center",
+      "op": "update",
+      "evidence": [
+        {
+          "path": "src/app/api/centers/[id]/route.ts",
+          "symbol": "PATCH",
+          "note": "line ~119; raw op update; trigger /api/centers/[id]"
+        }
+      ]
+    },
+    {
+      "model": "center",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/centers/route.ts",
+          "symbol": "POST",
+          "note": "line ~97; raw op create; trigger /api/centers"
+        }
+      ]
+    },
+    {
+      "model": "group",
+      "op": "update",
+      "evidence": [
+        {
+          "path": "prisma/seed.ts",
+          "symbol": "upsertGroup",
+          "note": "line ~330; raw op update; trigger pnpm db:seed"
+        }
+      ]
+    },
+    {
+      "model": "group",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "prisma/seed.ts",
+          "symbol": "upsertGroup",
+          "note": "line ~344; raw op create; trigger pnpm db:seed"
+        }
+      ]
+    },
+    {
+      "model": "group",
+      "op": "update",
+      "evidence": [
+        {
+          "path": "src/app/api/groups/[id]/route.ts",
+          "symbol": "PATCH",
+          "note": "line ~174; raw op update; trigger /api/groups/[id]"
+        }
+      ]
+    },
+    {
+      "model": "group",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/groups/route.ts",
+          "symbol": "POST",
+          "note": "line ~308; raw op create; trigger /api/groups"
+        }
+      ]
+    },
+    {
+      "model": "groupStudent",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "prisma/seed.ts",
+          "symbol": "module-scope",
+          "note": "line ~1138; raw op createMany; trigger pnpm db:seed"
+        }
+      ]
+    },
+    {
+      "model": "groupStudent",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/groups/route.ts",
+          "symbol": "module-scope",
+          "note": "line ~347; raw op createMany; trigger /api/groups"
+        }
+      ]
+    },
+    {
+      "model": "groupTutor",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "prisma/seed.ts",
+          "symbol": "module-scope",
+          "note": "line ~831; raw op createMany; trigger pnpm db:seed"
+        }
+      ]
+    },
+    {
+      "model": "groupTutor",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/groups/route.ts",
+          "symbol": "module-scope",
+          "note": "line ~336; raw op createMany; trigger /api/groups"
+        }
+      ]
+    },
+    {
+      "model": "level",
+      "op": "upsert",
+      "evidence": [
+        {
+          "path": "prisma/seed.ts",
+          "symbol": "upsertLevel",
+          "note": "line ~181; raw op upsert; trigger pnpm db:seed"
+        }
+      ]
+    },
+    {
+      "model": "level",
+      "op": "update",
+      "evidence": [
+        {
+          "path": "src/app/api/levels/[id]/route.ts",
+          "symbol": "PATCH",
+          "note": "line ~105; raw op update; trigger /api/levels/[id]"
+        }
+      ]
+    },
+    {
+      "model": "level",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/levels/route.ts",
+          "symbol": "POST",
+          "note": "line ~180; raw op create; trigger /api/levels"
+        }
+      ]
+    },
+    {
+      "model": "parent",
+      "op": "upsert",
+      "evidence": [
+        {
+          "path": "prisma/seed.ts",
+          "symbol": "upsertParent",
+          "note": "line ~240; raw op upsert; trigger pnpm db:seed"
+        }
+      ]
+    },
+    {
+      "model": "parent",
+      "op": "update",
+      "evidence": [
+        {
+          "path": "src/app/api/parents/[parentId]/route.ts",
+          "symbol": "PATCH",
+          "note": "line ~89; raw op update; trigger /api/parents/[parentId]"
+        }
+      ]
+    },
+    {
+      "model": "parent",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/parents/route.ts",
+          "symbol": "POST",
+          "note": "line ~197; raw op create; trigger /api/parents"
+        }
+      ]
+    },
+    {
+      "model": "parent",
+      "op": "update",
+      "evidence": [
+        {
+          "path": "src/app/api/portal/onboarding/dismiss/route.ts",
+          "symbol": "POST",
+          "note": "line ~43; raw op updateMany; trigger /api/portal/onboarding/dismiss"
+        }
+      ]
+    },
+    {
+      "model": "parent",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/students/[studentId]/parents/create/route.ts",
+          "symbol": "POST",
+          "note": "line ~72; raw op create; trigger /api/students/[studentId]/parents/create"
+        }
+      ]
+    },
+    {
+      "model": "parent",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/students/[studentId]/parents/route.ts",
+          "symbol": "POST",
+          "note": "line ~145; raw op create; trigger /api/students/[studentId]/parents"
+        }
+      ]
+    },
+    {
+      "model": "parentMagicLinkToken",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/test/mint-parent-magic-link/route.ts",
+          "symbol": "POST",
+          "note": "line ~120; raw op create; trigger /api/test/mint-parent-magic-link"
+        }
+      ]
+    },
+    {
+      "model": "parentMagicLinkToken",
+      "op": "update",
+      "evidence": [
+        {
+          "path": "src/lib/auth/options.ts",
+          "symbol": "module-scope",
+          "note": "line ~187; raw op update; trigger /api/auth/[...nextauth] parent-magic-link authorize flow"
+        }
+      ]
+    },
+    {
+      "model": "parentMagicLinkToken",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/lib/auth/parentMagicLink.ts",
+          "symbol": "sendParentMagicLink",
+          "note": "line ~143; raw op create; trigger /api/parents/[parentId]/send-magic-link (POST) + /[tenant]/api/parent-auth/magic-link/request (POST) via sendParentMagicLink"
+        }
+      ]
+    },
+    {
+      "model": "parentRequest",
+      "op": "update",
+      "evidence": [
+        {
+          "path": "src/app/api/portal/requests/[id]/resubmit/route.ts",
+          "symbol": "POST",
+          "note": "line ~99; raw op updateMany; trigger /api/portal/requests/[id]/resubmit"
+        }
+      ]
+    },
+    {
+      "model": "parentRequest",
+      "op": "update",
+      "evidence": [
+        {
+          "path": "src/app/api/portal/requests/[id]/withdraw/route.ts",
+          "symbol": "POST",
+          "note": "line ~100; raw op updateMany; trigger /api/portal/requests/[id]/withdraw"
+        }
+      ]
+    },
+    {
+      "model": "parentRequest",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/portal/requests/route.ts",
+          "symbol": "POST",
+          "note": "line ~165; raw op create; trigger /api/portal/requests"
+        }
+      ]
+    },
+    {
+      "model": "parentRequest",
+      "op": "update",
+      "evidence": [
+        {
+          "path": "src/app/api/requests/[id]/resolve/route.ts",
+          "symbol": "POST",
+          "note": "line ~126; raw op updateMany; trigger /api/requests/[id]/resolve"
+        }
+      ]
+    },
+    {
+      "model": "program",
+      "op": "upsert",
+      "evidence": [
+        {
+          "path": "prisma/seed.ts",
+          "symbol": "upsertProgram",
+          "note": "line ~209; raw op upsert; trigger pnpm db:seed"
+        }
+      ]
+    },
+    {
+      "model": "program",
+      "op": "update",
+      "evidence": [
+        {
+          "path": "src/app/api/programs/[id]/route.ts",
+          "symbol": "PATCH",
+          "note": "line ~133; raw op update; trigger /api/programs/[id]"
+        }
+      ]
+    },
+    {
+      "model": "program",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/programs/route.ts",
+          "symbol": "POST",
+          "note": "line ~209; raw op create; trigger /api/programs"
+        }
+      ]
+    },
+    {
+      "model": "session",
+      "op": "upsert",
+      "evidence": [
+        {
+          "path": "prisma/seed.ts",
+          "symbol": "upsertSession",
+          "note": "line ~370; raw op upsert; trigger pnpm db:seed"
+        }
+      ]
+    },
+    {
+      "model": "session",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "scripts/pilot/mmc-setup.ts",
+          "symbol": "module-scope",
+          "note": "line ~1127; raw op createMany; trigger pnpm pilot:mmc:staging | pnpm pilot:mmc:prod"
+        }
+      ]
+    },
+    {
+      "model": "session",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/sessions/generate/route.ts",
+          "symbol": "module-scope",
+          "note": "line ~302; raw op create; trigger /api/sessions/generate"
+        }
+      ]
+    },
+    {
+      "model": "session",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/sessions/route.ts",
+          "symbol": "module-scope",
+          "note": "line ~408; raw op create; trigger /api/sessions"
+        }
+      ]
+    },
+    {
+      "model": "sessionNote",
+      "op": "upsert",
+      "evidence": [
+        {
+          "path": "prisma/seed.ts",
+          "symbol": "upsertSessionNote",
+          "note": "line ~408; raw op upsert; trigger pnpm db:seed"
+        }
+      ]
+    },
+    {
+      "model": "sessionNote",
+      "op": "upsert",
+      "evidence": [
+        {
+          "path": "src/app/api/sessions/[id]/notes/route.ts",
+          "symbol": "PUT",
+          "note": "line ~204; raw op upsert; trigger /api/sessions/[id]/notes"
+        }
+      ]
+    },
+    {
+      "model": "sessionStudent",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "prisma/seed.ts",
+          "symbol": "module-scope",
+          "note": "line ~1301; raw op createMany; trigger pnpm db:seed"
+        }
+      ]
+    },
+    {
+      "model": "sessionStudent",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/groups/[id]/sync-future-sessions/route.ts",
+          "symbol": "POST",
+          "note": "line ~97; raw op createMany; trigger /api/groups/[id]/sync-future-sessions"
+        }
+      ]
+    },
+    {
+      "model": "sessionStudent",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/sessions/[id]/attendance/route.ts",
+          "symbol": "module-scope",
+          "note": "line ~414; raw op createMany; trigger /api/sessions/[id]/attendance"
+        }
+      ]
+    },
+    {
+      "model": "sessionStudent",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/sessions/generate/route.ts",
+          "symbol": "module-scope",
+          "note": "line ~322; raw op createMany; trigger /api/sessions/generate"
+        }
+      ]
+    },
+    {
+      "model": "sessionStudent",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/sessions/route.ts",
+          "symbol": "module-scope",
+          "note": "line ~447; raw op createMany; trigger /api/sessions"
+        }
+      ]
+    },
+    {
+      "model": "staffCenter",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "prisma/seed.ts",
+          "symbol": "module-scope",
+          "note": "line ~822; raw op createMany; trigger pnpm db:seed"
+        }
+      ]
+    },
+    {
+      "model": "student",
+      "op": "update",
+      "evidence": [
+        {
+          "path": "prisma/seed.ts",
+          "symbol": "upsertStudent",
+          "note": "line ~285; raw op update; trigger pnpm db:seed"
+        }
+      ]
+    },
+    {
+      "model": "student",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "prisma/seed.ts",
+          "symbol": "upsertStudent",
+          "note": "line ~298; raw op create; trigger pnpm db:seed"
+        }
+      ]
+    },
+    {
+      "model": "student",
+      "op": "update",
+      "evidence": [
+        {
+          "path": "src/app/api/students/[studentId]/route.ts",
+          "symbol": "PATCH",
+          "note": "line ~119; raw op updateMany; trigger /api/students/[studentId]"
+        }
+      ]
+    },
+    {
+      "model": "student",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/students/route.ts",
+          "symbol": "POST",
+          "note": "line ~235; raw op create; trigger /api/students"
+        }
+      ]
+    },
+    {
+      "model": "studentParent",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "prisma/seed.ts",
+          "symbol": "module-scope",
+          "note": "line ~1118; raw op createMany; trigger pnpm db:seed"
+        }
+      ]
+    },
+    {
+      "model": "studentParent",
+      "op": "delete",
+      "evidence": [
+        {
+          "path": "src/app/api/students/[studentId]/parents/[parentId]/route.ts",
+          "symbol": "DELETE",
+          "note": "line ~46; raw op deleteMany; trigger /api/students/[studentId]/parents/[parentId]"
+        }
+      ]
+    },
+    {
+      "model": "studentParent",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/students/[studentId]/parents/create/route.ts",
+          "symbol": "POST",
+          "note": "line ~84; raw op create; trigger /api/students/[studentId]/parents/create"
+        }
+      ]
+    },
+    {
+      "model": "studentParent",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/students/[studentId]/parents/route.ts",
+          "symbol": "POST",
+          "note": "line ~170; raw op create; trigger /api/students/[studentId]/parents"
+        }
+      ]
+    },
+    {
+      "model": "subject",
+      "op": "upsert",
+      "evidence": [
+        {
+          "path": "prisma/seed.ts",
+          "symbol": "upsertSubject",
+          "note": "line ~156; raw op upsert; trigger pnpm db:seed"
+        }
+      ]
+    },
+    {
+      "model": "subject",
+      "op": "update",
+      "evidence": [
+        {
+          "path": "src/app/api/subjects/[id]/route.ts",
+          "symbol": "PATCH",
+          "note": "line ~104; raw op update; trigger /api/subjects/[id]"
+        }
+      ]
+    },
+    {
+      "model": "subject",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/subjects/route.ts",
+          "symbol": "POST",
+          "note": "line ~174; raw op create; trigger /api/subjects"
+        }
+      ]
+    },
+    {
+      "model": "tenant",
+      "op": "upsert",
+      "evidence": [
+        {
+          "path": "prisma/seed.ts",
+          "symbol": "upsertTenant",
+          "note": "line ~74; raw op upsert; trigger pnpm db:seed"
+        }
+      ]
+    },
+    {
+      "model": "tenant",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "scripts/provision-tenant.ts",
+          "symbol": "module-scope",
+          "note": "line ~188; raw op create; trigger pnpm provision:tenant"
+        }
+      ]
+    },
+    {
+      "model": "tenantMembership",
+      "op": "upsert",
+      "evidence": [
+        {
+          "path": "prisma/seed.ts",
+          "symbol": "module-scope",
+          "note": "line ~519; raw op upsert; trigger pnpm db:seed"
+        }
+      ]
+    },
+    {
+      "model": "tenantMembership",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "scripts/provision-tenant.ts",
+          "symbol": "module-scope",
+          "note": "line ~224; raw op create; trigger pnpm provision:tenant"
+        }
+      ]
+    },
+    {
+      "model": "tenantMembership",
+      "op": "update",
+      "evidence": [
+        {
+          "path": "src/app/api/users/[id]/route.ts",
+          "symbol": "module-scope",
+          "note": "line ~164; raw op update; trigger /api/users/[id]"
+        }
+      ]
+    },
+    {
+      "model": "tenantMembership",
+      "op": "upsert",
+      "evidence": [
+        {
+          "path": "src/app/api/users/route.ts",
+          "symbol": "module-scope",
+          "note": "line ~283; raw op upsert; trigger /api/users"
+        }
+      ]
+    },
+    {
+      "model": "user",
+      "op": "upsert",
+      "evidence": [
+        {
+          "path": "prisma/seed.ts",
+          "symbol": "upsertUser",
+          "note": "line ~109; raw op upsert; trigger pnpm db:seed"
+        }
+      ]
+    },
+    {
+      "model": "user",
+      "op": "update",
+      "evidence": [
+        {
+          "path": "scripts/admin/reset-user-password.ts",
+          "symbol": "main",
+          "note": "line ~192; raw op update; trigger manual admin password reset script"
+        }
+      ]
+    },
+    {
+      "model": "user",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "scripts/provision-tenant.ts",
+          "symbol": "module-scope",
+          "note": "line ~215; raw op create; trigger pnpm provision:tenant"
+        }
+      ]
+    },
+    {
+      "model": "user",
+      "op": "update",
+      "evidence": [
+        {
+          "path": "src/app/api/users/[id]/route.ts",
+          "symbol": "PATCH",
+          "note": "line ~156; raw op update; trigger /api/users/[id]"
+        }
+      ]
+    },
+    {
+      "model": "user",
+      "op": "update",
+      "evidence": [
+        {
+          "path": "src/app/api/users/route.ts",
+          "symbol": "POST",
+          "note": "line ~246; raw op update; trigger /api/users"
+        }
+      ]
+    },
+    {
+      "model": "user",
+      "op": "create",
+      "evidence": [
+        {
+          "path": "src/app/api/users/route.ts",
+          "symbol": "POST",
+          "note": "line ~255; raw op create; trigger /api/users"
+        }
+      ]
+    }
+  ],
+  "deltas": {
+    "missingInCurrentState": [
+      {
+        "capability": "view:list parent_landing on /[tenant]/parent and verify-flow redirect target",
+        "where": [
+          "src/app/[tenant]/(parent)/parent/page.tsx#ParentLandingPage",
+          "src/app/[tenant]/(parent-auth)/parent/auth/verify/_actions/consumeParentMagicLink.ts#consumeParentMagicLinkToken"
+        ],
+        "suggestedSentence": "Parent auth success redirects to /[tenant]/parent (landing), which links users into /[tenant]/portal."
+      },
+      {
+        "capability": "onboarding:dismiss_welcome (parent welcome-card dismissal)",
+        "where": [
+          "src/app/api/portal/onboarding/dismiss/route.ts#POST",
+          "src/app/[tenant]/(parent)/portal/page.tsx#handleDismissWelcome"
+        ],
+        "suggestedSentence": "Portal dashboard supports first-login welcome-card dismissal via POST /api/portal/onboarding/dismiss (updates Parent.hasSeenWelcome)."
+      },
+      {
+        "capability": "create resolve for admin request approvals/declines",
+        "where": [
+          "src/app/api/requests/[id]/resolve/route.ts#POST"
+        ],
+        "suggestedSentence": "Admin request workflow includes POST /api/requests/[id]/resolve to approve/decline pending requests with audit logging."
+      },
+      {
+        "capability": "create sync_future_session for group roster backfill",
+        "where": [
+          "src/app/api/groups/[id]/sync-future-sessions/route.ts#POST"
+        ],
+        "suggestedSentence": "Group operations include future-session roster sync (POST /api/groups/[id]/sync-future-sessions)."
+      },
+      {
+        "capability": "create generate for bulk session generation",
+        "where": [
+          "src/app/api/sessions/generate/route.ts#POST"
+        ],
+        "suggestedSentence": "Scheduling includes a bulk generation endpoint (POST /api/sessions/generate) with transactional session+roster writes."
+      },
+      {
+        "capability": "create invite_copied audit endpoint in student detail invite flow",
+        "where": [
+          "src/app/api/admin/students/[id]/invite-copied/route.ts#POST",
+          "src/components/admin/students/StudentDetailClient.tsx#handleCopyInvite"
+        ],
+        "suggestedSentence": "Student Detail parent invite flow logs invite-copy events through POST /api/admin/students/[id]/invite-copied."
+      },
+      {
+        "capability": "Tutor-scoped ownership filters on shared sessions/attendance/notes APIs",
+        "where": [
+          "src/app/api/sessions/route.ts#GET",
+          "src/app/api/sessions/[id]/attendance/route.ts#GET,PUT",
+          "src/app/api/sessions/[id]/notes/route.ts#GET,PUT"
+        ],
+        "suggestedSentence": "Tutor permissions are enforced in shared session APIs via READ_ROLES and tutor ownership filtering (tutorId = ctx.user.id)."
+      }
+    ],
+    "unconfirmedClaimsInCurrentState": [
+      {
+        "claim": "/[tenant]/parent/auth/verify is documented as view:detail",
+        "whyUnconfirmed": "Route annotation and page behavior indicate verification view semantics (view:list), not domain detail semantics.",
+        "evidenceChecked": [
+          "docs/po/current-state.md",
+          "src/app/[tenant]/(parent-auth)/parent/auth/verify/page.tsx"
+        ],
+        "suggestedRewrite": "/[tenant]/parent/auth/verify is a magic-link verification view (view:list), not a domain detail view."
+      },
+      {
+        "claim": "Current E2E run totals/date in current-state are definitive latest truth",
+        "whyUnconfirmed": "Repository scan did not include a pinned run artifact proving this exact latest status.",
+        "evidenceChecked": [
+          "docs/po/current-state.md",
+          "tests/e2e/**"
+        ],
+        "suggestedRewrite": "Treat E2E status as LAST_REPORTED unless linked to a concrete CI/run artifact."
+      }
+    ]
+  },
+  "duplicationRisks": [
+    {
+      "theme": "Parent invite/resend v1 completion",
+      "docEvidence": [
+        "docs/po/current-state.md#Step 22.2 entries"
+      ],
+      "existingCodeEvidence": [
+        "src/components/admin/students/StudentDetailClient.tsx#handleSendMagicLink",
+        "src/app/api/parents/[parentId]/send-magic-link/route.ts#POST",
+        "src/lib/auth/parentMagicLink.ts#sendParentMagicLink"
+      ],
+      "safeDeltasOnly": "Telemetry/rate-limit/message quality; avoid re-implementing invite/resend."
+    },
+    {
+      "theme": "Parent dashboard read-only pack",
+      "docEvidence": [
+        "docs/po/current-state.md#Implemented Feature Inventory parent portal entry"
+      ],
+      "existingCodeEvidence": [
+        "src/app/[tenant]/(parent)/portal/page.tsx",
+        "src/app/api/portal/me/route.ts",
+        "src/app/api/portal/students/route.ts",
+        "src/app/api/portal/sessions/route.ts",
+        "src/app/api/portal/attendance/route.ts"
+      ],
+      "safeDeltasOnly": "Refinement and hardening only; no parallel dashboard build."
+    },
+    {
+      "theme": "Parent requests workflow v1",
+      "docEvidence": [
+        "docs/po/current-state.md#Route Inventory parent requests + admin requests entries"
+      ],
+      "existingCodeEvidence": [
+        "src/app/api/portal/requests/route.ts",
+        "src/app/api/portal/requests/[id]/withdraw/route.ts",
+        "src/app/api/portal/requests/[id]/resubmit/route.ts",
+        "src/app/api/requests/[id]/resolve/route.ts",
+        "src/app/api/requests/route.ts"
+      ],
+      "safeDeltasOnly": "Add analytics/status detail; avoid duplicating lifecycle endpoints."
+    },
+    {
+      "theme": "Reports hub pack",
+      "docEvidence": [
+        "docs/po/current-state.md#Implemented Feature Inventory reports entry"
+      ],
+      "existingCodeEvidence": [
+        "src/app/[tenant]/(admin)/admin/reports/page.tsx",
+        "src/app/[tenant]/(admin)/admin/reports/**/page.tsx",
+        "src/app/api/admin/reports/**/route.ts"
+      ],
+      "safeDeltasOnly": "New filters/export variants on existing report framework."
+    },
+    {
+      "theme": "Catalog CRUD baseline",
+      "docEvidence": [
+        "docs/po/current-state.md#Implemented Feature Inventory catalog/setup entry"
+      ],
+      "existingCodeEvidence": [
+        "src/app/[tenant]/(admin)/admin/centers/page.tsx",
+        "src/app/[tenant]/(admin)/admin/groups/page.tsx",
+        "src/app/[tenant]/(admin)/admin/programs/page.tsx",
+        "src/app/[tenant]/(admin)/admin/subjects/page.tsx",
+        "src/app/[tenant]/(admin)/admin/levels/page.tsx",
+        "src/app/api/centers/route.ts",
+        "src/app/api/groups/route.ts",
+        "src/app/api/programs/route.ts",
+        "src/app/api/subjects/route.ts",
+        "src/app/api/levels/route.ts"
+      ],
+      "safeDeltasOnly": "Constraint/validation/table UX improvements only."
+    }
+  ]
+}

@@ -427,15 +427,13 @@
         }
       },
       "notes": {
-        "_comment": "Session notes labels and actions for the detail page.",
-        "sectionTitle": "Notes",
-        "internalLabel": "Internal note",
-        "parentVisibleLabel": "Parent-visible note",
-        "parentVisibleHint": "Shown to parents in the portal",
-        "save": "Save notes",
+        "_comment": "Staff-only session summary labels and actions for the detail page.",
+        "sectionTitle": "Session summary",
+        "internalLabel": "Session summary (staff only)",
+        "save": "Save summary",
         "saving": "Saving...",
-        "saved": "Notes saved",
-        "errorSaving": "Unable to save notes"
+        "saved": "Session summary saved",
+        "errorSaving": "Unable to save session summary"
       },
       "filters": {
         "center": "Center",
@@ -1837,6 +1835,34 @@
     "status": {
       "active": "Active",
       "inactive": "Inactive"
+    }
+  },
+  "parentStudentProgress": {
+    "_comment": "Parent student detail progress-notes timeline copy (Step 22.3).",
+    "section": {
+      "title": "Progress Notes",
+      "subtitle": "Notes shared by your tutor or center after sessions."
+    },
+    "meta": {
+      "sharedBy": "Shared by {name}",
+      "sessionLabel": "Session"
+    },
+    "link": {
+      "viewSession": "View session"
+    },
+    "loading": "Loading progress notes...",
+    "empty": {
+      "title": "No progress notes yet",
+      "body": "When your tutor shares notes after a session, they'll appear here."
+    },
+    "error": {
+      "title": "Unable to load progress notes",
+      "body": "Please refresh the page and try again."
+    },
+    "loadMore": {
+      "_comment": "Load more labels for progress notes pagination.",
+      "default": "Load more",
+      "loading": "Loading..."
     }
   }
 }

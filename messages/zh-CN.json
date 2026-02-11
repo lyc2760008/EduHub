@@ -415,15 +415,13 @@
         }
       },
       "notes": {
-        "_comment": "课次备注（详情页）标签与操作。",
-        "sectionTitle": "备注",
-        "internalLabel": "内部备注",
-        "parentVisibleLabel": "家长可见备注",
-        "parentVisibleHint": "在家长端展示",
-        "save": "保存备注",
-        "saving": "保存中...",
-        "saved": "备注已保存",
-        "errorSaving": "无法保存备注"
+        "_comment": "\u8bfe\u7a0b\u8be6\u60c5\u9875\u4ec5\u4f9b\u5458\u5de5\u4f7f\u7528\u7684\u8bfe\u7a0b\u603b\u7ed3\u6587\u6848\u3002",
+        "sectionTitle": "\u8bfe\u7a0b\u603b\u7ed3",
+        "internalLabel": "\u8bfe\u7a0b\u603b\u7ed3\uff08\u4ec5\u5458\u5de5\u53ef\u89c1\uff09",
+        "save": "\u4fdd\u5b58\u603b\u7ed3",
+        "saving": "\u4fdd\u5b58\u4e2d...",
+        "saved": "\u8bfe\u7a0b\u603b\u7ed3\u5df2\u4fdd\u5b58",
+        "errorSaving": "\u65e0\u6cd5\u4fdd\u5b58\u8bfe\u7a0b\u603b\u7ed3"
       },
       "filters": {
         "center": "中心",
@@ -1823,6 +1821,34 @@
         "title": "无法加载帮助页面",
         "body": "请稍后重试。"
       }
+    }
+  },
+  "parentStudentProgress": {
+    "_comment": "家长端学生详情进度备注文案（Step 22.3）。",
+    "section": {
+      "title": "学习进度备注",
+      "subtitle": "这是老师或中心在课程结束后与您分享的备注。"
+    },
+    "meta": {
+      "sharedBy": "由 {name} 分享",
+      "sessionLabel": "课程"
+    },
+    "link": {
+      "viewSession": "查看课程详情"
+    },
+    "loading": "正在加载进度备注...",
+    "empty": {
+      "title": "暂无进度备注",
+      "body": "当老师在课程后分享备注时，会显示在这里。"
+    },
+    "error": {
+      "title": "无法加载进度备注",
+      "body": "请刷新页面后再试。"
+    },
+    "loadMore": {
+      "_comment": "进度备注分页按钮文案。",
+      "default": "加载更多",
+      "loading": "加载中..."
     }
   }
 }

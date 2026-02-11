@@ -1,0 +1,1846 @@
+{
+  "generatedAt": "2026-02-11T17:05:21.963Z",
+  "routeCount": 100,
+  "routes": [
+    {
+      "route": "/",
+      "type": "page",
+      "area": "public",
+      "file": "src/app/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "Home"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "AdminPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/audit",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/audit/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "AuditLogPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/catalog",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/catalog/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "CatalogHubPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/centers",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/centers/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "CentersPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/groups",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/groups/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "GroupsPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/groups/[id]",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/groups/[id]/page.tsx",
+      "capabilities": [
+        "view:detail"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "GroupDetailPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/help",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/help/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "AdminHelpPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/levels",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/levels/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "LevelsPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/parents",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/parents/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "ParentsPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/programs",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/programs/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "ProgramsPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/reports",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/reports/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "ReportsIndexPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/reports/absence-requests",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/reports/absence-requests/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "AbsenceRequestsPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/reports/attendance-summary",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/reports/attendance-summary/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "AttendanceSummaryPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/reports/students-directory",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/reports/students-directory/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "StudentsDirectoryPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/reports/tutor-workload",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/reports/tutor-workload/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "TutorWorkloadPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/reports/upcoming-sessions",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/reports/upcoming-sessions/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "UpcomingSessionsPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/requests",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/requests/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "RequestsPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/sessions",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/sessions/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "SessionsPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/sessions/[id]",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/sessions/[id]/page.tsx",
+      "capabilities": [
+        "view:detail",
+        "report_absence:create_request"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "SessionDetailPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/students",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/students/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "StudentsPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/students/[id]",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/students/[id]/page.tsx",
+      "capabilities": [
+        "view:detail",
+        "parent_invite:send_signin_link"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "StudentDetailPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/subjects",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/subjects/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "SubjectsPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/admin/users",
+      "type": "page",
+      "area": "admin",
+      "file": "src/app/[tenant]/(admin)/admin/users/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "UsersPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/api/parent-auth/magic-link/consume",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/[tenant]/api/parent-auth/magic-link/consume/route.ts",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/[tenant]/api/parent-auth/magic-link/request",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/[tenant]/api/parent-auth/magic-link/request/route.ts",
+      "capabilities": [
+        "create:request"
+      ],
+      "handlers": [
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/[tenant]/login",
+      "type": "page",
+      "area": "auth",
+      "file": "src/app/[tenant]/login/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "LoginPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/parent",
+      "type": "page",
+      "area": "parent",
+      "file": "src/app/[tenant]/(parent)/parent/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "ParentLandingPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/parent/auth/verify",
+      "type": "page",
+      "area": "parent",
+      "file": "src/app/[tenant]/(parent-auth)/parent/auth/verify/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "ParentVerifyPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/parent/login",
+      "type": "page",
+      "area": "parent",
+      "file": "src/app/[tenant]/(parent-auth)/parent/login/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "ParentLoginPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/portal",
+      "type": "page",
+      "area": "parent",
+      "file": "src/app/[tenant]/(parent)/portal/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "PortalDashboardPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/portal/account",
+      "type": "page",
+      "area": "parent",
+      "file": "src/app/[tenant]/(parent)/portal/account/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "PortalAccountPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/portal/help",
+      "type": "page",
+      "area": "parent",
+      "file": "src/app/[tenant]/(parent)/portal/help/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "PortalHelpPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/portal/requests",
+      "type": "page",
+      "area": "parent",
+      "file": "src/app/[tenant]/(parent)/portal/requests/page.tsx",
+      "capabilities": [
+        "view:list",
+        "report_absence:create_request",
+        "request:withdraw"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "PortalRequestsPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/portal/sessions",
+      "type": "page",
+      "area": "parent",
+      "file": "src/app/[tenant]/(parent)/portal/sessions/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "PortalSessionsPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/portal/sessions/[id]",
+      "type": "page",
+      "area": "parent",
+      "file": "src/app/[tenant]/(parent)/portal/sessions/[id]/page.tsx",
+      "capabilities": [
+        "view:detail",
+        "report_absence:create_request",
+        "request:withdraw",
+        "request:resubmit"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "PortalSessionDetailPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/portal/students",
+      "type": "page",
+      "area": "parent",
+      "file": "src/app/[tenant]/(parent)/portal/students/page.tsx",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "PortalStudentsPage"
+      ]
+    },
+    {
+      "route": "/[tenant]/portal/students/[id]",
+      "type": "page",
+      "area": "parent",
+      "file": "src/app/[tenant]/(parent)/portal/students/[id]/page.tsx",
+      "capabilities": [
+        "view:detail"
+      ],
+      "handlers": [],
+      "defaultFns": [
+        "PortalStudentDetailPage"
+      ]
+    },
+    {
+      "route": "/api/__debug/sentry-test",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/__debug/sentry-test/route.ts",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/admin/audit",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/admin/audit/route.ts",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/admin/audit/[id]",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/admin/audit/[id]/route.ts",
+      "capabilities": [
+        "view:detail"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/admin/reports/[reportId]",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/admin/reports/[reportId]/route.ts",
+      "capabilities": [
+        "view:detail"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/admin/reports/[reportId]/export",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/admin/reports/[reportId]/export/route.ts",
+      "capabilities": [
+        "view:detail"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/admin/reports/absence-requests",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/admin/reports/absence-requests/route.ts",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/admin/reports/attendance-summary",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/admin/reports/attendance-summary/route.ts",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/admin/reports/students-directory",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/admin/reports/students-directory/route.ts",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/admin/reports/tutor-workload",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/admin/reports/tutor-workload/route.ts",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/admin/reports/upcoming-sessions",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/admin/reports/upcoming-sessions/route.ts",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/admin/students/[id]/invite-copied",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/admin/students/[id]/invite-copied/route.ts",
+      "capabilities": [
+        "create:invite_copied"
+      ],
+      "handlers": [
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/admin/students/[id]/invite-data",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/admin/students/[id]/invite-data/route.ts",
+      "capabilities": [
+        "view:detail"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/attendance/suggestion",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/attendance/suggestion/route.ts",
+      "capabilities": [
+        "view:list",
+        "report_absence:create_request"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/auth/[...nextauth]",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/auth/[...nextauth]/route.ts",
+      "capabilities": [
+        "UNKNOWN"
+      ],
+      "handlers": [],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/centers",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/centers/route.ts",
+      "capabilities": [
+        "view:list",
+        "create:center"
+      ],
+      "handlers": [
+        "GET",
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/centers/[id]",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/centers/[id]/route.ts",
+      "capabilities": [
+        "view:detail",
+        "update:center"
+      ],
+      "handlers": [
+        "GET",
+        "PATCH"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/debug/sentry-test",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/debug/sentry-test/route.ts",
+      "capabilities": [
+        "UNKNOWN"
+      ],
+      "handlers": [],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/groups",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/groups/route.ts",
+      "capabilities": [
+        "view:list",
+        "create:group"
+      ],
+      "handlers": [
+        "GET",
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/groups/[id]",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/groups/[id]/route.ts",
+      "capabilities": [
+        "view:detail",
+        "update:group"
+      ],
+      "handlers": [
+        "GET",
+        "PATCH"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/groups/[id]/students",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/groups/[id]/students/route.ts",
+      "capabilities": [
+        "update:student"
+      ],
+      "handlers": [
+        "PUT"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/groups/[id]/sync-future-sessions",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/groups/[id]/sync-future-sessions/route.ts",
+      "capabilities": [
+        "create:sync_future_session"
+      ],
+      "handlers": [
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/groups/[id]/tutors",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/groups/[id]/tutors/route.ts",
+      "capabilities": [
+        "update:tutor"
+      ],
+      "handlers": [
+        "PUT"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/health",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/health/route.ts",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/levels",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/levels/route.ts",
+      "capabilities": [
+        "view:list",
+        "create:level"
+      ],
+      "handlers": [
+        "GET",
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/levels/[id]",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/levels/[id]/route.ts",
+      "capabilities": [
+        "view:detail",
+        "update:level"
+      ],
+      "handlers": [
+        "GET",
+        "PATCH"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/me",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/me/route.ts",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/parents",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/parents/route.ts",
+      "capabilities": [
+        "view:list",
+        "create:parent"
+      ],
+      "handlers": [
+        "GET",
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/parents/[parentId]",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/parents/[parentId]/route.ts",
+      "capabilities": [
+        "view:detail",
+        "update:parent"
+      ],
+      "handlers": [
+        "GET",
+        "PATCH"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/parents/[parentId]/send-magic-link",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/parents/[parentId]/send-magic-link/route.ts",
+      "capabilities": [
+        "create:send_magic_link",
+        "parent_invite:send_signin_link"
+      ],
+      "handlers": [
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/portal/attendance",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/portal/attendance/route.ts",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/portal/me",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/portal/me/route.ts",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/portal/onboarding/dismiss",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/portal/onboarding/dismiss/route.ts",
+      "capabilities": [
+        "create:dismis"
+      ],
+      "handlers": [
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/portal/requests",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/portal/requests/route.ts",
+      "capabilities": [
+        "view:list",
+        "create:request",
+        "report_absence:create_request"
+      ],
+      "handlers": [
+        "GET",
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/portal/requests/[id]/resubmit",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/portal/requests/[id]/resubmit/route.ts",
+      "capabilities": [
+        "create:resubmit",
+        "request:resubmit"
+      ],
+      "handlers": [
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/portal/requests/[id]/withdraw",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/portal/requests/[id]/withdraw/route.ts",
+      "capabilities": [
+        "create:withdraw",
+        "request:withdraw"
+      ],
+      "handlers": [
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/portal/sessions",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/portal/sessions/route.ts",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/portal/sessions/[id]",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/portal/sessions/[id]/route.ts",
+      "capabilities": [
+        "view:detail"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/portal/students",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/portal/students/route.ts",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/portal/students/[id]",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/portal/students/[id]/route.ts",
+      "capabilities": [
+        "view:detail"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/programs",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/programs/route.ts",
+      "capabilities": [
+        "view:list",
+        "create:program"
+      ],
+      "handlers": [
+        "GET",
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/programs/[id]",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/programs/[id]/route.ts",
+      "capabilities": [
+        "view:detail",
+        "update:program"
+      ],
+      "handlers": [
+        "GET",
+        "PATCH"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/reports/student-activity",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/reports/student-activity/route.ts",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/reports/upcoming-sessions",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/reports/upcoming-sessions/route.ts",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/reports/weekly-attendance",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/reports/weekly-attendance/route.ts",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/requests",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/requests/route.ts",
+      "capabilities": [
+        "view:list",
+        "request:withdraw",
+        "request:resubmit"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/requests/[id]/resolve",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/requests/[id]/resolve/route.ts",
+      "capabilities": [
+        "create:resolve"
+      ],
+      "handlers": [
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/sessions",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/sessions/route.ts",
+      "capabilities": [
+        "view:list",
+        "create:session",
+        "report_absence:create_request"
+      ],
+      "handlers": [
+        "GET",
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/sessions/[id]",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/sessions/[id]/route.ts",
+      "capabilities": [
+        "view:detail"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/sessions/[id]/attendance",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/sessions/[id]/attendance/route.ts",
+      "capabilities": [
+        "view:detail",
+        "update:attendance",
+        "report_absence:create_request"
+      ],
+      "handlers": [
+        "GET",
+        "PUT"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/sessions/[id]/notes",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/sessions/[id]/notes/route.ts",
+      "capabilities": [
+        "view:detail",
+        "update:note"
+      ],
+      "handlers": [
+        "GET",
+        "PUT"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/sessions/generate",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/sessions/generate/route.ts",
+      "capabilities": [
+        "create:generate"
+      ],
+      "handlers": [
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/students",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/students/route.ts",
+      "capabilities": [
+        "view:list",
+        "create:student"
+      ],
+      "handlers": [
+        "GET",
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/students/[studentId]",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/students/[studentId]/route.ts",
+      "capabilities": [
+        "view:detail",
+        "update:student"
+      ],
+      "handlers": [
+        "GET",
+        "PATCH"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/students/[studentId]/parents",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/students/[studentId]/parents/route.ts",
+      "capabilities": [
+        "view:detail",
+        "create:parent"
+      ],
+      "handlers": [
+        "GET",
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/students/[studentId]/parents/[parentId]",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/students/[studentId]/parents/[parentId]/route.ts",
+      "capabilities": [
+        "delete:parent"
+      ],
+      "handlers": [
+        "DELETE"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/students/[studentId]/parents/create",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/students/[studentId]/parents/create/route.ts",
+      "capabilities": [
+        "create:create"
+      ],
+      "handlers": [
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/subjects",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/subjects/route.ts",
+      "capabilities": [
+        "view:list",
+        "create:subject"
+      ],
+      "handlers": [
+        "GET",
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/subjects/[id]",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/subjects/[id]/route.ts",
+      "capabilities": [
+        "view:detail",
+        "update:subject"
+      ],
+      "handlers": [
+        "GET",
+        "PATCH"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/tenant",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/tenant/route.ts",
+      "capabilities": [
+        "view:list"
+      ],
+      "handlers": [
+        "GET"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/test/mint-parent-magic-link",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/test/mint-parent-magic-link/route.ts",
+      "capabilities": [
+        "create:mint_parent_magic_link"
+      ],
+      "handlers": [
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/users",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/users/route.ts",
+      "capabilities": [
+        "view:list",
+        "create:user"
+      ],
+      "handlers": [
+        "GET",
+        "POST"
+      ],
+      "defaultFns": []
+    },
+    {
+      "route": "/api/users/[id]",
+      "type": "endpoint",
+      "area": "api",
+      "file": "src/app/api/users/[id]/route.ts",
+      "capabilities": [
+        "view:detail",
+        "update:user"
+      ],
+      "handlers": [
+        "GET",
+        "PATCH"
+      ],
+      "defaultFns": []
+    }
+  ],
+  "writeOpCount": 69,
+  "writeOps": [
+    {
+      "model": "user",
+      "op": "update",
+      "file": "src/app/api/users/route.ts",
+      "line": 246,
+      "symbol": "POST"
+    },
+    {
+      "model": "user",
+      "op": "create",
+      "file": "src/app/api/users/route.ts",
+      "line": 255,
+      "symbol": "POST"
+    },
+    {
+      "model": "tenantMembership",
+      "op": "upsert",
+      "file": "src/app/api/users/route.ts",
+      "line": 283,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "user",
+      "op": "update",
+      "file": "src/app/api/users/[id]/route.ts",
+      "line": 156,
+      "symbol": "PATCH"
+    },
+    {
+      "model": "tenantMembership",
+      "op": "update",
+      "file": "src/app/api/users/[id]/route.ts",
+      "line": 164,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "parentMagicLinkToken",
+      "op": "create",
+      "file": "src/app/api/test/mint-parent-magic-link/route.ts",
+      "line": 120,
+      "symbol": "POST"
+    },
+    {
+      "model": "subject",
+      "op": "create",
+      "file": "src/app/api/subjects/route.ts",
+      "line": 174,
+      "symbol": "POST"
+    },
+    {
+      "model": "subject",
+      "op": "update",
+      "file": "src/app/api/subjects/[id]/route.ts",
+      "line": 104,
+      "symbol": "PATCH"
+    },
+    {
+      "model": "student",
+      "op": "create",
+      "file": "src/app/api/students/route.ts",
+      "line": 235,
+      "symbol": "POST"
+    },
+    {
+      "model": "student",
+      "op": "updateMany",
+      "file": "src/app/api/students/[studentId]/route.ts",
+      "line": 119,
+      "symbol": "PATCH"
+    },
+    {
+      "model": "parent",
+      "op": "create",
+      "file": "src/app/api/students/[studentId]/parents/route.ts",
+      "line": 145,
+      "symbol": "POST"
+    },
+    {
+      "model": "studentParent",
+      "op": "create",
+      "file": "src/app/api/students/[studentId]/parents/route.ts",
+      "line": 170,
+      "symbol": "POST"
+    },
+    {
+      "model": "studentParent",
+      "op": "deleteMany",
+      "file": "src/app/api/students/[studentId]/parents/[parentId]/route.ts",
+      "line": 46,
+      "symbol": "DELETE"
+    },
+    {
+      "model": "parent",
+      "op": "create",
+      "file": "src/app/api/students/[studentId]/parents/create/route.ts",
+      "line": 72,
+      "symbol": "POST"
+    },
+    {
+      "model": "studentParent",
+      "op": "create",
+      "file": "src/app/api/students/[studentId]/parents/create/route.ts",
+      "line": 84,
+      "symbol": "POST"
+    },
+    {
+      "model": "session",
+      "op": "create",
+      "file": "src/app/api/sessions/route.ts",
+      "line": 408,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "sessionStudent",
+      "op": "createMany",
+      "file": "src/app/api/sessions/route.ts",
+      "line": 447,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "sessionNote",
+      "op": "upsert",
+      "file": "src/app/api/sessions/[id]/notes/route.ts",
+      "line": 204,
+      "symbol": "PUT"
+    },
+    {
+      "model": "sessionStudent",
+      "op": "createMany",
+      "file": "src/app/api/sessions/[id]/attendance/route.ts",
+      "line": 414,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "attendance",
+      "op": "upsert",
+      "file": "src/app/api/sessions/[id]/attendance/route.ts",
+      "line": 427,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "attendance",
+      "op": "deleteMany",
+      "file": "src/app/api/sessions/[id]/attendance/route.ts",
+      "line": 468,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "session",
+      "op": "create",
+      "file": "src/app/api/sessions/generate/route.ts",
+      "line": 302,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "sessionStudent",
+      "op": "createMany",
+      "file": "src/app/api/sessions/generate/route.ts",
+      "line": 322,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "parentRequest",
+      "op": "updateMany",
+      "file": "src/app/api/requests/[id]/resolve/route.ts",
+      "line": 126,
+      "symbol": "POST"
+    },
+    {
+      "model": "program",
+      "op": "create",
+      "file": "src/app/api/programs/route.ts",
+      "line": 209,
+      "symbol": "POST"
+    },
+    {
+      "model": "program",
+      "op": "update",
+      "file": "src/app/api/programs/[id]/route.ts",
+      "line": 133,
+      "symbol": "PATCH"
+    },
+    {
+      "model": "parentRequest",
+      "op": "create",
+      "file": "src/app/api/portal/requests/route.ts",
+      "line": 165,
+      "symbol": "POST"
+    },
+    {
+      "model": "parentRequest",
+      "op": "updateMany",
+      "file": "src/app/api/portal/requests/[id]/withdraw/route.ts",
+      "line": 100,
+      "symbol": "POST"
+    },
+    {
+      "model": "parentRequest",
+      "op": "updateMany",
+      "file": "src/app/api/portal/requests/[id]/resubmit/route.ts",
+      "line": 99,
+      "symbol": "POST"
+    },
+    {
+      "model": "parent",
+      "op": "updateMany",
+      "file": "src/app/api/portal/onboarding/dismiss/route.ts",
+      "line": 43,
+      "symbol": "POST"
+    },
+    {
+      "model": "parent",
+      "op": "create",
+      "file": "src/app/api/parents/route.ts",
+      "line": 197,
+      "symbol": "POST"
+    },
+    {
+      "model": "parent",
+      "op": "update",
+      "file": "src/app/api/parents/[parentId]/route.ts",
+      "line": 89,
+      "symbol": "PATCH"
+    },
+    {
+      "model": "level",
+      "op": "create",
+      "file": "src/app/api/levels/route.ts",
+      "line": 180,
+      "symbol": "POST"
+    },
+    {
+      "model": "level",
+      "op": "update",
+      "file": "src/app/api/levels/[id]/route.ts",
+      "line": 105,
+      "symbol": "PATCH"
+    },
+    {
+      "model": "group",
+      "op": "create",
+      "file": "src/app/api/groups/route.ts",
+      "line": 308,
+      "symbol": "POST"
+    },
+    {
+      "model": "groupTutor",
+      "op": "createMany",
+      "file": "src/app/api/groups/route.ts",
+      "line": 336,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "groupStudent",
+      "op": "createMany",
+      "file": "src/app/api/groups/route.ts",
+      "line": 347,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "group",
+      "op": "update",
+      "file": "src/app/api/groups/[id]/route.ts",
+      "line": 174,
+      "symbol": "PATCH"
+    },
+    {
+      "model": "sessionStudent",
+      "op": "createMany",
+      "file": "src/app/api/groups/[id]/sync-future-sessions/route.ts",
+      "line": 97,
+      "symbol": "POST"
+    },
+    {
+      "model": "center",
+      "op": "create",
+      "file": "src/app/api/centers/route.ts",
+      "line": 97,
+      "symbol": "POST"
+    },
+    {
+      "model": "center",
+      "op": "update",
+      "file": "src/app/api/centers/[id]/route.ts",
+      "line": 119,
+      "symbol": "PATCH"
+    },
+    {
+      "model": "parentMagicLinkToken",
+      "op": "update",
+      "file": "src/lib/auth/options.ts",
+      "line": 187,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "parentMagicLinkToken",
+      "op": "create",
+      "file": "src/lib/auth/parentMagicLink.ts",
+      "line": 143,
+      "symbol": "sendParentMagicLink"
+    },
+    {
+      "model": "auditEvent",
+      "op": "create",
+      "file": "src/lib/audit/writeAuditEvent.ts",
+      "line": 113,
+      "symbol": "writeAuditEvent"
+    },
+    {
+      "model": "tenant",
+      "op": "create",
+      "file": "scripts/provision-tenant.ts",
+      "line": 188,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "user",
+      "op": "create",
+      "file": "scripts/provision-tenant.ts",
+      "line": 215,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "tenantMembership",
+      "op": "create",
+      "file": "scripts/provision-tenant.ts",
+      "line": 224,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "session",
+      "op": "createMany",
+      "file": "scripts/pilot/mmc-setup.ts",
+      "line": 1127,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "user",
+      "op": "update",
+      "file": "scripts/admin/reset-user-password.ts",
+      "line": 192,
+      "symbol": "main"
+    },
+    {
+      "model": "tenant",
+      "op": "upsert",
+      "file": "prisma/seed.ts",
+      "line": 74,
+      "symbol": "upsertTenant"
+    },
+    {
+      "model": "user",
+      "op": "upsert",
+      "file": "prisma/seed.ts",
+      "line": 109,
+      "symbol": "upsertUser"
+    },
+    {
+      "model": "center",
+      "op": "upsert",
+      "file": "prisma/seed.ts",
+      "line": 130,
+      "symbol": "upsertCenter"
+    },
+    {
+      "model": "subject",
+      "op": "upsert",
+      "file": "prisma/seed.ts",
+      "line": 156,
+      "symbol": "upsertSubject"
+    },
+    {
+      "model": "level",
+      "op": "upsert",
+      "file": "prisma/seed.ts",
+      "line": 181,
+      "symbol": "upsertLevel"
+    },
+    {
+      "model": "program",
+      "op": "upsert",
+      "file": "prisma/seed.ts",
+      "line": 209,
+      "symbol": "upsertProgram"
+    },
+    {
+      "model": "parent",
+      "op": "upsert",
+      "file": "prisma/seed.ts",
+      "line": 240,
+      "symbol": "upsertParent"
+    },
+    {
+      "model": "student",
+      "op": "update",
+      "file": "prisma/seed.ts",
+      "line": 285,
+      "symbol": "upsertStudent"
+    },
+    {
+      "model": "student",
+      "op": "create",
+      "file": "prisma/seed.ts",
+      "line": 298,
+      "symbol": "upsertStudent"
+    },
+    {
+      "model": "group",
+      "op": "update",
+      "file": "prisma/seed.ts",
+      "line": 330,
+      "symbol": "upsertGroup"
+    },
+    {
+      "model": "group",
+      "op": "create",
+      "file": "prisma/seed.ts",
+      "line": 344,
+      "symbol": "upsertGroup"
+    },
+    {
+      "model": "session",
+      "op": "upsert",
+      "file": "prisma/seed.ts",
+      "line": 370,
+      "symbol": "upsertSession"
+    },
+    {
+      "model": "sessionNote",
+      "op": "upsert",
+      "file": "prisma/seed.ts",
+      "line": 408,
+      "symbol": "upsertSessionNote"
+    },
+    {
+      "model": "tenantMembership",
+      "op": "upsert",
+      "file": "prisma/seed.ts",
+      "line": 519,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "staffCenter",
+      "op": "createMany",
+      "file": "prisma/seed.ts",
+      "line": 822,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "groupTutor",
+      "op": "createMany",
+      "file": "prisma/seed.ts",
+      "line": 831,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "studentParent",
+      "op": "createMany",
+      "file": "prisma/seed.ts",
+      "line": 1118,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "groupStudent",
+      "op": "createMany",
+      "file": "prisma/seed.ts",
+      "line": 1138,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "sessionStudent",
+      "op": "createMany",
+      "file": "prisma/seed.ts",
+      "line": 1301,
+      "symbol": "module-scope"
+    },
+    {
+      "model": "attendance",
+      "op": "createMany",
+      "file": "prisma/seed.ts",
+      "line": 1326,
+      "symbol": "module-scope"
+    }
+  ]
+}
