@@ -184,12 +184,18 @@ async function createSession(
     timezone: string;
   },
 ) {
-  // Retry with varying start times to avoid unique constraint conflicts.
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  // Retry with high-entropy timestamps so crowded staging fixtures avoid start-time uniqueness collisions.
+  const seedBase = Date.now() + Math.floor(Math.random() * 10_000);
+  for (let attempt = 0; attempt < 12; attempt += 1) {
     const startAt = DateTime.now()
       .setZone(input.timezone)
-      .plus({ days: 2 + attempt })
-      .set({ hour: 9 + attempt, minute: (attempt * 7) % 55, second: 0, millisecond: 0 });
+      .plus({ days: 2 + attempt * 2 + ((seedBase + attempt) % 2) })
+      .set({
+        hour: 7 + ((seedBase + attempt * 5) % 12),
+        minute: (seedBase * 7 + attempt * 11) % 60,
+        second: (seedBase + attempt * 13) % 60,
+        millisecond: (seedBase * 29 + attempt * 17) % 1000,
+      });
     const endAt = startAt.plus({ hours: 1 });
 
     const response = await page.request.post(

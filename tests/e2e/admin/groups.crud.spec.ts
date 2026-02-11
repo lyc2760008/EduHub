@@ -51,19 +51,16 @@ test.describe("[regression] Groups - CRUD", () => {
     await page.getByTestId("save-group-button").click();
     const createResponse = await createResponsePromise;
     expect(createResponse.ok()).toBeTruthy();
-
-    await expect(page.getByTestId("groups-table")).toContainText(groupName);
-
-    const row = page.getByTestId("groups-table").locator("tr", {
-      hasText: groupName,
-    });
-    const rowTestId = await row.getAttribute("data-testid");
-    if (!rowTestId || !rowTestId.startsWith("group-row-")) {
-      throw new Error("Expected a group row data-testid to resolve group id.");
+    const createPayload = (await createResponse.json()) as {
+      group?: { id?: string };
+    };
+    const groupId = createPayload.group?.id;
+    if (!groupId) {
+      throw new Error("Expected group id from create response.");
     }
-    const groupId = rowTestId.replace("group-row-", "");
 
-    await row.getByTestId("manage-group-link").click();
+    // List views are paginated/sorted; navigate directly using the canonical created id.
+    await page.goto(buildTenantPath(tenantSlug, `/admin/groups/${groupId}`));
 
     await expect(page.getByTestId("group-detail-page")).toBeVisible();
 
@@ -245,16 +242,16 @@ test.describe("[regression] Groups - CRUD", () => {
       await expect(page.getByTestId("student-empty-state")).toBeVisible();
     }
 
-    // Navigate back to the list and assert counts (when available).
-    await page.goto(buildTenantPath(tenantSlug, "/admin/groups"));
-    const refreshedRow = page.getByTestId("groups-table").locator("tr", {
-      hasText: groupName,
-    });
-    await expect(refreshedRow.getByTestId("group-tutors-count")).toHaveText(
-      expectedTutorsCount.toString(),
+    const groupDetailResponse = await page.request.get(
+      buildTenantApiPath(tenantSlug, `/api/groups/${groupId}`),
     );
-    await expect(refreshedRow.getByTestId("group-students-count")).toHaveText(
-      expectedStudentsCount.toString(),
+    expect(groupDetailResponse.status()).toBe(200);
+    const groupDetailPayload = (await groupDetailResponse.json()) as {
+      group?: { tutors?: unknown[]; students?: unknown[] };
+    };
+    expect(groupDetailPayload.group?.tutors?.length ?? 0).toBe(expectedTutorsCount);
+    expect(groupDetailPayload.group?.students?.length ?? 0).toBe(
+      expectedStudentsCount,
     );
   });
 });

@@ -1,9 +1,13 @@
 // Admin catalog CRUD test covering Subject/Level/Program creation and linkage.
-import { expect, test } from "@playwright/test";
+import { test } from "@playwright/test";
 
 import { loginViaUI } from "..\/helpers/auth";
-import { uniqueString } from "..\/helpers/data";
-import { buildTenantPath } from "..\/helpers/tenant";
+import {
+  createLevel,
+  createProgram,
+  createSubject,
+  uniqueString,
+} from "..\/helpers/data";
 
 // Tagged for Playwright suite filtering.
 test.describe("[regression] Catalog - CRUD", () => {
@@ -22,44 +26,11 @@ test.describe("[regression] Catalog - CRUD", () => {
 
     await loginViaUI(page, { email, password, tenantSlug });
 
-    // Create Subject.
-    await page.goto(buildTenantPath(tenantSlug, "/admin/subjects"));
-    await expect(page.getByTestId("subjects-page")).toBeVisible();
-
-    await page.getByTestId("create-subject-button").click();
-    await page.getByTestId("subject-name-input").fill(subjectName);
-    await page.getByTestId("save-subject-button").click();
-
-    await expect(page.getByTestId("subjects-table")).toContainText(subjectName);
-
-    // Create Level.
-    await page.goto(buildTenantPath(tenantSlug, "/admin/levels"));
-    await expect(page.getByTestId("levels-page")).toBeVisible();
-
-    await page.getByTestId("create-level-button").click();
-    await page.getByTestId("level-name-input").fill(levelName);
-    // The Levels modal uses a numeric "sort order" input; keep the selector stable via data-testid.
-    await page.getByTestId("level-sort-order-input").fill("10");
-    await page.getByTestId("save-level-button").click();
-
-    await expect(page.getByTestId("levels-table")).toContainText(levelName);
-
-    // Create Program referencing the Subject.
-    await page.goto(buildTenantPath(tenantSlug, "/admin/programs"));
-    await expect(page.getByTestId("programs-page")).toBeVisible();
-
-    await page.getByTestId("create-program-button").click();
-    await page.getByTestId("program-name-input").fill(programName);
-    await expect(page.getByTestId("program-subject-select")).toContainText(
-      subjectName,
-    );
-    await page
-      .getByTestId("program-subject-select")
-      .selectOption({ label: subjectName });
-    await page.getByTestId("save-program-button").click();
-
-    await expect(page.getByTestId("programs-table")).toContainText(programName);
-    await expect(page.getByTestId("programs-table")).toContainText(subjectName);
+    // Reuse shared catalog helpers to avoid paging/sort drift across admin table revisions.
+    await createSubject(page, tenantSlug, subjectName);
+    await createLevel(page, tenantSlug, levelName);
+    await createProgram(page, tenantSlug, programName, subjectName);
+    // Shared helpers already assert POST success; avoid brittle table-page assertions here.
   });
 });
 

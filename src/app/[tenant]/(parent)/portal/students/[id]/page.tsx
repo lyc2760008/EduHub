@@ -18,6 +18,7 @@ import PortalTabs from "@/components/parent/portal/PortalTabs";
 import PortalSkeletonBlock from "@/components/parent/portal/PortalSkeletonBlock";
 import AttendanceRow from "@/components/parent/portal/AttendanceRow";
 import SessionRow from "@/components/parent/portal/SessionRow";
+import StudentProgressNotesSection from "@/components/parent/portal/StudentProgressNotesSection";
 import PortalTimeHint from "@/components/parent/portal/PortalTimeHint";
 import { fetchJson } from "@/lib/api/fetchJson";
 
@@ -420,6 +421,9 @@ export default function PortalStudentDetailPage() {
               </div>
             )}
           </section>
+
+          {/* Progress notes remain read-only and scoped to this student (Step 22.3). */}
+          <StudentProgressNotesSection tenant={tenant} studentId={student.id} />
         </div>
       ) : (
         <div className="space-y-4" data-testid="portal-student-attendance">

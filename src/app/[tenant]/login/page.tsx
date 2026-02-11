@@ -50,7 +50,29 @@ export default function LoginPage({ params }: PageProps) {
       return;
     }
 
-    router.push(`/${tenant}/admin`);
+    // Route users by server-resolved membership role so tutors do not land on admin-only pages.
+    const meResponse = await fetch("/api/me", {
+      headers: { "x-tenant-slug": tenantSlug },
+      cache: "no-store",
+    });
+
+    if (!meResponse.ok) {
+      router.replace(`/${tenant}/admin`);
+      return;
+    }
+
+    const mePayload = (await meResponse.json()) as {
+      membership?: { role?: string };
+    };
+    const role = mePayload.membership?.role;
+    const postLoginPath =
+      role === "Tutor"
+        ? `/${tenant}/tutor/sessions`
+        : role === "Parent"
+          ? `/${tenant}/portal`
+          : `/${tenant}/admin`;
+
+    router.replace(postLoginPath);
   }
 
   return (

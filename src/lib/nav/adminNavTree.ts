@@ -23,6 +23,7 @@ export type AdminNavGroup = {
 
 const ADMIN_ONLY: Role[] = ["Owner", "Admin"];
 const ADMIN_OR_TUTOR: Role[] = ["Owner", "Admin", "Tutor"];
+const TUTOR_ONLY: Role[] = ["Tutor"];
 
 // Top-level items sit above grouped navigation in the sidebar.
 export const ADMIN_NAV_TOP_ITEMS: AdminNavItem[] = [
@@ -128,6 +129,16 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     id: "operations",
     labelKey: "admin.nav.group.operations",
     items: [
+      {
+        id: "tutor-my-sessions",
+        // Tutor nav handoff points to the dedicated Step 22.4 tutor workflow.
+        href: "/tutor/sessions",
+        labelKey: "admin.nav.tutorMySessions",
+        titleKey: "tutorSessions.page.title",
+        iconKey: "sessions",
+        match: "prefix",
+        roles: TUTOR_ONLY,
+      },
       {
         id: "sessions",
         href: "/admin/sessions",

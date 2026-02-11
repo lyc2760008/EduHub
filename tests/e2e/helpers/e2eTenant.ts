@@ -3,6 +3,12 @@ import bcrypt from "bcryptjs";
 import { DateTime } from "luxon";
 
 import type { Prisma, PrismaClient } from "../../../src/generated/prisma/client";
+import {
+  STEP223_INTERNAL_ONLY_SENTINEL,
+  STEP223_PROGRESS_NOTE_COUNT,
+  buildStep223ParentVisibleNote,
+} from "./step203";
+import { STEP224_INTERNAL_ONLY_SENTINEL } from "./step224";
 
 // DbClient allows helpers to run with either the full Prisma client or a transaction client.
 type DbClient = PrismaClient | Prisma.TransactionClient;
@@ -203,14 +209,15 @@ export async function upsertE2EFixtures(prisma: DbClient) {
     (tenant.slug.toLowerCase().startsWith("e2e")
       ? `${tenant.slug}-secondary`
       : process.env.SEED_SECOND_TENANT_SLUG || "acme");
-  if (secondaryTenantSlug && secondaryTenantSlug !== tenant.slug) {
-    // Ensure a second tenant exists for cross-tenant RBAC checks.
-    await ensureE2ETenant(
-      prisma,
-      secondaryTenantSlug,
-      process.env.E2E_SECOND_TENANT_NAME || "E2E Secondary",
-    );
-  }
+  const secondaryTenant =
+    secondaryTenantSlug && secondaryTenantSlug !== tenant.slug
+      ? // Ensure a second tenant exists for cross-tenant RBAC checks.
+        await ensureE2ETenant(
+          prisma,
+          secondaryTenantSlug,
+          process.env.E2E_SECOND_TENANT_NAME || "E2E Secondary",
+        )
+      : null;
 
   const studentId = `e2e-${tenant.slug}-${runId}-student-s1`;
   const unlinkedStudentId = `e2e-${tenant.slug}-${runId}-student-s2`;
@@ -219,10 +226,27 @@ export async function upsertE2EFixtures(prisma: DbClient) {
   // Parent magic-link eligibility requires at least one linked student; keep a dedicated student for A0
   // so tests can authenticate as a "different parent" without affecting A1's session fixtures.
   const parentA0StudentId = `e2e-${tenant.slug}-${runId}-student-s4`;
+  // Step 22.3 requires a linked parent-owned student with no notes for empty-state assertions.
+  const progressEmptyStudentId = `e2e-${tenant.slug}-${runId}-student-s5`;
+  // Cross-tenant student fixture ensures URL-crafted probing cannot leak records across tenants.
+  const crossTenantStudentId = `e2e-${secondaryTenantSlug}-${runId}-student-cross-tenant-s1`;
   const upcomingSessionId = `e2e-${tenant.slug}-${runId}-session-upcoming`;
   const pastSessionId = `e2e-${tenant.slug}-${runId}-session-past`;
   const tutorBSessionId = `e2e-${tenant.slug}-${runId}-session-tutor-b`;
   const unlinkedSessionId = `e2e-${tenant.slug}-${runId}-session-unlinked`;
+  // Step 22.4 fixture sessions back Tutor "My Sessions" + "Run Session" deterministic coverage.
+  const step224TutorASession1Id = `e2e-${tenant.slug}-${runId}-session-step224-tutor-a-1`;
+  const step224TutorASession2Id = `e2e-${tenant.slug}-${runId}-session-step224-tutor-a-2`;
+  const step224TutorBSessionId = `e2e-${tenant.slug}-${runId}-session-step224-tutor-b-1`;
+  const step224CrossTenantSessionId =
+    `e2e-${secondaryTenantSlug}-${runId}-session-step224-cross-tenant-1`;
+  const progressSessionIds = Array.from(
+    { length: STEP223_PROGRESS_NOTE_COUNT },
+    (_, index) =>
+      `e2e-${tenant.slug}-${runId}-session-progress-note-${String(index + 1).padStart(2, "0")}`,
+  );
+  const progressInternalOnlySessionId =
+    `e2e-${tenant.slug}-${runId}-session-progress-internal-only`;
   const absenceHappySessionId =
     `e2e-${tenant.slug}-${runId}-session-absence-happy`;
   const absenceDuplicateSessionId =
@@ -254,8 +278,10 @@ export async function upsertE2EFixtures(prisma: DbClient) {
     `e2e-${tenant.slug}-${runId}-session-absence-autoassist-approved`;
 
   const centerName = "E2E Center";
+  const secondaryCenterName = "E2E Secondary Center";
   const tutorName = "E2E Tutor";
   const tutorBName = "E2E Tutor B";
+  const secondaryTutorName = "E2E Secondary Tutor";
   const adminName = "E2E Admin";
   const parentA0Name = { firstName: "E2E Parent", lastName: "A0" };
   const parentA1Name = { firstName: "E2E Parent", lastName: "A1" };
@@ -266,6 +292,9 @@ export async function upsertE2EFixtures(prisma: DbClient) {
   const unlinkedStudentName = { firstName: "E2E Student", lastName: "S2" };
   const missingEmailStudentName = { firstName: "E2E Student", lastName: "S3" };
   const parentA0StudentName = { firstName: "E2E Student", lastName: "A0" };
+  const progressEmptyStudentName = { firstName: "E2E Student", lastName: "S5 Empty" };
+  const crossTenantStudentName = { firstName: "E2E Student", lastName: "CrossTenant" };
+  const secondaryTutorEmail = `e2e.tutor.secondary${emailSuffix}@example.com`;
 
   const timezone = "America/Edmonton";
   const nowLocal = DateTime.now().setZone(timezone);
@@ -288,6 +317,18 @@ export async function upsertE2EFixtures(prisma: DbClient) {
   );
   const unlinkedStart = withUniqueSessionSeconds(
     nowLocal.plus({ days: 4 }).set({ hour: 14, minute: 30 }),
+  );
+  const step224TutorAFirstStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 1 }).set({ hour: 8, minute: 10 }),
+  );
+  const step224TutorASecondStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 2 }).set({ hour: 8, minute: 40 }),
+  );
+  const step224TutorBOtherStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 1 }).set({ hour: 9, minute: 20 }),
+  );
+  const step224CrossTenantStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 3 }).set({ hour: 10, minute: 10 }),
   );
   const absenceHappyStart = withUniqueSessionSeconds(
     nowLocal.plus({ days: 3 }).set({ hour: 12, minute: 0 }),
@@ -330,6 +371,18 @@ export async function upsertE2EFixtures(prisma: DbClient) {
   );
   const absenceAutoAssistApprovedStart = withUniqueSessionSeconds(
     nowLocal.plus({ days: 3 }).set({ hour: 10, minute: 45 }),
+  );
+  const progressNoteStarts = progressSessionIds.map((_, index) =>
+    withUniqueSessionSeconds(
+      // Keep progress-note sessions far in the future so they do not disturb near-term scheduling tests.
+      nowLocal.plus({ days: 120 + index }).set({
+        hour: 8 + (index % 6),
+        minute: (index * 5) % 60,
+      }),
+    ),
+  );
+  const progressInternalOnlyStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 119 }).set({ hour: 7, minute: 45 }),
   );
 
   await withTransaction(prisma, async (tx) => {
@@ -671,6 +724,153 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       select: { id: true },
     });
 
+    const progressEmptyStudent = await tx.student.upsert({
+      where: { id: progressEmptyStudentId },
+      update: {
+        tenantId: tenant.id,
+        firstName: progressEmptyStudentName.firstName,
+        lastName: progressEmptyStudentName.lastName,
+        status: "ACTIVE",
+      },
+      create: {
+        id: progressEmptyStudentId,
+        tenantId: tenant.id,
+        firstName: progressEmptyStudentName.firstName,
+        lastName: progressEmptyStudentName.lastName,
+        status: "ACTIVE",
+      },
+      select: { id: true },
+    });
+
+    if (secondaryTenant) {
+      // Seed a deterministic cross-tenant student so portal RBAC tests can probe with a real foreign ID.
+      const crossTenantStudent = await tx.student.upsert({
+        where: { id: crossTenantStudentId },
+        update: {
+          tenantId: secondaryTenant.id,
+          firstName: crossTenantStudentName.firstName,
+          lastName: crossTenantStudentName.lastName,
+          status: "ACTIVE",
+        },
+        create: {
+          id: crossTenantStudentId,
+          tenantId: secondaryTenant.id,
+          firstName: crossTenantStudentName.firstName,
+          lastName: crossTenantStudentName.lastName,
+          status: "ACTIVE",
+        },
+        select: { id: true },
+      });
+
+      // Step 22.4 cross-tenant deny tests require a real foreign session id.
+      const secondaryCenter = await tx.center.upsert({
+        where: {
+          tenantId_name: {
+            tenantId: secondaryTenant.id,
+            name: secondaryCenterName,
+          },
+        },
+        update: { timezone, isActive: true },
+        create: {
+          tenantId: secondaryTenant.id,
+          name: secondaryCenterName,
+          timezone,
+          isActive: true,
+        },
+        select: { id: true },
+      });
+
+      const secondaryTutorPasswordHash = await resolvePasswordHash(
+        tx,
+        secondaryTutorEmail,
+        normalizedParentAccessCode,
+      );
+      const secondaryTutor = await tx.user.upsert({
+        where: { email: secondaryTutorEmail },
+        update: {
+          name: secondaryTutorName,
+          passwordHash: secondaryTutorPasswordHash,
+        },
+        create: {
+          email: secondaryTutorEmail,
+          name: secondaryTutorName,
+          passwordHash: secondaryTutorPasswordHash,
+        },
+        select: { id: true },
+      });
+
+      await tx.tenantMembership.upsert({
+        where: {
+          tenantId_userId: {
+            tenantId: secondaryTenant.id,
+            userId: secondaryTutor.id,
+          },
+        },
+        update: { role: "Tutor" },
+        create: {
+          tenantId: secondaryTenant.id,
+          userId: secondaryTutor.id,
+          role: "Tutor",
+        },
+      });
+
+      await tx.staffCenter.upsert({
+        where: {
+          tenantId_userId_centerId: {
+            tenantId: secondaryTenant.id,
+            userId: secondaryTutor.id,
+            centerId: secondaryCenter.id,
+          },
+        },
+        update: {},
+        create: {
+          tenantId: secondaryTenant.id,
+          userId: secondaryTutor.id,
+          centerId: secondaryCenter.id,
+        },
+      });
+
+      const step224CrossTenantSession = await tx.session.upsert({
+        where: { id: step224CrossTenantSessionId },
+        update: {
+          tenantId: secondaryTenant.id,
+          centerId: secondaryCenter.id,
+          tutorId: secondaryTutor.id,
+          sessionType: "ONE_ON_ONE",
+          startAt: step224CrossTenantStart.toJSDate(),
+          endAt: step224CrossTenantStart.plus({ hours: 1 }).toJSDate(),
+          timezone,
+        },
+        create: {
+          id: step224CrossTenantSessionId,
+          tenantId: secondaryTenant.id,
+          centerId: secondaryCenter.id,
+          tutorId: secondaryTutor.id,
+          sessionType: "ONE_ON_ONE",
+          startAt: step224CrossTenantStart.toJSDate(),
+          endAt: step224CrossTenantStart.plus({ hours: 1 }).toJSDate(),
+          timezone,
+        },
+        select: { id: true },
+      });
+
+      await tx.sessionStudent.upsert({
+        where: {
+          tenantId_sessionId_studentId: {
+            tenantId: secondaryTenant.id,
+            sessionId: step224CrossTenantSession.id,
+            studentId: crossTenantStudent.id,
+          },
+        },
+        update: {},
+        create: {
+          tenantId: secondaryTenant.id,
+          sessionId: step224CrossTenantSession.id,
+          studentId: crossTenantStudent.id,
+        },
+      });
+    }
+
     await tx.studentParent.upsert({
       where: {
         tenantId_studentId_parentId: {
@@ -701,6 +901,23 @@ export async function upsertE2EFixtures(prisma: DbClient) {
         tenantId: tenant.id,
         studentId: parentA0Student.id,
         parentId: parentA0.id,
+        relationship: "GUARDIAN",
+      },
+    });
+
+    await tx.studentParent.upsert({
+      where: {
+        tenantId_studentId_parentId: {
+          tenantId: tenant.id,
+          studentId: progressEmptyStudent.id,
+          parentId: parentA1.id,
+        },
+      },
+      update: { relationship: "GUARDIAN" },
+      create: {
+        tenantId: tenant.id,
+        studentId: progressEmptyStudent.id,
+        parentId: parentA1.id,
         relationship: "GUARDIAN",
       },
     });
@@ -813,6 +1030,87 @@ export async function upsertE2EFixtures(prisma: DbClient) {
         sessionType: "ONE_ON_ONE",
         startAt: unlinkedStart.toJSDate(),
         endAt: unlinkedStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
+    // Step 22.4 tutor sessions are assigned to the runtime tutor login account (E2E_TUTOR_EMAIL).
+    const step224OtherTutorId =
+      tutorBUser.id === tutorLoginUser.id ? tutorUser.id : tutorBUser.id;
+    if (step224OtherTutorId === tutorLoginUser.id) {
+      throw new Error(
+        "Step 22.4 fixtures require two distinct tutor users (T1 and T2).",
+      );
+    }
+
+    const step224TutorASession1 = await tx.session.upsert({
+      where: { id: step224TutorASession1Id },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorLoginUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: step224TutorAFirstStart.toJSDate(),
+        endAt: step224TutorAFirstStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: step224TutorASession1Id,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorLoginUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: step224TutorAFirstStart.toJSDate(),
+        endAt: step224TutorAFirstStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
+    const step224TutorASession2 = await tx.session.upsert({
+      where: { id: step224TutorASession2Id },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorLoginUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: step224TutorASecondStart.toJSDate(),
+        endAt: step224TutorASecondStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: step224TutorASession2Id,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorLoginUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: step224TutorASecondStart.toJSDate(),
+        endAt: step224TutorASecondStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
+    const step224TutorBSession = await tx.session.upsert({
+      where: { id: step224TutorBSessionId },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: step224OtherTutorId,
+        sessionType: "ONE_ON_ONE",
+        startAt: step224TutorBOtherStart.toJSDate(),
+        endAt: step224TutorBOtherStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: step224TutorBSessionId,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: step224OtherTutorId,
+        sessionType: "ONE_ON_ONE",
+        startAt: step224TutorBOtherStart.toJSDate(),
+        endAt: step224TutorBOtherStart.plus({ hours: 1 }).toJSDate(),
         timezone,
       },
       select: { id: true },
@@ -1157,6 +1455,58 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       select: { id: true },
     });
 
+    const progressNoteSessions = await Promise.all(
+      progressSessionIds.map(async (sessionId, index) =>
+        tx.session.upsert({
+          where: { id: sessionId },
+          update: {
+            tenantId: tenant.id,
+            centerId: center.id,
+            tutorId: tutorUser.id,
+            sessionType: "ONE_ON_ONE",
+            startAt: progressNoteStarts[index].toJSDate(),
+            endAt: progressNoteStarts[index].plus({ hours: 1 }).toJSDate(),
+            timezone,
+          },
+          create: {
+            id: sessionId,
+            tenantId: tenant.id,
+            centerId: center.id,
+            tutorId: tutorUser.id,
+            sessionType: "ONE_ON_ONE",
+            startAt: progressNoteStarts[index].toJSDate(),
+            endAt: progressNoteStarts[index].plus({ hours: 1 }).toJSDate(),
+            timezone,
+          },
+          select: { id: true },
+        }),
+      ),
+    );
+
+    const progressInternalOnlySession = await tx.session.upsert({
+      where: { id: progressInternalOnlySessionId },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: progressInternalOnlyStart.toJSDate(),
+        endAt: progressInternalOnlyStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: progressInternalOnlySessionId,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: progressInternalOnlyStart.toJSDate(),
+        endAt: progressInternalOnlyStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
     await tx.sessionStudent.upsert({
       where: {
         tenantId_sessionId_studentId: {
@@ -1169,6 +1519,70 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       create: {
         tenantId: tenant.id,
         sessionId: upcomingSession.id,
+        studentId: student.id,
+      },
+    });
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: step224TutorASession1.id,
+          studentId: student.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: step224TutorASession1.id,
+        studentId: student.id,
+      },
+    });
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: step224TutorASession1.id,
+          studentId: unlinkedStudent.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: step224TutorASession1.id,
+        studentId: unlinkedStudent.id,
+      },
+    });
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: step224TutorASession2.id,
+          studentId: missingEmailStudent.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: step224TutorASession2.id,
+        studentId: missingEmailStudent.id,
+      },
+    });
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: step224TutorBSession.id,
+          studentId: student.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: step224TutorBSession.id,
         studentId: student.id,
       },
     });
@@ -1445,6 +1859,40 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       },
     });
 
+    for (const progressSession of progressNoteSessions) {
+      await tx.sessionStudent.upsert({
+        where: {
+          tenantId_sessionId_studentId: {
+            tenantId: tenant.id,
+            sessionId: progressSession.id,
+            studentId: student.id,
+          },
+        },
+        update: {},
+        create: {
+          tenantId: tenant.id,
+          sessionId: progressSession.id,
+          studentId: student.id,
+        },
+      });
+    }
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: progressInternalOnlySession.id,
+          studentId: student.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: progressInternalOnlySession.id,
+        studentId: student.id,
+      },
+    });
+
     // Clear parent requests tied to absence sessions so tests start from a clean slate.
     await tx.parentRequest.deleteMany({
       where: {
@@ -1526,6 +1974,186 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       },
     });
 
+    // Step 22.4 preloads tutor-session attendance rows (including one internal-note sentinel).
+    await tx.attendance.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: step224TutorASession1.id,
+          studentId: student.id,
+        },
+      },
+      update: {
+        status: "PRESENT",
+        note: STEP224_INTERNAL_ONLY_SENTINEL,
+        parentVisibleNote: "STEP224_PARENT_VISIBLE_NOTE_1",
+        parentVisibleNoteUpdatedAt: now,
+        markedByUserId: tutorLoginUser.id,
+        markedAt: now,
+      },
+      create: {
+        tenantId: tenant.id,
+        sessionId: step224TutorASession1.id,
+        studentId: student.id,
+        status: "PRESENT",
+        note: STEP224_INTERNAL_ONLY_SENTINEL,
+        parentVisibleNote: "STEP224_PARENT_VISIBLE_NOTE_1",
+        parentVisibleNoteUpdatedAt: now,
+        markedByUserId: tutorLoginUser.id,
+        markedAt: now,
+      },
+    });
+
+    await tx.attendance.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: step224TutorASession1.id,
+          studentId: unlinkedStudent.id,
+        },
+      },
+      update: {
+        status: "LATE",
+        note: "STEP224_INTERNAL_NOTE_2",
+        parentVisibleNote: "STEP224_PARENT_VISIBLE_NOTE_2",
+        parentVisibleNoteUpdatedAt: now,
+        markedByUserId: tutorLoginUser.id,
+        markedAt: now,
+      },
+      create: {
+        tenantId: tenant.id,
+        sessionId: step224TutorASession1.id,
+        studentId: unlinkedStudent.id,
+        status: "LATE",
+        note: "STEP224_INTERNAL_NOTE_2",
+        parentVisibleNote: "STEP224_PARENT_VISIBLE_NOTE_2",
+        parentVisibleNoteUpdatedAt: now,
+        markedByUserId: tutorLoginUser.id,
+        markedAt: now,
+      },
+    });
+
+    await tx.attendance.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: step224TutorASession2.id,
+          studentId: missingEmailStudent.id,
+        },
+      },
+      update: {
+        status: "ABSENT",
+        note: "STEP224_INTERNAL_NOTE_3",
+        parentVisibleNote: "STEP224_PARENT_VISIBLE_NOTE_3",
+        parentVisibleNoteUpdatedAt: now,
+        markedByUserId: tutorLoginUser.id,
+        markedAt: now,
+      },
+      create: {
+        tenantId: tenant.id,
+        sessionId: step224TutorASession2.id,
+        studentId: missingEmailStudent.id,
+        status: "ABSENT",
+        note: "STEP224_INTERNAL_NOTE_3",
+        parentVisibleNote: "STEP224_PARENT_VISIBLE_NOTE_3",
+        parentVisibleNoteUpdatedAt: now,
+        markedByUserId: tutorLoginUser.id,
+        markedAt: now,
+      },
+    });
+
+    await tx.attendance.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: step224TutorBSession.id,
+          studentId: student.id,
+        },
+      },
+      update: {
+        status: "PRESENT",
+        note: "STEP224_INTERNAL_NOTE_OTHER_TUTOR",
+        parentVisibleNote: "STEP224_PARENT_VISIBLE_NOTE_OTHER_TUTOR",
+        parentVisibleNoteUpdatedAt: now,
+        markedByUserId: step224OtherTutorId,
+        markedAt: now,
+      },
+      create: {
+        tenantId: tenant.id,
+        sessionId: step224TutorBSession.id,
+        studentId: student.id,
+        status: "PRESENT",
+        note: "STEP224_INTERNAL_NOTE_OTHER_TUTOR",
+        parentVisibleNote: "STEP224_PARENT_VISIBLE_NOTE_OTHER_TUTOR",
+        parentVisibleNoteUpdatedAt: now,
+        markedByUserId: step224OtherTutorId,
+        markedAt: now,
+      },
+    });
+
+    for (let index = 0; index < progressNoteSessions.length; index += 1) {
+      const progressSession = progressNoteSessions[index];
+      await tx.attendance.upsert({
+        where: {
+          tenantId_sessionId_studentId: {
+            tenantId: tenant.id,
+            sessionId: progressSession.id,
+            studentId: student.id,
+          },
+        },
+        update: {
+          status: "PRESENT",
+          // Keep a staff-only note populated to assert API responses never leak internal fields.
+          note: `STEP223_INTERNAL_NOTE_${String(index + 1).padStart(2, "0")}`,
+          parentVisibleNote: buildStep223ParentVisibleNote(index + 1),
+          parentVisibleNoteUpdatedAt: now,
+          markedByUserId: tutorUser.id,
+          markedAt: now,
+        },
+        create: {
+          tenantId: tenant.id,
+          sessionId: progressSession.id,
+          studentId: student.id,
+          status: "PRESENT",
+          note: `STEP223_INTERNAL_NOTE_${String(index + 1).padStart(2, "0")}`,
+          parentVisibleNote: buildStep223ParentVisibleNote(index + 1),
+          parentVisibleNoteUpdatedAt: now,
+          markedByUserId: tutorUser.id,
+          markedAt: now,
+        },
+      });
+    }
+
+    await tx.attendance.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: progressInternalOnlySession.id,
+          studentId: student.id,
+        },
+      },
+      update: {
+        status: "PRESENT",
+        note: STEP223_INTERNAL_ONLY_SENTINEL,
+        // Explicit null parent-visible note drives "no leak" assertions in Step 22.3 tests.
+        parentVisibleNote: null,
+        parentVisibleNoteUpdatedAt: null,
+        markedByUserId: tutorUser.id,
+        markedAt: now,
+      },
+      create: {
+        tenantId: tenant.id,
+        sessionId: progressInternalOnlySession.id,
+        studentId: student.id,
+        status: "PRESENT",
+        note: STEP223_INTERNAL_ONLY_SENTINEL,
+        parentVisibleNote: null,
+        parentVisibleNoteUpdatedAt: null,
+        markedByUserId: tutorUser.id,
+        markedAt: now,
+      },
+    });
+
     // ParentA0 is intentionally left without linked students for empty-state tests.
     void parentA0;
     // Tutor B and unlinked student/session support access-control coverage.
@@ -1538,13 +2166,22 @@ export async function upsertE2EFixtures(prisma: DbClient) {
     parentA1Email,
     accessCode: normalizedParentAccessCode,
     tutorAEmail: tutorEmail,
+    tutorLoginEmail,
     tutorBEmail,
     studentId,
     unlinkedStudentId,
     missingEmailStudentId,
+    progressEmptyStudentId,
+    progressSessionIds,
+    progressInternalOnlySessionId,
+    crossTenantStudentId,
     upcomingSessionId,
     pastSessionId,
     tutorBSessionId,
+    step224TutorASession1Id,
+    step224TutorASession2Id,
+    step224TutorBSessionId,
+    step224CrossTenantSessionId,
     unlinkedSessionId,
     absenceHappySessionId,
     absenceDuplicateSessionId,

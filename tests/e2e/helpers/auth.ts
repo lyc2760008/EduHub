@@ -89,6 +89,58 @@ export async function loginViaUI(page: Page, opts: LoginOptions) {
   await expect(postLoginMarker.first()).toBeVisible();
 }
 
+type ApiLoginOptions = {
+  email: string;
+  password: string;
+  tenantSlug?: string;
+  callbackPath?: string;
+};
+
+// Deterministic credential login for storageState setup avoids UI flakiness on remote STAGING.
+export async function loginViaCredentialsApi(
+  page: Page,
+  opts: ApiLoginOptions,
+) {
+  const tenantSlug =
+    opts.tenantSlug || process.env.E2E_TENANT_SLUG || "e2e-testing";
+  const callbackPath = opts.callbackPath || `/${tenantSlug}/admin`;
+  const csrfResponse = await page.request.get("/api/auth/csrf");
+  expect(csrfResponse.ok()).toBeTruthy();
+  const csrfPayload = (await csrfResponse.json()) as { csrfToken?: string };
+  const csrfToken = csrfPayload.csrfToken?.trim();
+  if (!csrfToken) {
+    throw new Error("Expected csrfToken from /api/auth/csrf.");
+  }
+
+  const form = new URLSearchParams();
+  form.set("csrfToken", csrfToken);
+  form.set("email", opts.email);
+  form.set("password", opts.password);
+  // Credentials provider uses tenantSlug to resolve membership under shared hosts.
+  form.set("tenantSlug", tenantSlug);
+  form.set("callbackUrl", callbackPath);
+  form.set("json", "true");
+
+  const callbackResponse = await page.request.post(
+    "/api/auth/callback/credentials?json=true",
+    {
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      data: form.toString(),
+    },
+  );
+  expect([200, 302]).toContain(callbackResponse.status());
+
+  // Verify a tenant-scoped session exists before tests reuse this storage state file.
+  const meResponse = await page.request.get(buildTenantApiPath(tenantSlug, "/api/me"), {
+    headers: {
+      "x-tenant-slug": tenantSlug,
+    },
+  });
+  expect(meResponse.status()).toBe(200);
+}
+
 // Env helpers keep login credentials centralized for deterministic auth setup.
 export function requireEnv(name: string): string {
   const value = process.env[name];
@@ -146,6 +198,19 @@ export async function loginAsTutor(page: Page, tenantSlug?: string) {
   const { email, password } = resolveTutorCredentials();
   const resolvedTenant = resolveTenantSlug(tenantSlug);
   await loginViaUI(page, { email, password, tenantSlug: resolvedTenant });
+  return { email, tenantSlug: resolvedTenant };
+}
+
+// Tutor API-login wrapper is used by setup-tutor to create deterministic storage state.
+export async function loginAsTutorViaApi(page: Page, tenantSlug?: string) {
+  const { email, password } = resolveTutorCredentials();
+  const resolvedTenant = resolveTenantSlug(tenantSlug);
+  await loginViaCredentialsApi(page, {
+    email,
+    password,
+    tenantSlug: resolvedTenant,
+    callbackPath: `/${resolvedTenant}/tutor/sessions`,
+  });
   return { email, tenantSlug: resolvedTenant };
 }
 

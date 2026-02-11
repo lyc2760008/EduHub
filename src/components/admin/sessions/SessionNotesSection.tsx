@@ -1,6 +1,6 @@
 "use client";
 
-// Session notes client section fetches and saves staff-only and parent-visible notes.
+// Session summary section fetches and saves staff-only session summary notes.
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
@@ -15,7 +15,6 @@ type SessionNotesPayload = {
   sessionId: string;
   notes: {
     internalNote: string | null;
-    parentVisibleNote: string | null;
     homework?: string | null;
     nextSteps?: string | null;
     updatedAt: string;
@@ -34,7 +33,6 @@ export default function SessionNotesSection({
 }: SessionNotesSectionProps) {
   const t = useTranslations();
   const [internalNote, setInternalNote] = useState("");
-  const [parentVisibleNote, setParentVisibleNote] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,13 +54,11 @@ export default function SessionNotesSection({
         setError(t("common.error"));
       }
       setInternalNote("");
-      setParentVisibleNote("");
       setIsLoading(false);
       return;
     }
 
     setInternalNote(result.data.notes?.internalNote ?? "");
-    setParentVisibleNote(result.data.notes?.parentVisibleNote ?? "");
     setIsLoading(false);
   }, [sessionId, t, tenant]);
 
@@ -80,12 +76,8 @@ export default function SessionNotesSection({
     setMessage(null);
 
     const normalizedInternal = internalNote.trim();
-    const normalizedParentVisible = parentVisibleNote.trim();
     const payload = {
       internalNote: normalizedInternal.length ? normalizedInternal : null,
-      parentVisibleNote: normalizedParentVisible.length
-        ? normalizedParentVisible
-        : null,
     };
 
     const result = await fetchJson<SessionNotesPayload>(
@@ -108,14 +100,11 @@ export default function SessionNotesSection({
     }
 
     setInternalNote(result.data.notes?.internalNote ?? "");
-    setParentVisibleNote(result.data.notes?.parentVisibleNote ?? "");
     setMessage(t("admin.sessions.notes.saved"));
     setIsSaving(false);
-  }, [internalNote, parentVisibleNote, sessionId, t, tenant]);
+  }, [internalNote, sessionId, t, tenant]);
 
   const internalId = "session-notes-internal";
-  const parentVisibleId = "session-notes-parent-visible";
-  const parentVisibleHintId = `${parentVisibleId}-hint`;
 
   return (
     <section
@@ -128,8 +117,8 @@ export default function SessionNotesSection({
         </h2>
         <button
           className={primaryButton}
-          // E2E selector keeps notes save behavior stable without relying on copy.
-          data-testid="notes-save-button"
+          // Keep an explicit test hook for saving session summary content.
+          data-testid="session-summary-save-button"
           disabled={isLoading || isSaving}
           onClick={() => void handleSave()}
           type="button"
@@ -158,39 +147,18 @@ export default function SessionNotesSection({
         <AdminFormField
           label={t("admin.sessions.notes.internalLabel")}
           htmlFor={internalId}
-          // Wrapper test id helps target the field group when needed.
-          testId="notes-internal"
+          // Wrapper test id helps target the summary input in integration tests.
+          testId="session-summary-internal"
         >
           <textarea
             id={internalId}
             className={`${inputBase} min-h-[120px] resize-y`}
-            data-testid="notes-internal-input"
+            data-testid="session-summary-internal-input"
             value={internalNote}
             disabled={isLoading || isSaving}
             onChange={(event) => {
               setMessage(null);
               setInternalNote(event.target.value);
-            }}
-          />
-        </AdminFormField>
-
-        <AdminFormField
-          label={t("admin.sessions.notes.parentVisibleLabel")}
-          htmlFor={parentVisibleId}
-          hint={t("admin.sessions.notes.parentVisibleHint")}
-          // Wrapper test id keeps the parent-visible group stable for E2E.
-          testId="notes-parent-visible"
-        >
-          <textarea
-            id={parentVisibleId}
-            className={`${inputBase} min-h-[120px] resize-y`}
-            data-testid="notes-parent-visible-input"
-            value={parentVisibleNote}
-            disabled={isLoading || isSaving}
-            aria-describedby={parentVisibleHintId}
-            onChange={(event) => {
-              setMessage(null);
-              setParentVisibleNote(event.target.value);
             }}
           />
         </AdminFormField>

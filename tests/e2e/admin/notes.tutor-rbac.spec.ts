@@ -78,8 +78,9 @@ test.describe("[regression] Session notes - tutor RBAC", () => {
     await expect(page.getByTestId("notes-section")).toBeVisible();
 
     const tutorNote = uniqueString("E2E tutor1 internal");
-    await page.getByTestId("notes-internal-input").fill(tutorNote);
-    await page.getByTestId("notes-save-button").click();
+    // Tutor can edit the staff-only session summary field on assigned sessions.
+    await page.getByTestId("session-summary-internal-input").fill(tutorNote);
+    await page.getByTestId("session-summary-save-button").click();
     await expect(page.getByTestId("notes-saved-toast")).toBeVisible();
 
     // Tutor2 API access should be forbidden for Tutor1's session.
@@ -99,7 +100,9 @@ test.describe("[regression] Session notes - tutor RBAC", () => {
     // Switch back to Tutor1 to confirm notes were not overwritten.
     await loginViaUI(page, { email: tutor1Email, password: tutor1Password, tenantSlug });
     await page.goto(buildTenantPath(tenantSlug, `/admin/sessions/${session.id}`));
-    await expect(page.getByTestId("notes-internal-input")).toHaveValue(tutorNote);
+    await expect(page.getByTestId("session-summary-internal-input")).toHaveValue(
+      tutorNote,
+    );
   });
 });
 
