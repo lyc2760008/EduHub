@@ -5,6 +5,7 @@ import { defineConfig } from "@playwright/test";
 
 const ADMIN_STORAGE_STATE = "tests/e2e/.auth/admin.json";
 const PARENT_STORAGE_STATE = "tests/e2e/.auth/parent.json";
+const TUTOR_STORAGE_STATE = "tests/e2e/.auth/tutor.json";
 
 type TraceMode = "off" | "on" | "retain-on-failure" | "on-first-retry" | "on-all-retries";
 type ScreenshotMode = "off" | "on" | "only-on-failure";
@@ -26,6 +27,9 @@ const skipAdmin =
 const skipGolden =
   (process.env.E2E_SKIP_SEED || "").trim() === "1" &&
   (process.env.E2E_ALLOW_UNSEEDED_GOLDEN || "").trim() !== "1";
+const skipTutor =
+  (process.env.E2E_SKIP_SEED || "").trim() === "1" &&
+  (process.env.E2E_ALLOW_UNSEEDED_TUTOR || "").trim() !== "1";
 
 function shouldStartLocalWebServer(baseURL: string): boolean {
   // When E2E_BASE_URL points at a remote deployment (ex: STAGING), we must not spawn a local server.
@@ -119,6 +123,11 @@ export default defineConfig({
           ]
         : []),
       {
+        name: "setup-tutor",
+        testDir: "./tests/e2e/setup",
+        testMatch: /.*tutor\.setup\.ts/,
+      },
+      {
         name: "smoke-chromium",
         testDir: "./tests/e2e/smoke",
         dependencies: ["setup-admin"],
@@ -143,6 +152,15 @@ export default defineConfig({
           storageState: ADMIN_STORAGE_STATE,
         },
         testIgnore: skipAdmin ? /./ : undefined,
+      },
+      {
+        name: "tutor-chromium",
+        testDir: "./tests/e2e/tutor",
+        dependencies: ["setup-tutor"],
+        use: {
+          storageState: TUTOR_STORAGE_STATE,
+        },
+        testIgnore: skipTutor ? /./ : undefined,
       },
       {
         name: "golden-chromium",
