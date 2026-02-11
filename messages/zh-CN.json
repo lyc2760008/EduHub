@@ -334,10 +334,13 @@
         "studentFilter": "学生筛选"
       },
       "actions": {
+        "_comment": "分组详情操作包含名单保存与未来课次同步。",
         "manage": "管理",
         "back": "返回分组",
         "saveTutors": "保存导师",
-        "saveStudents": "保存学生"
+        "saveStudents": "保存学生",
+        "syncFutureSessions": "同步到未来课次",
+        "syncFutureSessionsLoading": "同步中..."
       },
       "messages": {
         "loadError": "无法加载分组",
@@ -355,6 +358,8 @@
         "noStudents": "暂无学生",
         "tutorsUpdated": "导师已更新",
         "studentsUpdated": "学生名单已更新",
+        "_commentSync": "同步提示用于说明新增学生关联写入了多少未来课次。",
+        "futureSessionsSynced": "已在 {sessions} 个未来课次同步 {students} 条学生关联",
         "filterStudents": "按姓名筛选学生",
         "notFound": "未找到分组"
       }

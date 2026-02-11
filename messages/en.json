@@ -334,10 +334,13 @@
         "studentFilter": "Student filter"
       },
       "actions": {
+        "_comment": "Group detail row actions include roster save and future-session sync.",
         "manage": "Manage",
         "back": "Back to Groups",
         "saveTutors": "Save Tutors",
-        "saveStudents": "Save Students"
+        "saveStudents": "Save Students",
+        "syncFutureSessions": "Sync to Future Sessions",
+        "syncFutureSessionsLoading": "Syncing..."
       },
       "messages": {
         "loadError": "Unable to load groups",
@@ -355,6 +358,8 @@
         "noStudents": "No students available",
         "tutorsUpdated": "Tutors updated",
         "studentsUpdated": "Roster updated",
+        "_commentSync": "Sync message confirms how many student links were added across upcoming group sessions.",
+        "futureSessionsSynced": "Synced {students} student links across {sessions} future sessions",
         "filterStudents": "Filter students by name",
         "notFound": "Group not found"
       }
