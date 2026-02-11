@@ -12,6 +12,8 @@ import { buildTenantApiPath } from "./tenant";
 
 export type GoLiveParentAccess = {
   email: string;
+  // Legacy field retained because many go-live specs still destructure it.
+  // Magic-link auth no longer uses access codes, so this is informational only.
   accessCode: string;
   parentId?: string;
   studentId?: string;
@@ -83,25 +85,21 @@ export async function resolveGoLiveParentAccess(
   // Prefer a dedicated portal-access email to avoid colliding with staff "Parent" logins.
   const explicitEmail =
     process.env.E2E_PARENT_ACCESS_EMAIL || process.env.E2E_PARENT_EMAIL;
-  const explicitAccessCode = process.env.E2E_PARENT_ACCESS_CODE;
 
-  if (
-    process.env.E2E_PARENT_ACCESS_EMAIL &&
-    explicitEmail &&
-    explicitAccessCode
-  ) {
-    // Use the explicitly configured parent access-code credentials when provided.
-    return { email: explicitEmail, accessCode: explicitAccessCode };
+  if (explicitEmail) {
+    // When an explicit parent email is configured (common for STAGING runs), use it.
+    // The `accessCode` value is a placeholder; login helpers ignore it for magic-link auth.
+    return { email: explicitEmail, accessCode: "MAGIC_LINK" };
   }
 
   await loginAsAdmin(page, tenantSlug);
 
-  // Fall back to creating a disposable parent + access code when env creds are incomplete.
+  // Fall back to creating a disposable parent (linked to a student) when env creds are incomplete.
   const seeded = await prepareParentAccessCode(page, tenantSlug);
   await page.context().clearCookies();
   return {
     email: seeded.parentEmail,
-    accessCode: seeded.accessCode,
+    accessCode: "MAGIC_LINK",
     parentId: seeded.parentId,
     studentId: seeded.studentId,
   };

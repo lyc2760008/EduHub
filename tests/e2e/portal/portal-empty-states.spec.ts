@@ -1,4 +1,4 @@
-// Empty state coverage for parents with zero linked students.
+// Empty state coverage for parents with a linked student but no upcoming sessions.
 import { expect, test } from "@playwright/test";
 
 import {
@@ -10,18 +10,14 @@ import {
 
 // Tagged for Playwright suite filtering.
 test.describe("[regression] Parent portal empty states", () => {
-  test("Parent with no linked students sees empty states", async ({ page }) => {
+  test("Parent with no upcoming sessions sees empty sessions state", async ({ page }) => {
     const tenantSlug = resolvePortalTenantSlug();
     const credentials = await resolveParent0Credentials(page);
 
     await loginParentWithAccessCode(page, tenantSlug, credentials);
-    await expect(page.getByTestId("portal-empty-noStudents")).toBeVisible();
-
-    await page.goto(buildPortalPath(tenantSlug, "/students"));
-    await expect(page.getByTestId("portal-empty-noStudents")).toBeVisible();
 
     await page.goto(buildPortalPath(tenantSlug, "/sessions"));
-    await expect(page.getByTestId("portal-empty-noStudents")).toBeVisible();
+    await expect(page.getByTestId("portal-empty-noUpcomingSessions")).toBeVisible();
   });
 });
 

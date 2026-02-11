@@ -27,6 +27,19 @@ const skipGolden =
   (process.env.E2E_SKIP_SEED || "").trim() === "1" &&
   (process.env.E2E_ALLOW_UNSEEDED_GOLDEN || "").trim() !== "1";
 
+function shouldStartLocalWebServer(baseURL: string): boolean {
+  // When E2E_BASE_URL points at a remote deployment (ex: STAGING), we must not spawn a local server.
+  // For local dev loops and CI, starting a webServer makes `pnpm e2e:full` self-contained.
+  try {
+    const url = new URL(baseURL);
+    const host = url.hostname.toLowerCase();
+    return host === "localhost" || host === "127.0.0.1" || host.endsWith(".lvh.me");
+  } catch {
+    // Non-URL inputs should behave like local defaults.
+    return true;
+  }
+}
+
 export default defineConfig({
   testDir: "./tests/e2e",
   // Global setup keeps the dedicated e2e tenant fixtures ready for all specs.
@@ -70,57 +83,81 @@ export default defineConfig({
   },
   // Include HTML report output for go-live gating and operator review.
   reporter: [["list"], ["html", { outputFolder: "playwright-report", open: "never" }]],
+  // Start a local Next.js dev server by default so E2E runs don't require a separate terminal.
+  // Remote runs (STAGING/PROD) opt out automatically when E2E_BASE_URL points elsewhere.
+  webServer: (() => {
+    const baseURL = process.env.E2E_BASE_URL || "http://e2e-testing.lvh.me:3000";
+    if (!shouldStartLocalWebServer(baseURL)) return undefined;
+    return {
+      command: "pnpm dev -- --port 3000",
+      url: "http://localhost:3000/api/health",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    };
+  })(),
   // Project splits keep smoke fast while allowing portal/admin suites to reuse auth state.
-  projects: [
-    {
-      name: "setup-admin",
-      testDir: "./tests/e2e/setup",
-      testMatch: /.*admin\.setup\.ts/,
-    },
-    {
-      name: "setup-parent",
-      testDir: "./tests/e2e/setup",
-      testMatch: /.*parent\.setup\.ts/,
-    },
-    {
-      name: "smoke-chromium",
-      testDir: "./tests/e2e/smoke",
-      dependencies: ["setup-admin"],
-      use: {
-        storageState: ADMIN_STORAGE_STATE,
+  projects: (() => {
+    // When seeding is disabled, portal + golden suites are ignored by default. In that mode we must
+    // also skip the parent storage-state project, otherwise `pnpm e2e:full` fails before reaching
+    // staging/prod-safe suites (go-live).
+    const needsParentSetup = !skipPortal || !skipGolden;
+    const parentDeps = needsParentSetup ? ["setup-parent"] : [];
+
+    return [
+      {
+        name: "setup-admin",
+        testDir: "./tests/e2e/setup",
+        testMatch: /.*admin\.setup\.ts/,
       },
-    },
-    {
-      name: "portal-chromium",
-      testDir: "./tests/e2e/portal",
-      dependencies: ["setup-parent"],
-      use: {
-        storageState: PARENT_STORAGE_STATE,
+      ...(needsParentSetup
+        ? [
+            {
+              name: "setup-parent",
+              testDir: "./tests/e2e/setup",
+              testMatch: /.*parent\.setup\.ts/,
+            },
+          ]
+        : []),
+      {
+        name: "smoke-chromium",
+        testDir: "./tests/e2e/smoke",
+        dependencies: ["setup-admin"],
+        use: {
+          storageState: ADMIN_STORAGE_STATE,
+        },
       },
-      testIgnore: skipPortal ? /./ : undefined,
-    },
-    {
-      name: "admin-chromium",
-      testDir: "./tests/e2e/admin",
-      dependencies: ["setup-admin"],
-      use: {
-        storageState: ADMIN_STORAGE_STATE,
+      {
+        name: "portal-chromium",
+        testDir: "./tests/e2e/portal",
+        dependencies: parentDeps,
+        use: {
+          storageState: PARENT_STORAGE_STATE,
+        },
+        testIgnore: skipPortal ? /./ : undefined,
       },
-      testIgnore: skipAdmin ? /./ : undefined,
-    },
-    {
-      name: "golden-chromium",
-      testDir: "./tests/e2e/golden",
-      dependencies: ["setup-admin", "setup-parent"],
-      use: {
-        storageState: PARENT_STORAGE_STATE,
+      {
+        name: "admin-chromium",
+        testDir: "./tests/e2e/admin",
+        dependencies: ["setup-admin"],
+        use: {
+          storageState: ADMIN_STORAGE_STATE,
+        },
+        testIgnore: skipAdmin ? /./ : undefined,
       },
-      testIgnore: skipGolden ? /./ : undefined,
-    },
-    {
-      name: "go-live-chromium",
-      testDir: "./tests/e2e/go-live",
-      // Go-live specs manage auth within each test to support staging/prod runs.
-    },
-  ],
+      {
+        name: "golden-chromium",
+        testDir: "./tests/e2e/golden",
+        dependencies: ["setup-admin", ...parentDeps],
+        use: {
+          storageState: PARENT_STORAGE_STATE,
+        },
+        testIgnore: skipGolden ? /./ : undefined,
+      },
+      {
+        name: "go-live-chromium",
+        testDir: "./tests/e2e/go-live",
+        // Go-live specs manage auth within each test to support staging/prod runs.
+      },
+    ];
+  })(),
 });

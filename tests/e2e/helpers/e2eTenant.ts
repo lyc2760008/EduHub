@@ -214,6 +214,11 @@ export async function upsertE2EFixtures(prisma: DbClient) {
 
   const studentId = `e2e-${tenant.slug}-${runId}-student-s1`;
   const unlinkedStudentId = `e2e-${tenant.slug}-${runId}-student-s2`;
+  // Step 22.2 fixture: a student whose linked parent is missing an email (button disabled state coverage).
+  const missingEmailStudentId = `e2e-${tenant.slug}-${runId}-student-s3`;
+  // Parent magic-link eligibility requires at least one linked student; keep a dedicated student for A0
+  // so tests can authenticate as a "different parent" without affecting A1's session fixtures.
+  const parentA0StudentId = `e2e-${tenant.slug}-${runId}-student-s4`;
   const upcomingSessionId = `e2e-${tenant.slug}-${runId}-session-upcoming`;
   const pastSessionId = `e2e-${tenant.slug}-${runId}-session-past`;
   const tutorBSessionId = `e2e-${tenant.slug}-${runId}-session-tutor-b`;
@@ -254,8 +259,13 @@ export async function upsertE2EFixtures(prisma: DbClient) {
   const adminName = "E2E Admin";
   const parentA0Name = { firstName: "E2E Parent", lastName: "A0" };
   const parentA1Name = { firstName: "E2E Parent", lastName: "A1" };
+  // Parent email is required by the schema, but an empty string is allowed and exercises the admin UI disabled state.
+  const missingEmailParentName = { firstName: "E2E Parent", lastName: "NoEmail" };
+  const missingEmailParentEmail = "";
   const studentName = { firstName: "E2E Student", lastName: "S1" };
   const unlinkedStudentName = { firstName: "E2E Student", lastName: "S2" };
+  const missingEmailStudentName = { firstName: "E2E Student", lastName: "S3" };
+  const parentA0StudentName = { firstName: "E2E Student", lastName: "A0" };
 
   const timezone = "America/Edmonton";
   const nowLocal = DateTime.now().setZone(timezone);
@@ -569,6 +579,25 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       select: { id: true },
     });
 
+    const missingEmailParent = await tx.parent.upsert({
+      where: {
+        tenantId_email: { tenantId: tenant.id, email: missingEmailParentEmail },
+      },
+      update: {
+        firstName: missingEmailParentName.firstName,
+        lastName: missingEmailParentName.lastName,
+        hasSeenWelcome: false,
+      },
+      create: {
+        tenantId: tenant.id,
+        firstName: missingEmailParentName.firstName,
+        lastName: missingEmailParentName.lastName,
+        email: missingEmailParentEmail,
+        hasSeenWelcome: false,
+      },
+      select: { id: true },
+    });
+
     const student = await tx.student.upsert({
       where: { id: studentId },
       update: {
@@ -606,6 +635,42 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       select: { id: true },
     });
 
+    const missingEmailStudent = await tx.student.upsert({
+      where: { id: missingEmailStudentId },
+      update: {
+        tenantId: tenant.id,
+        firstName: missingEmailStudentName.firstName,
+        lastName: missingEmailStudentName.lastName,
+        status: "ACTIVE",
+      },
+      create: {
+        id: missingEmailStudentId,
+        tenantId: tenant.id,
+        firstName: missingEmailStudentName.firstName,
+        lastName: missingEmailStudentName.lastName,
+        status: "ACTIVE",
+      },
+      select: { id: true },
+    });
+
+    const parentA0Student = await tx.student.upsert({
+      where: { id: parentA0StudentId },
+      update: {
+        tenantId: tenant.id,
+        firstName: parentA0StudentName.firstName,
+        lastName: parentA0StudentName.lastName,
+        status: "ACTIVE",
+      },
+      create: {
+        id: parentA0StudentId,
+        tenantId: tenant.id,
+        firstName: parentA0StudentName.firstName,
+        lastName: parentA0StudentName.lastName,
+        status: "ACTIVE",
+      },
+      select: { id: true },
+    });
+
     await tx.studentParent.upsert({
       where: {
         tenantId_studentId_parentId: {
@@ -619,6 +684,40 @@ export async function upsertE2EFixtures(prisma: DbClient) {
         tenantId: tenant.id,
         studentId: student.id,
         parentId: parentA1.id,
+        relationship: "GUARDIAN",
+      },
+    });
+
+    await tx.studentParent.upsert({
+      where: {
+        tenantId_studentId_parentId: {
+          tenantId: tenant.id,
+          studentId: parentA0Student.id,
+          parentId: parentA0.id,
+        },
+      },
+      update: { relationship: "GUARDIAN" },
+      create: {
+        tenantId: tenant.id,
+        studentId: parentA0Student.id,
+        parentId: parentA0.id,
+        relationship: "GUARDIAN",
+      },
+    });
+
+    await tx.studentParent.upsert({
+      where: {
+        tenantId_studentId_parentId: {
+          tenantId: tenant.id,
+          studentId: missingEmailStudent.id,
+          parentId: missingEmailParent.id,
+        },
+      },
+      update: { relationship: "GUARDIAN" },
+      create: {
+        tenantId: tenant.id,
+        studentId: missingEmailStudent.id,
+        parentId: missingEmailParent.id,
         relationship: "GUARDIAN",
       },
     });
@@ -1442,6 +1541,7 @@ export async function upsertE2EFixtures(prisma: DbClient) {
     tutorBEmail,
     studentId,
     unlinkedStudentId,
+    missingEmailStudentId,
     upcomingSessionId,
     pastSessionId,
     tutorBSessionId,

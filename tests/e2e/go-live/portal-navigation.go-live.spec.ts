@@ -24,7 +24,8 @@ test.describe("[go-live] Parent portal navigation", () => {
     await page.goto(buildTenantPath(tenantSlug, "/parent/login"));
     await expect(page.getByTestId("parent-login-page")).toBeVisible();
     await expect(page.getByTestId("parent-login-email")).toBeVisible();
-    await expect(page.getByTestId("parent-login-access-code")).toBeVisible();
+    // Parent login is magic-link based; access-code fields should not be present.
+    await expect(page.getByTestId("parent-login-remember-me")).toBeVisible();
     await expect(page.getByTestId("parent-login-submit")).toBeVisible();
   });
 

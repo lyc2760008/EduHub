@@ -9,6 +9,8 @@ export type Step203Fixtures = {
   tutorBEmail: string;
   studentId: string;
   unlinkedStudentId: string;
+  // Step 22.2 coverage uses a dedicated fixture student whose linked parent has a missing email.
+  missingEmailStudentId: string;
   upcomingSessionId: string;
   pastSessionId: string;
   tutorBSessionId: string;
@@ -46,6 +48,7 @@ export function resolveStep203Fixtures(): Step203Fixtures {
     tutorBEmail: `e2e.tutor.b${emailSuffix}@example.com`,
     studentId: `e2e-${tenantSlug}-${runId}-student-s1`,
     unlinkedStudentId: `e2e-${tenantSlug}-${runId}-student-s2`,
+    missingEmailStudentId: `e2e-${tenantSlug}-${runId}-student-s3`,
     upcomingSessionId: `e2e-${tenantSlug}-${runId}-session-upcoming`,
     pastSessionId: `e2e-${tenantSlug}-${runId}-session-past`,
     tutorBSessionId: `e2e-${tenantSlug}-${runId}-session-tutor-b`,

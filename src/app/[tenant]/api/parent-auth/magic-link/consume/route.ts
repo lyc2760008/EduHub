@@ -1,7 +1,6 @@
 // Parent magic link consume endpoint (verifies token and establishes session).
 import { NextRequest, NextResponse } from "next/server";
 
-import { getRequestOrigin } from "@/lib/auth/magicLink";
 import { signIn } from "@/lib/auth";
 
 export const runtime = "nodejs";
@@ -32,10 +31,10 @@ export async function GET(req: NextRequest, context: Params) {
     return NextResponse.json<ConsumeResponse>({ ok: false, reason: "missing" });
   }
 
-  const origin = getRequestOrigin(req);
-  const redirectTo = origin
-    ? `${origin}/${tenantSlug}/parent`
-    : `/${tenantSlug}/parent`;
+  // Avoid emitting absolute URLs back to the client. Absolute URLs can pick up
+  // `AUTH_URL/NEXTAUTH_URL` (often `http://localhost:3000` in dev), which
+  // would send parents to the wrong host after consuming a valid token.
+  const redirectTo = `/${tenantSlug}/parent`;
 
   const redirectUrl = (await signIn("parent-magic-link", {
     token,
@@ -51,8 +50,9 @@ export async function GET(req: NextRequest, context: Params) {
     });
   }
 
-  const resolvedOrigin = origin ?? "http://localhost";
-  const parsed = new URL(redirectUrl, resolvedOrigin);
+  // Parse the NextAuth redirect URL only to detect success vs. typed errors.
+  // The destination we return to the client is always the tenant-scoped relative path above.
+  const parsed = new URL(redirectUrl, "http://localhost");
   const error = parsed.searchParams.get("error");
 
   if (error) {
@@ -65,8 +65,6 @@ export async function GET(req: NextRequest, context: Params) {
 
   return NextResponse.json<ConsumeResponse>({
     ok: true,
-    redirectTo: origin
-      ? parsed.toString()
-      : `${parsed.pathname}${parsed.search}${parsed.hash}`,
+    redirectTo,
   });
 }

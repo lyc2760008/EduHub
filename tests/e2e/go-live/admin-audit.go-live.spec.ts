@@ -25,7 +25,8 @@ test.describe("[go-live][prod-safe] Admin audit access", () => {
     await expect(page.getByTestId("audit-log")).toBeVisible();
     // Check error state non-blockingly to avoid hanging when the element is not rendered at all.
     const errorVisible = await page
-      .getByTestId("audit-error-state")
+      // Audit log uses the shared admin table error panel.
+      .getByTestId("admin-table-error")
       .isVisible()
       .catch(() => false);
     expect(errorVisible).toBeFalsy();
@@ -45,8 +46,10 @@ test.describe("[go-live][prod-safe] Admin audit access", () => {
       .poll(async () => {
         const rowCount = await page.getByTestId("audit-row-action").count();
         if (rowCount > 0) return "rows";
+        // Scope to the desktop table container to avoid matching the hidden mobile empty panel.
         const emptyVisible = await page
-          .getByTestId("audit-empty-state")
+          .getByTestId("audit-table-container")
+          .getByTestId("admin-table-empty")
           .isVisible()
           .catch(() => false);
         return emptyVisible ? "empty" : "loading";
@@ -55,17 +58,24 @@ test.describe("[go-live][prod-safe] Admin audit access", () => {
 
     const rowCount = await page.getByTestId("audit-row-action").count();
     const emptyVisible = await page
-      .getByTestId("audit-empty-state")
+      .getByTestId("audit-table-container")
+      .getByTestId("admin-table-empty")
       .isVisible()
       .catch(() => false);
 
     if (rowCount === 0 && emptyVisible) {
-      await expect(page.getByTestId("audit-empty-state")).toBeVisible();
+      await expect(
+        page
+          .getByTestId("audit-table-container")
+          .getByTestId("admin-table-empty"),
+      ).toBeVisible();
       return;
     }
 
-    const firstRowAction = page.getByTestId("audit-row-action").first();
-    await firstRowAction.click();
+    // Click the row container (not the cell span) because the row handles navigation/drawer open.
+    // Scope to `tr[...]` so we don't accidentally match `audit-row-action` spans.
+    const firstRow = page.locator('tr[data-testid^="audit-row-"]').first();
+    await firstRow.click();
     await expect(page.getByTestId("audit-detail-drawer")).toBeVisible();
   });
 });
