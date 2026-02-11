@@ -7,14 +7,15 @@
 // - Insert only token hashes into the DB, mirroring production behavior.
 import { createHash, randomBytes } from "node:crypto";
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { Client } from "pg";
 
 import { resolveStep203Fixtures } from "..\/helpers/step203";
-import { buildTenantPath } from "..\/helpers/tenant";
+import { buildTenantPath, buildTenantApiPath } from "..\/helpers/tenant";
 
 type TenantRow = { id: string; slug: string };
 type ParentRow = { id: string; email: string | null };
+type ParentWithEmail = { id: string; email: string };
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -77,7 +78,7 @@ async function requireTenant(slug: string): Promise<TenantRow> {
   return tenant;
 }
 
-async function requireParent(tenantId: string, email: string): Promise<ParentRow> {
+async function requireParent(tenantId: string, email: string): Promise<ParentWithEmail> {
   const normalized = email.trim().toLowerCase();
   const result = await db.query<ParentRow>(
     `SELECT "id", "email" FROM "Parent" WHERE "tenantId" = $1 AND lower("email") = $2 LIMIT 1`,
@@ -87,7 +88,8 @@ async function requireParent(tenantId: string, email: string): Promise<ParentRow
   if (!parent?.id || !parent.email) {
     throw new Error("Expected seeded parent to exist and have an email.");
   }
-  return parent;
+  // Narrow to a non-null email shape for callers after runtime guard above.
+  return { id: parent.id, email: parent.email };
 }
 
 async function requireParentLinked(tenantId: string, parentId: string) {
@@ -132,19 +134,96 @@ async function getTokenConsumedAt(tenantId: string, tokenHash: string) {
   return result.rows[0]?.consumedAt ?? null;
 }
 
-test("[regression] Magic-link verify establishes a session and consumes the token", async ({ page }) => {
+type IssuedMagicLinkToken =
+  | { mode: "db"; rawToken: string; tokenHash: string }
+  | { mode: "endpoint"; rawToken: string };
+
+async function mintTokenViaEndpoint(
+  page: Page,
+  tenantSlug: string,
+  parentEmail: string,
+): Promise<string> {
+  const secret = process.env.E2E_TEST_SECRET?.trim();
+  if (!secret) {
+    throw new Error("E2E_TEST_SECRET is required for endpoint-minted parent magic links.");
+  }
+
+  const response = await page.request.post(
+    buildTenantApiPath(tenantSlug, "/api/test/mint-parent-magic-link"),
+    {
+      headers: {
+        "content-type": "application/json",
+        "x-e2e-secret": secret,
+        // Keep tenant resolution explicit for shared-host STAGING runs.
+        "x-tenant-slug": tenantSlug,
+      },
+      data: { parentEmail, rememberMe: true },
+    },
+  );
+
+  if (!response.ok()) {
+    throw new Error(
+      `E2E mint-parent-magic-link endpoint unavailable (status ${response.status()}).`,
+    );
+  }
+
+  const payload = (await response.json()) as { ok?: boolean; token?: string };
+  if (!payload?.ok || !payload.token) {
+    throw new Error("E2E mint-parent-magic-link endpoint did not return a token.");
+  }
+
+  return payload.token;
+}
+
+async function issueMagicLinkToken(input: {
+  page: Page;
+  tenantSlug: string;
+  tenantId: string;
+  parentId: string;
+  parentEmail: string;
+}): Promise<IssuedMagicLinkToken> {
+  // STAGING uses a different AUTH_SECRET than local runs, so DB-inserted hashes from
+  // the runner will not match there. Prefer the guarded endpoint when secret is available.
+  if (process.env.E2E_TEST_SECRET?.trim()) {
+    const rawToken = await mintTokenViaEndpoint(
+      input.page,
+      input.tenantSlug,
+      input.parentEmail,
+    );
+    return { mode: "endpoint", rawToken };
+  }
+
+  // Local/CI fallback path keeps this spec runnable without test-only endpoint wiring.
+  const { rawToken, tokenHash } = generateMagicLinkToken();
+  await insertMagicLinkToken({
+    tenantId: input.tenantId,
+    parentId: input.parentId,
+    tokenHash,
+  });
+  return { mode: "db", rawToken, tokenHash };
+}
+
+test("[regression] Magic-link verify establishes a session and consumes the token", async ({
+  page,
+  browser,
+}) => {
   const fixtures = resolveStep203Fixtures();
   const tenantSlug = fixtures.tenantSlug;
   const tenant = await requireTenant(tenantSlug);
   const parent = await requireParent(tenant.id, fixtures.parentA1Email);
   await requireParentLinked(tenant.id, parent.id);
 
-  const { rawToken, tokenHash } = generateMagicLinkToken();
-  await insertMagicLinkToken({ tenantId: tenant.id, parentId: parent.id, tokenHash });
+  const issued = await issueMagicLinkToken({
+    page,
+    tenantSlug,
+    tenantId: tenant.id,
+    parentId: parent.id,
+    parentEmail: parent.email,
+  });
 
   const verifyPath = buildTenantPath(
     tenantSlug,
-    `/parent/auth/verify?token=${encodeURIComponent(rawToken)}`,
+    `/parent/auth/verify?token=${encodeURIComponent(issued.rawToken)}`,
   );
 
   await page.goto(verifyPath, { waitUntil: "domcontentloaded" });
@@ -160,8 +239,17 @@ test("[regression] Magic-link verify establishes a session and consumes the toke
   await page.goto(buildTenantPath(tenantSlug, "/portal"), { waitUntil: "domcontentloaded" });
   await expect(page.getByTestId("portal-dashboard-page")).toBeVisible();
 
-  const consumedAt = await getTokenConsumedAt(tenant.id, tokenHash);
-  expect(consumedAt).not.toBeNull();
+  if (issued.mode === "db") {
+    const consumedAt = await getTokenConsumedAt(tenant.id, issued.tokenHash);
+    expect(consumedAt).not.toBeNull();
+  } else {
+    // Endpoint mode does not expose tokenHash; verify consumption by confirming second use is rejected.
+    const context2 = await browser.newContext();
+    const page2 = await context2.newPage();
+    await page2.goto(verifyPath, { waitUntil: "domcontentloaded" });
+    await expect(page2.getByText(/invalid link/i)).toBeVisible();
+    await context2.close();
+  }
 });
 
 test("[regression] Magic-link tokens are single-use", async ({ page, browser }) => {
@@ -171,12 +259,17 @@ test("[regression] Magic-link tokens are single-use", async ({ page, browser }) 
   const parent = await requireParent(tenant.id, fixtures.parentA1Email);
   await requireParentLinked(tenant.id, parent.id);
 
-  const { rawToken, tokenHash } = generateMagicLinkToken();
-  await insertMagicLinkToken({ tenantId: tenant.id, parentId: parent.id, tokenHash });
+  const issued = await issueMagicLinkToken({
+    page,
+    tenantSlug,
+    tenantId: tenant.id,
+    parentId: parent.id,
+    parentEmail: parent.email,
+  });
 
   const verifyPath = buildTenantPath(
     tenantSlug,
-    `/parent/auth/verify?token=${encodeURIComponent(rawToken)}`,
+    `/parent/auth/verify?token=${encodeURIComponent(issued.rawToken)}`,
   );
 
   // First consume should succeed.
@@ -208,12 +301,17 @@ test("[regression] Magic-link tokens are tenant-scoped (cross-tenant verify is r
   const parent = await requireParent(tenant.id, fixtures.parentA1Email);
   await requireParentLinked(tenant.id, parent.id);
 
-  const { rawToken, tokenHash } = generateMagicLinkToken();
-  await insertMagicLinkToken({ tenantId: tenant.id, parentId: parent.id, tokenHash });
+  const issued = await issueMagicLinkToken({
+    page,
+    tenantSlug,
+    tenantId: tenant.id,
+    parentId: parent.id,
+    parentEmail: parent.email,
+  });
 
   const verifyOtherTenantPath = buildTenantPath(
     otherTenantSlug,
-    `/parent/auth/verify?token=${encodeURIComponent(rawToken)}`,
+    `/parent/auth/verify?token=${encodeURIComponent(issued.rawToken)}`,
   );
 
   await page.goto(verifyOtherTenantPath, { waitUntil: "domcontentloaded" });
