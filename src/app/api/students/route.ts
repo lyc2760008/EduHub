@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/students
+ * @state.area api
+ * @state.capabilities view:list, create:student
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 import { Prisma, StudentStatus } from "@/generated/prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";

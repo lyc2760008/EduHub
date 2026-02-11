@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/portal/sessions/[id]
+ * @state.area parent
+ * @state.capabilities view:detail, report_absence:create_request, request:withdraw, request:resubmit
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 "use client";
 
 // Parent portal session detail page with per-student attendance and notes.

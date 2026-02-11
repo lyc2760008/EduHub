@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/portal/account
+ * @state.area parent
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 "use client";
 
 // Account page surfaces read-only identity data from the portal /me endpoint.

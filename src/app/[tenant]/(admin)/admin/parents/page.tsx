@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/admin/parents
+ * @state.area admin
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Admin parents page that uses the shared list shell + table toolkit for consistency.
 import { getTranslations } from "next-intl/server";
 

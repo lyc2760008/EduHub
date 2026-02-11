@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/parent/login
+ * @state.area parent
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Parent login page that requests a passwordless magic link.
 "use client";
 

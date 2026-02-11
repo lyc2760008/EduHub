@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/admin/sessions
+ * @state.area admin
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Admin/tutor sessions page that uses the shared access gate and a client list view.
 import { getTranslations } from "next-intl/server";
 

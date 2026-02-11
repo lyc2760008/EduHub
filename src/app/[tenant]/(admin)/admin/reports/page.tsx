@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/admin/reports
+ * @state.area admin
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 

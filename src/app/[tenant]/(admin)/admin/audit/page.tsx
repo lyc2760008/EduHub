@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/admin/audit
+ * @state.area admin
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Admin audit log page that wraps the client list with RBAC and tenant-aware shell.
 import { getTranslations } from "next-intl/server";
 

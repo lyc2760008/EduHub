@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/portal/onboarding/dismiss
+ * @state.area api
+ * @state.capabilities create:dismis
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Parent portal endpoint to dismiss the first-login welcome card.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";

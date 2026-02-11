@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/sessions/[id]/notes
+ * @state.area api
+ * @state.capabilities view:detail, update:note
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Session notes API routes with tenant scoping, RBAC, and zod validation.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";

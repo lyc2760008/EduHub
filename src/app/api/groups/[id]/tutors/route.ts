@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/groups/[id]/tutors
+ * @state.area api
+ * @state.capabilities update:tutor
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Replace-group-tutors API with tenant scoping, RBAC, and validation.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";

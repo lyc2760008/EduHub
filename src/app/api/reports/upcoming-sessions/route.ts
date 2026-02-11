@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/reports/upcoming-sessions
+ * @state.area api
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Upcoming sessions report endpoint with tenant-scoped queries and RBAC.
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";

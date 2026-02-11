@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/students/[studentId]/parents/[parentId]
+ * @state.area api
+ * @state.capabilities delete:parent
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
 import { requireRole } from "@/lib/rbac";

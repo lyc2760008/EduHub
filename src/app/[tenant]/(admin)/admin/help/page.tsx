@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/admin/help
+ * @state.area admin
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Admin help page renders the MMC quick start for staff.
 import { readFile } from "node:fs/promises";
 import path from "node:path";

@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/portal/requests/[id]/resubmit
+ * @state.area api
+ * @state.capabilities create:resubmit, request:resubmit
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Parent portal endpoint for resubmitting withdrawn requests before session start.
 import { NextRequest, NextResponse } from "next/server";
 

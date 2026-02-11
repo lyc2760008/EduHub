@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/students/[studentId]/parents
+ * @state.area api
+ * @state.capabilities view:detail, create:parent
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 import { AuditActorType, Prisma, type Role } from "@/generated/prisma/client";
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from "@/lib/audit/constants";
 import { writeAuditEvent } from "@/lib/audit/writeAuditEvent";

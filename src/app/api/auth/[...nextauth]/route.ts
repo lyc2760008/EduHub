@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/auth/[...nextauth]
+ * @state.area api
+ * @state.capabilities UNKNOWN
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 import { handlers } from "@/lib/auth";
 
 // App Router route handlers for NextAuth (GET/POST).

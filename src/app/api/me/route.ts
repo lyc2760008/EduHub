@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/me
+ * @state.area api
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 import { NextResponse, type NextRequest } from "next/server";
 
 import { requireTenantMembership } from "@/lib/rbac";

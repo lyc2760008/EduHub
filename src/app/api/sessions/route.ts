@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/sessions
+ * @state.area api
+ * @state.capabilities view:list, create:session, report_absence:create_request
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Sessions collection API with tenant scoping, RBAC, and validation.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";

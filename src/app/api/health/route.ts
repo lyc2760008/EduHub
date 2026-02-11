@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/health
+ * @state.area api
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Minimal health endpoint for deployment checks (returns 200 OK or 503 if DB is unreachable).
 import { NextResponse } from "next/server";
 

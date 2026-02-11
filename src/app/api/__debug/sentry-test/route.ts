@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/__debug/sentry-test
+ * @state.area api
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Staging-only Sentry test endpoint guarded by RBAC (no PII, no UI).
 import * as Sentry from "@sentry/nextjs";
 import { NextRequest } from "next/server";

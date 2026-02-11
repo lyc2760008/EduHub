@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/admin
+ * @state.area admin
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Admin dashboard page that uses shared admin gate + shell for consistent RBAC and layout.
 import { getTranslations } from "next-intl/server";
 

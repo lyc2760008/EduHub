@@ -11,6 +11,7 @@ Owners:
 How to use: Paste this doc before PO planning.
 
 Change log:
+- 2026-02-11: Dev — Step 0.1 upgraded Current State Snapshot to v2 (route capabilities + @state annotations + generator heuristics).
 - 2026-02-11: QA — Step 22.2 QA automation coverage updated (admin invite/resend), E2E status refreshed from STAGING run.
 - 2026-02-10: DevOps — Refresh DevOps deploy/env/migrations snapshot (staging+prod), add runbook paths + env var names.
 - 2026-02-10: Dev — Step 22.2 admin send/resend parent magic link from Student Detail parents section; shared helper + admin endpoint.
@@ -36,54 +37,129 @@ Change log:
 - Step 22.2 — Admin parent magic link invite/resend from Student Detail → Parents section. Route: `/[tenant]/admin/students/[id]`. Endpoint: `src/app/api/parents/[parentId]/send-magic-link/route.ts`. Shared helper: `src/lib/auth/parentMagicLink.ts`.
 
 ## Route Inventory
+This section now tracks route-level capabilities (v2). Full inventory + file evidence is generated in `docs/po/current-state.generated.md`.
 
 Parent routes (app/[tenant]/(parent)/...):
-| Path | Description | Access control summary | i18n status |
-| --- | --- | --- | --- |
-| `/[tenant]/parent` | Parent landing shell (TODO: confirm actual behavior) | `src/app/[tenant]/(parent)/parent/layout.tsx` uses `requireParentAccess` from `src/lib/rbac/parent.ts`. | TODO: confirm (likely next-intl in child pages). |
-| `/[tenant]/portal` | Parent portal dashboard/home. | `src/app/[tenant]/(parent)/portal/layout.tsx` uses `requireParentAccess` from `src/lib/rbac/parent.ts`. | TODO: confirm (likely next-intl). |
-| `/[tenant]/portal/sessions` | Parent sessions list + filters. | Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`). | TODO: confirm (uses `next-intl` in UI). |
-| `/[tenant]/portal/sessions/[id]` | Parent session detail + attendance/notes. | Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`). | TODO: confirm (uses `next-intl` in UI). |
-| `/[tenant]/portal/requests` | Parent requests list. | Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`). | TODO: confirm (uses `next-intl` in UI). |
-| `/[tenant]/portal/students` | Parent students overview. | Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`). | TODO: confirm (uses `next-intl` in UI). |
-| `/[tenant]/portal/students/[id]` | Parent student detail. | Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`). | TODO: confirm (uses `next-intl` in UI). |
-| `/[tenant]/portal/account` | Parent account view. | Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`). | TODO: confirm (uses `next-intl` in UI). |
-| `/[tenant]/portal/help` | Parent help/support view. | Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`). | TODO: confirm (uses `next-intl` in UI). |
+- Path: `/[tenant]/portal`
+  - Description: Parent portal dashboard/home.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`, `requireParentAccess`).
+- Path: `/[tenant]/portal/sessions`
+  - Description: Parent sessions list + filters.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`).
+- Path: `/[tenant]/portal/sessions/[id]`
+  - Description: Parent session detail with absence workflow.
+  - Capabilities:
+  - `view:detail`
+  - `report_absence:create_request`
+  - `request:withdraw`
+  - `request:resubmit`
+  - Access control summary: Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`).
+- Path: `/[tenant]/portal/requests`
+  - Description: Parent requests list/status.
+  - Capabilities:
+  - `view:list`
+  - `report_absence:create_request`
+  - `request:withdraw`
+  - Access control summary: Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`).
+- Path: `/[tenant]/portal/students`
+  - Description: Parent students overview.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`).
+- Path: `/[tenant]/portal/students/[id]`
+  - Description: Parent student detail.
+  - Capabilities:
+  - `view:detail`
+  - Access control summary: Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`).
+- Path: `/[tenant]/portal/account`
+  - Description: Parent account view.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`).
+- Path: `/[tenant]/portal/help`
+  - Description: Parent help/support view.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`).
 
 Admin routes (app/[tenant]/(admin)/...):
-| Path | Description | Access control summary | i18n status |
-| --- | --- | --- | --- |
-| `/[tenant]/admin` | Admin dashboard/home. | Admin layout uses `requirePageRole` (`src/app/[tenant]/(admin)/layout.tsx`, `src/components/admin/shared/AdminAccessGate.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/users` | Staff/users list. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`) + server RBAC helpers in `src/lib/rbac`. | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/students` | Students list. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/students/[id]` | Student detail. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/parents` | Parents list. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/centers` | Centers list + create/edit. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/groups` | Groups/classes list. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/groups/[id]` | Group detail. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/programs` | Programs list. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/subjects` | Subjects list. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/levels` | Levels list. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/sessions` | Sessions list + actions. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/sessions/[id]` | Session detail. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/requests` | Parent absence requests review. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/audit` | Audit log list. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/help` | Admin help page. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/catalog` | Catalog hub page. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/reports` | Reports hub. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/reports/upcoming-sessions` | Upcoming sessions report. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/reports/attendance-summary` | Attendance summary report. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/reports/absence-requests` | Absence requests report. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/reports/tutor-workload` | Tutor workload report. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/admin/reports/students-directory` | Students directory report. | Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`). | TODO: confirm (likely next-intl). |
+- Path: `/[tenant]/admin`
+  - Description: Admin dashboard/home.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Admin layout + `AdminAccessGate` with `requirePageRole`.
+- Path: `/[tenant]/admin/students`
+  - Description: Students list.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`).
+- Path: `/[tenant]/admin/students/[id]`
+  - Description: Student detail + parent link management.
+  - Capabilities:
+  - `view:detail`
+  - `parent_invite:send_signin_link`
+  - Access control summary: Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`).
+- Path: `/[tenant]/admin/groups`
+  - Description: Groups/classes list.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`).
+- Path: `/[tenant]/admin/groups/[id]`
+  - Description: Group detail (tutor/student roster management).
+  - Capabilities:
+  - `view:detail`
+  - Access control summary: Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`).
+- Path: `/[tenant]/admin/sessions`
+  - Description: Sessions list + scheduling actions.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`).
+- Path: `/[tenant]/admin/sessions/[id]`
+  - Description: Session detail (attendance + notes).
+  - Capabilities:
+  - `view:detail`
+  - Access control summary: Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`).
+- Path: `/[tenant]/admin/requests`
+  - Description: Parent absence requests review.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`).
+- Path: `/[tenant]/admin/reports`
+  - Description: Reports hub.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`).
+- Path: `/[tenant]/admin/audit`
+  - Description: Audit log list.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`).
 
 Public/Auth routes (app/...):
-| Path | Description | Access control summary | i18n status |
-| --- | --- | --- | --- |
-| `/` | Public landing or redirect (TODO: confirm). | TODO: confirm (see `src/app/page.tsx`). | TODO: confirm. |
-| `/[tenant]/login` | Staff/admin login. | Auth handled by NextAuth credentials (`src/lib/auth/options.ts`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/parent/login` | Parent magic link login request. | Auth handled by NextAuth parent credentials (`src/lib/auth/options.ts`). | TODO: confirm (likely next-intl). |
-| `/[tenant]/parent/auth/verify` | Parent magic link verification. | Auth handled by NextAuth parent credentials (`src/lib/auth/options.ts`). | TODO: confirm (likely next-intl). |
+- Path: `/`
+  - Description: Public landing/health indicator.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Public route (`src/app/page.tsx`).
+- Path: `/[tenant]/login`
+  - Description: Staff/admin login.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: NextAuth credentials flow (`src/lib/auth/options.ts`).
+- Path: `/[tenant]/parent/login`
+  - Description: Parent sign-in request entry.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: NextAuth parent flow (`src/lib/auth/options.ts`).
+- Path: `/[tenant]/parent/auth/verify`
+  - Description: Parent magic-link verification view.
+  - Capabilities:
+  - `view:detail`
+  - Access control summary: NextAuth parent flow (`src/lib/auth/options.ts`).
 
 ## Navigation Map
 Admin shell/nav sources:

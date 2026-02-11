@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/sessions/generate
+ * @state.area api
+ * @state.capabilities create:generate
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Session generator API with tenant scoping, RBAC, and timezone-safe recurrence.
 import { NextRequest, NextResponse } from "next/server";
 import { DateTime } from "luxon";

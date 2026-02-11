@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/admin/students/[id]/invite-copied
+ * @state.area api
+ * @state.capabilities create:invite_copied
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Admin endpoint to audit invite-copy actions without persisting invite content.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";

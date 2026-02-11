@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/requests
+ * @state.area api
+ * @state.capabilities view:list, request:withdraw, request:resubmit
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Admin requests list endpoint with tenant scoping and RBAC enforcement.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
