@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/admin/reports/students-directory
+ * @state.area admin
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 import { getTranslations } from "next-intl/server";
 
 import type { Role } from "@/generated/prisma/client";

@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/sessions/[id]
+ * @state.area api
+ * @state.capabilities view:detail
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Single-session API route with tenant scoping, RBAC, and roster snapshot.
 import { NextRequest, NextResponse } from "next/server";
 

@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/admin/users
+ * @state.area admin
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Admin users page serves as the staff list entry point for Step 21.4B.
 import { getTranslations } from "next-intl/server";
 

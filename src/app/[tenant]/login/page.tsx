@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/login
+ * @state.area auth
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Tenant-aware login page using NextAuth credentials.
 "use client";
 import { use, useState } from "react";

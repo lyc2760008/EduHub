@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/admin/audit
+ * @state.area api
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Admin audit log endpoint implements the Step 21.3 admin table query contract.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";

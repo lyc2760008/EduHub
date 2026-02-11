@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/admin/catalog
+ * @state.area admin
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Catalog hub page that groups academic modules for faster admin navigation.
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";

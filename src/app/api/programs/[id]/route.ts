@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/programs/[id]
+ * @state.area api
+ * @state.capabilities view:detail, update:program
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Single-program API routes with tenant scoping, RBAC, and validation.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";

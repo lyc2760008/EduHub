@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/admin/sessions/[id]
+ * @state.area admin
+ * @state.capabilities view:detail, report_absence:create_request
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Session detail page with roster display and RBAC via AdminAccessGate.
 import { getLocale, getTranslations } from "next-intl/server";
 import Link from "next/link";

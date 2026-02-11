@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/admin/reports/[reportId]
+ * @state.area api
+ * @state.capabilities view:detail
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 import { NextRequest, NextResponse } from "next/server";
 
 import type { Role } from "@/generated/prisma/client";

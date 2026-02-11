@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/portal/students
+ * @state.area api
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Parent portal students endpoint with tenant + parent linkage enforcement.
 import { NextRequest, NextResponse } from "next/server";
 

@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/admin/centers
+ * @state.area admin
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Admin centers page that relies on shared RBAC gate + shell and delegates UI to a client component.
 import { getTranslations } from "next-intl/server";
 

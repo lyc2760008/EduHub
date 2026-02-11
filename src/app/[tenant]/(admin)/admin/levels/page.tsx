@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/admin/levels
+ * @state.area admin
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Admin levels page that uses shared admin table toolkit contracts.
 import { getTranslations } from "next-intl/server";
 

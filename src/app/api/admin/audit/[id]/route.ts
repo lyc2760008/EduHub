@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/admin/audit/[id]
+ * @state.area api
+ * @state.capabilities view:detail
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Admin audit detail endpoint with tenant scoping and RBAC.
 import { NextRequest, NextResponse } from "next/server";
 

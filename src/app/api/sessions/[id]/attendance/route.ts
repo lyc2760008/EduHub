@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/sessions/[id]/attendance
+ * @state.area api
+ * @state.capabilities view:detail, update:attendance, report_absence:create_request
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Session attendance API routes with tenant scoping, RBAC, and roster validation.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";

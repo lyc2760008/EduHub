@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/users
+ * @state.area api
+ * @state.capabilities view:list, create:user
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Users collection API with tenant scoping, RBAC, and center assignments.
 import { randomUUID } from "node:crypto";
 

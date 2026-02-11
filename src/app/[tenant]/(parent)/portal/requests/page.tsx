@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/portal/requests
+ * @state.area parent
+ * @state.capabilities view:list, report_absence:create_request, request:withdraw
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 "use client";
 
 // Parent portal requests page lists absence requests and supports pending withdraws.

@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/users/[id]
+ * @state.area api
+ * @state.capabilities view:detail, update:user
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Single-user API routes with tenant scoping, RBAC, and center assignments.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";

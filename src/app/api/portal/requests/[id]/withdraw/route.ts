@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/portal/requests/[id]/withdraw
+ * @state.area api
+ * @state.capabilities create:withdraw, request:withdraw
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Parent portal endpoint for withdrawing pending requests before session start.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";

@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/attendance/suggestion
+ * @state.area api
+ * @state.capabilities view:list, report_absence:create_request
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Attendance suggestion endpoint surfaces absence-based guidance without writing data.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";

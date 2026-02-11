@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/requests/[id]/resolve
+ * @state.area api
+ * @state.capabilities create:resolve
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Admin request resolution endpoint with tenant scoping and RBAC enforcement.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";

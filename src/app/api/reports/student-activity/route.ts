@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/reports/student-activity
+ * @state.area api
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Student activity report endpoint with tenant-safe aggregation over sessions.
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";

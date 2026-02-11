@@ -1,4 +1,10 @@
-﻿"use client";
+/**
+ * @state.route /[tenant]/portal/students
+ * @state.area parent
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
+"use client";
 
 // Parent portal students list with read-only cards and empty states.
 import { useCallback, useEffect, useState } from "react";

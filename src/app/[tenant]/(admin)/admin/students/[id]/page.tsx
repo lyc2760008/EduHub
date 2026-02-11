@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/admin/students/[id]
+ * @state.area admin
+ * @state.capabilities view:detail, parent_invite:send_signin_link
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Student detail page with server-side RBAC gate and client editor.
 import { getTranslations } from "next-intl/server";
 

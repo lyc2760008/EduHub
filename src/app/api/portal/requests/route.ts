@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/portal/requests
+ * @state.area api
+ * @state.capabilities view:list, create:request, report_absence:create_request
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Parent portal requests endpoint with tenant + linked student validation.
 import { NextRequest, NextResponse } from "next/server";
 import {

@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/groups/[id]/sync-future-sessions
+ * @state.area api
+ * @state.capabilities create:sync_future_session
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Sync-group-roster API that backfills missing students into future sessions for the same group.
 import { NextRequest, NextResponse } from "next/server";
 

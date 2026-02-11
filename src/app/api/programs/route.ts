@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/programs
+ * @state.area api
+ * @state.capabilities view:list, create:program
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Programs list endpoint implements the Step 21.3 admin table query contract.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";

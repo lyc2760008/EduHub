@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/test/mint-parent-magic-link
+ * @state.area api
+ * @state.capabilities create:mint_parent_magic_link
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Test-only endpoint to mint a parent magic-link token without sending email.
 //
 // Why this exists:

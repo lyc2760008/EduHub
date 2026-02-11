@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/admin/groups/[id]
+ * @state.area admin
+ * @state.capabilities view:detail
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Group detail page with roster/tutor management using shared RBAC gate + shell.
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";

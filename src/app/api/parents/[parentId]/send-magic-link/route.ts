@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/parents/[parentId]/send-magic-link
+ * @state.area api
+ * @state.capabilities create:send_magic_link, parent_invite:send_signin_link
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Admin endpoint to send parent magic links (RBAC + tenant-safe).
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";

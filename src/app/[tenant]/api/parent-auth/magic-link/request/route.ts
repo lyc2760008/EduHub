@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/api/parent-auth/magic-link/request
+ * @state.area api
+ * @state.capabilities create:request
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Parent magic link request endpoint (tenant-scoped, neutral responses).
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";

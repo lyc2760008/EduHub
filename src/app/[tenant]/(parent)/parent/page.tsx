@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/parent
+ * @state.area parent
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 import { getTranslations } from "next-intl/server";
 
 type ParentLandingPageProps = {

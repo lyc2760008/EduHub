@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/reports/weekly-attendance
+ * @state.area api
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 // Weekly attendance report endpoint with tenant scoping and aggregate counts.
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";

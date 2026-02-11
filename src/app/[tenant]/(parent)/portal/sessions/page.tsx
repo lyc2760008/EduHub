@@ -1,4 +1,10 @@
-﻿"use client";
+/**
+ * @state.route /[tenant]/portal/sessions
+ * @state.area parent
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
+"use client";
 
 // Parent portal sessions page with range and student filters.
 import { useCallback, useEffect, useMemo, useState } from "react";

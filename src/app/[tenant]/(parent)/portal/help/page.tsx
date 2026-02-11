@@ -1,3 +1,9 @@
+/**
+ * @state.route /[tenant]/portal/help
+ * @state.area parent
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 "use client";
 
 // Help page provides static guidance and trust messaging for the parent portal.

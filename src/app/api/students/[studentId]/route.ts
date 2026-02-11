@@ -1,3 +1,9 @@
+/**
+ * @state.route /api/students/[studentId]
+ * @state.area api
+ * @state.capabilities view:detail, update:student
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
 import { Prisma, StudentStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";

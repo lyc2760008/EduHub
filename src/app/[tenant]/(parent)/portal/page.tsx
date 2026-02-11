@@ -1,4 +1,10 @@
-﻿"use client";
+/**
+ * @state.route /[tenant]/portal
+ * @state.area parent
+ * @state.capabilities view:list
+ * @state.notes Auto-seeded capability annotation for snapshot v2; refine when workflows change.
+ */
+"use client";
 
 // Parent dashboard page pulls read-only data from portal APIs for summary cards.
 import { useCallback, useEffect, useMemo, useState } from "react";
