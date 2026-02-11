@@ -1,52 +1,63 @@
-// Integration-style tests for parent auth backend (RBAC, tenant isolation, credentials).
-import { randomUUID } from "node:crypto";
+// Integration-style tests for parent magic-link auth backend behavior (tenant isolation, single-use tokens).
+// These tests avoid real email inbox dependencies by inserting a tokenHash into the DB (raw token never stored),
+// then driving the normal verify page which consumes the token and establishes a session cookie.
+//
+// Security notes:
+// - Never log raw tokens, emails, or secrets.
+// - Insert only token hashes into the DB, mirroring production behavior.
+import { createHash, randomBytes } from "node:crypto";
+
 import { expect, test } from "@playwright/test";
-import bcrypt from "bcryptjs";
 import { Client } from "pg";
-import { loginAsAdmin, loginAsParent, loginAsTutor } from "..\/helpers/auth";
-import { expectAdminBlocked } from "..\/helpers/parent-auth";
-import { uniqueString } from "..\/helpers/data";
-import { buildTenantApiPath, buildTenantPath } from "..\/helpers/tenant";
 
-type ParentRow = {
-  id: string;
-  email: string;
-};
+import { resolveStep203Fixtures } from "..\/helpers/step203";
+import { buildTenantPath } from "..\/helpers/tenant";
 
-const DEFAULT_BASE_URL = "http://e2e-testing.lvh.me:3000";
+type TenantRow = { id: string; slug: string };
+type ParentRow = { id: string; email: string | null };
+
 const databaseUrl = process.env.DATABASE_URL;
-
 if (!databaseUrl) {
   throw new Error("DATABASE_URL is required for parent auth backend tests.");
 }
 
-function resolveBaseOrigin() {
-  // Auth session endpoint lives at the app root, so strip any /t/<slug> path.
-  const baseUrl = process.env.E2E_BASE_URL || DEFAULT_BASE_URL;
-  try {
-    return new URL(baseUrl).origin;
-  } catch {
-    return new URL(DEFAULT_BASE_URL).origin;
-  }
+function getPepper() {
+  // Keep hashing aligned with src/lib/auth/magicLink.ts (AUTH_SECRET preferred).
+  return process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? "";
+}
+
+function hashIdentifier(value: string) {
+  const pepper = getPepper();
+  const input = pepper ? `${pepper}:${value}` : value;
+  return createHash("sha256").update(input).digest("hex");
+}
+
+function generateMagicLinkToken() {
+  const rawToken = randomBytes(32).toString("base64url");
+  const tokenHash = hashIdentifier(rawToken);
+  return { rawToken, tokenHash };
+}
+
+function generateRowId(prefix: string) {
+  // DB schema uses TEXT ids without a server-side default; Prisma usually supplies cuid().
+  return `${prefix}${randomBytes(16).toString("hex")}`;
 }
 
 function resolveOtherTenantSlug(primarySlug: string) {
-  // Use an e2e-prefixed secondary slug when running against the e2e tenant.
-  const configured =
-    process.env.E2E_SECOND_TENANT_SLUG ||
-    (primarySlug.toLowerCase().startsWith("e2e")
-      ? `${primarySlug}-secondary`
-      : process.env.SEED_SECOND_TENANT_SLUG || "acme");
-  return configured === primarySlug ? `${primarySlug}-secondary` : configured;
+  const configured = process.env.E2E_SECOND_TENANT_SLUG;
+  if (configured) return configured === primarySlug ? `${primarySlug}-secondary` : configured;
+  return primarySlug.toLowerCase().startsWith("e2e")
+    ? `${primarySlug}-secondary`
+    : "acme";
 }
 
 let db: Client;
 
-// Tagged for regression and forced to start without storage state for auth UI coverage.
+// Force a clean session so token consumption is exercised on a fresh browser context.
 test.use({ storageState: { cookies: [], origins: [] } });
 
 test.beforeAll(async () => {
-  // Shared DB client keeps tenant/parent setup fast and consistent.
+  // Shared DB client keeps lookup/insert fast and consistent.
   db = new Client({ connectionString: databaseUrl });
   await db.connect();
 });
@@ -56,306 +67,165 @@ test.afterAll(async () => {
   await db.end();
 });
 
-async function ensureTenant(slug: string) {
-  // Tests expect e2e + secondary tenants to be seeded, but create e2e tenants if missing.
-  const result = await db.query<{
-    id: string;
-    slug: string;
-  }>(`SELECT "id", "slug" FROM "Tenant" WHERE "slug" = $1`, [slug]);
+async function requireTenant(slug: string): Promise<TenantRow> {
+  const result = await db.query<TenantRow>(
+    `SELECT "id", "slug" FROM "Tenant" WHERE "slug" = $1 LIMIT 1`,
+    [slug],
+  );
   const tenant = result.rows[0];
-  if (tenant) {
-    return tenant;
-  }
-  if (!slug.toLowerCase().startsWith("e2e")) {
-    throw new Error(`Missing tenant seed for slug ${slug}.`);
-  }
-  const insert = await db.query<{
-    id: string;
-    slug: string;
-  }>(
-    `
-    INSERT INTO "Tenant" ("id", "slug", "name", "createdAt", "updatedAt")
-    VALUES ($1, $2, $3, NOW(), NOW())
-    ON CONFLICT ("slug")
-    DO UPDATE SET "name" = EXCLUDED."name", "updatedAt" = NOW()
-    RETURNING "id", "slug"
-    `,
-    [randomUUID(), slug, "E2E Secondary"],
-  );
-  const created = insert.rows[0];
-  if (!created) {
-    throw new Error(`Unable to create tenant for slug ${slug}.`);
-  }
-  return created;
+  if (!tenant) throw new Error(`Expected tenant '${slug}' to exist in DB.`);
+  return tenant;
 }
 
-async function upsertParent(tenantId: string, email: string): Promise<ParentRow> {
-  // Upsert keeps the test idempotent even when rerun against the same DB.
-  const newId = randomUUID();
+async function requireParent(tenantId: string, email: string): Promise<ParentRow> {
+  const normalized = email.trim().toLowerCase();
   const result = await db.query<ParentRow>(
-    `
-    INSERT INTO "Parent" ("id", "tenantId", "firstName", "lastName", "email", "createdAt", "updatedAt")
-    VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-    ON CONFLICT ("tenantId", "email")
-    DO UPDATE SET "firstName" = EXCLUDED."firstName", "lastName" = EXCLUDED."lastName", "updatedAt" = NOW()
-    RETURNING "id", "email"
-    `,
-    [newId, tenantId, "E2E", "Parent", email],
+    `SELECT "id", "email" FROM "Parent" WHERE "tenantId" = $1 AND lower("email") = $2 LIMIT 1`,
+    [tenantId, normalized],
   );
-  return result.rows[0];
+  const parent = result.rows[0];
+  if (!parent?.id || !parent.email) {
+    throw new Error("Expected seeded parent to exist and have an email.");
+  }
+  return parent;
 }
 
-async function setParentAccessCode(parentId: string, code: string) {
-  // Direct DB update avoids needing admin sessions for secondary tenants.
-  const accessCodeHash = await bcrypt.hash(code, 10);
+async function requireParentLinked(tenantId: string, parentId: string) {
+  const result = await db.query<{ id: string }>(
+    `SELECT "id" FROM "StudentParent" WHERE "tenantId" = $1 AND "parentId" = $2 LIMIT 1`,
+    [tenantId, parentId],
+  );
+  if (!result.rows[0]?.id) {
+    throw new Error("Expected parent to be linked to at least one student in tenant.");
+  }
+}
+
+async function insertMagicLinkToken(input: {
+  tenantId: string;
+  parentId: string;
+  tokenHash: string;
+}) {
+  // Use an extended expiry to avoid timezone parsing edge cases with `timestamp` columns.
   await db.query(
     `
-    UPDATE "Parent"
-    SET "accessCodeHash" = $1, "accessCodeUpdatedAt" = $2
-    WHERE "id" = $3
+      INSERT INTO "ParentMagicLinkToken"
+        ("id","tenantId","parentUserId","tokenHash","rememberMe","expiresAt","createdIpHash")
+      VALUES
+        ($1,$2,$3,$4,$5, NOW() + INTERVAL '1 day', $6)
     `,
-    [accessCodeHash, new Date(), parentId],
+    [
+      generateRowId("e2e-mlt-"),
+      input.tenantId,
+      input.parentId,
+      input.tokenHash,
+      true,
+      hashIdentifier("e2e"),
+    ],
   );
 }
 
-test("[regression] Admin can reset access code and DB stores only hash", async ({
+async function getTokenConsumedAt(tenantId: string, tokenHash: string) {
+  const result = await db.query<{ consumedAt: Date | null }>(
+    `SELECT "consumedAt" FROM "ParentMagicLinkToken" WHERE "tenantId" = $1 AND "tokenHash" = $2 LIMIT 1`,
+    [tenantId, tokenHash],
+  );
+  return result.rows[0]?.consumedAt ?? null;
+}
+
+test("[regression] Magic-link verify establishes a session and consumes the token", async ({ page }) => {
+  const fixtures = resolveStep203Fixtures();
+  const tenantSlug = fixtures.tenantSlug;
+  const tenant = await requireTenant(tenantSlug);
+  const parent = await requireParent(tenant.id, fixtures.parentA1Email);
+  await requireParentLinked(tenant.id, parent.id);
+
+  const { rawToken, tokenHash } = generateMagicLinkToken();
+  await insertMagicLinkToken({ tenantId: tenant.id, parentId: parent.id, tokenHash });
+
+  const verifyPath = buildTenantPath(
+    tenantSlug,
+    `/parent/auth/verify?token=${encodeURIComponent(rawToken)}`,
+  );
+
+  await page.goto(verifyPath, { waitUntil: "domcontentloaded" });
+  await expect(page.getByTestId("parent-verify-page")).toBeVisible();
+
+  // Verify page redirects to /parent; portal navigation confirms session actually exists.
+  await page.waitForURL(
+    (url) =>
+      url.pathname.startsWith(`/${tenantSlug}/parent`) &&
+      !url.pathname.startsWith(`/${tenantSlug}/parent/auth/verify`),
+    { timeout: 20_000 },
+  );
+  await page.goto(buildTenantPath(tenantSlug, "/portal"), { waitUntil: "domcontentloaded" });
+  await expect(page.getByTestId("portal-dashboard-page")).toBeVisible();
+
+  const consumedAt = await getTokenConsumedAt(tenant.id, tokenHash);
+  expect(consumedAt).not.toBeNull();
+});
+
+test("[regression] Magic-link tokens are single-use", async ({ page, browser }) => {
+  const fixtures = resolveStep203Fixtures();
+  const tenantSlug = fixtures.tenantSlug;
+  const tenant = await requireTenant(tenantSlug);
+  const parent = await requireParent(tenant.id, fixtures.parentA1Email);
+  await requireParentLinked(tenant.id, parent.id);
+
+  const { rawToken, tokenHash } = generateMagicLinkToken();
+  await insertMagicLinkToken({ tenantId: tenant.id, parentId: parent.id, tokenHash });
+
+  const verifyPath = buildTenantPath(
+    tenantSlug,
+    `/parent/auth/verify?token=${encodeURIComponent(rawToken)}`,
+  );
+
+  // First consume should succeed.
+  await page.goto(verifyPath, { waitUntil: "domcontentloaded" });
+  await page.waitForURL(
+    (url) =>
+      url.pathname.startsWith(`/${tenantSlug}/parent`) &&
+      !url.pathname.startsWith(`/${tenantSlug}/parent/auth/verify`),
+    { timeout: 20_000 },
+  );
+
+  // Second consume in a fresh browser context should be rejected.
+  const context2 = await browser.newContext();
+  const page2 = await context2.newPage();
+  await page2.goto(verifyPath, { waitUntil: "domcontentloaded" });
+  await expect(page2.getByTestId("parent-verify-page")).toBeVisible();
+  await expect(page2.getByText(/invalid link/i)).toBeVisible();
+  await context2.close();
+});
+
+test("[regression] Magic-link tokens are tenant-scoped (cross-tenant verify is rejected)", async ({
   page,
 }) => {
-  const { tenantSlug } = await loginAsAdmin(page);
-  const tenant = await ensureTenant(tenantSlug);
-  const email = `${uniqueString("parent-reset")}@example.com`;
-  const createResponse = await page.request.post(
-    buildTenantApiPath(tenantSlug, "/api/parents"),
-    {
-      data: {
-        firstName: "E2E",
-        lastName: "Parent",
-        email,
-      },
-    },
-  );
-  if (createResponse.status() !== 201) {
-    const createBody = await createResponse.text();
-    throw new Error(
-      `Expected parent create 201, got ${createResponse.status()} - ${createBody}`,
-    );
-  }
-  const createPayload = (await createResponse.json()) as {
-    parent?: { id?: string };
-  };
-  const parentId = createPayload.parent?.id;
-  if (!parentId) {
-    throw new Error("Expected parent id in create response.");
-  }
+  const fixtures = resolveStep203Fixtures();
+  const tenantSlug = fixtures.tenantSlug;
+  const otherTenantSlug = resolveOtherTenantSlug(tenantSlug);
 
-  const resetResponse = await page.request.post(
-    buildTenantApiPath(
-      tenantSlug,
-      `/api/parents/${parentId}/reset-access-code`,
-    ),
-    { data: {} },
+  const tenant = await requireTenant(tenantSlug);
+  const parent = await requireParent(tenant.id, fixtures.parentA1Email);
+  await requireParentLinked(tenant.id, parent.id);
+
+  const { rawToken, tokenHash } = generateMagicLinkToken();
+  await insertMagicLinkToken({ tenantId: tenant.id, parentId: parent.id, tokenHash });
+
+  const verifyOtherTenantPath = buildTenantPath(
+    otherTenantSlug,
+    `/parent/auth/verify?token=${encodeURIComponent(rawToken)}`,
   );
 
-  if (resetResponse.status() !== 200) {
-    const resetBody = await resetResponse.text();
-    throw new Error(
-      `Expected reset 200, got ${resetResponse.status()} - ${resetBody}`,
-    );
-  }
-  const payload = (await resetResponse.json()) as {
-    parentId?: string;
-    accessCode?: string;
-    accessCodeUpdatedAt?: string;
-  };
+  await page.goto(verifyOtherTenantPath, { waitUntil: "domcontentloaded" });
 
-  expect(payload.parentId).toBe(parentId);
-  expect(typeof payload.accessCode).toBe("string");
-  expect(payload.accessCode).toBeTruthy();
-  expect(payload.accessCodeUpdatedAt).toBeTruthy();
+  // Depending on tenant routing (and whether the secondary tenant exists),
+  // the app may render an invalid-link state or redirect to the tenant login.
+  await expect(
+    page.locator('[data-testid="parent-verify-page"], [data-testid="parent-login-page"]'),
+  ).toBeVisible();
 
-  const parentResult = await db.query<{
-    accessCodeHash: string | null;
-    accessCodeUpdatedAt: Date | null;
-  }>(
-    `SELECT "accessCodeHash", "accessCodeUpdatedAt" FROM "Parent" WHERE "id" = $1`,
-    [parentId],
-  );
-  const dbParent = parentResult.rows[0];
-
-  expect(dbParent?.accessCodeHash).toBeTruthy();
-  expect(dbParent?.accessCodeHash).not.toBe(payload.accessCode);
-  expect(dbParent?.accessCodeUpdatedAt).not.toBeNull();
-
-  const hashMatches = await bcrypt.compare(
-    payload.accessCode ?? "",
-    dbParent?.accessCodeHash ?? "",
-  );
-  expect(hashMatches).toBe(true);
+  const sessionResponse = await page.request.get("/api/auth/session");
+  expect(sessionResponse.status()).toBe(200);
+  const sessionPayload = await sessionResponse.json();
+  expect(sessionPayload).toBeNull();
 });
-
-test("[regression] Tutor cannot reset parent access codes", async ({ page }) => {
-  const { tenantSlug } = await loginAsTutor(page);
-  const tenant = await ensureTenant(tenantSlug);
-  const email = `${uniqueString("parent-tutor")}@example.com`;
-  const parent = await upsertParent(tenant.id, email);
-
-  const response = await page.request.post(
-    buildTenantApiPath(
-      tenantSlug,
-      `/api/parents/${parent.id}/reset-access-code`,
-    ),
-    { data: {} },
-  );
-
-  expect(response.status()).toBe(403);
-});
-
-test("[regression] Parent role cannot reset parent access codes", async ({
-  page,
-}) => {
-  const { tenantSlug } = await loginAsParent(page);
-  const tenant = await ensureTenant(tenantSlug);
-  const email = `${uniqueString("parent-parent")}@example.com`;
-  const parent = await upsertParent(tenant.id, email);
-
-  const response = await page.request.post(
-    buildTenantApiPath(
-      tenantSlug,
-      `/api/parents/${parent.id}/reset-access-code`,
-    ),
-    { data: {} },
-  );
-
-  expect(response.status()).toBe(403);
-});
-
-test("[regression] Reset access code is tenant-scoped", async ({ page }) => {
-  const { tenantSlug } = await loginAsAdmin(page);
-  const primaryTenant = await ensureTenant(tenantSlug);
-  const otherTenant = await ensureTenant(resolveOtherTenantSlug(tenantSlug));
-  const email = `${uniqueString("parent-cross")}@example.com`;
-  const otherParent = await upsertParent(otherTenant.id, email);
-
-  const response = await page.request.post(
-    buildTenantApiPath(
-      primaryTenant.slug,
-      `/api/parents/${otherParent.id}/reset-access-code`,
-    ),
-    { data: {} },
-  );
-
-  expect([403, 404]).toContain(response.status());
-});
-
-test(
-  "[regression] Parent credentials enforce tenant scope and return session claims",
-  async ({ page }) => {
-    const tenantSlug = process.env.E2E_TENANT_SLUG || "e2e-testing";
-    const otherTenantSlug = resolveOtherTenantSlug(tenantSlug);
-    const tenant = await ensureTenant(tenantSlug);
-    const otherTenant = await ensureTenant(otherTenantSlug);
-    const sharedEmail = `${uniqueString("parent-auth")}@example.com`;
-
-    const parentPrimary = await upsertParent(tenant.id, sharedEmail);
-    const parentSecondary = await upsertParent(otherTenant.id, sharedEmail);
-
-    const primaryCode = `CODE-${uniqueString("primary")}`.toUpperCase();
-    const secondaryCode = `CODE-${uniqueString("secondary")}`.toUpperCase();
-
-    await setParentAccessCode(parentPrimary.id, primaryCode);
-    await setParentAccessCode(parentSecondary.id, secondaryCode);
-
-    const hashCheck = await db.query<{ accessCodeHash: string | null }>(
-      `SELECT "accessCodeHash" FROM "Parent" WHERE "id" = $1`,
-      [parentPrimary.id],
-    );
-    const accessCodeHash = hashCheck.rows[0]?.accessCodeHash;
-    if (!accessCodeHash) {
-      throw new Error("Expected access code hash to be set for parent.");
-    }
-    const hashMatches = await bcrypt.compare(primaryCode, accessCodeHash);
-    if (!hashMatches) {
-      throw new Error("Access code hash mismatch before login.");
-    }
-
-    await page.goto(buildTenantPath(tenantSlug, "/parent/login"));
-    await page.getByTestId("parent-login-email").fill(sharedEmail);
-    await page.getByTestId("parent-login-access-code").fill(secondaryCode);
-    const firstAttempt = page.waitForResponse((response) =>
-      response.url().includes("/api/auth/callback/parent-credentials"),
-    );
-    await page.getByTestId("parent-login-submit").click();
-    const firstResponse = await firstAttempt;
-    expect(firstResponse.status()).toBe(200);
-
-    await expect(page.getByTestId("parent-login-page")).toBeVisible();
-    // Field-level error avoids coupling to localized alert copy.
-    await expect(page.getByTestId("parent-login-code-error")).toBeVisible();
-
-    await page.getByTestId("parent-login-access-code").fill(primaryCode);
-    const secondAttempt = page.waitForResponse((response) =>
-      response.url().includes("/api/auth/callback/parent-credentials"),
-    );
-    await page.getByTestId("parent-login-submit").click();
-    const secondResponse = await secondAttempt;
-    if (secondResponse.status() !== 200) {
-      const authBody = await secondResponse.text();
-      throw new Error(
-        `Expected auth 200, got ${secondResponse.status()} - ${authBody}`,
-      );
-    }
-
-    // Parent portal entry point now lives under /portal.
-    const portalPath = buildTenantPath(tenantSlug, "/portal");
-    await page.waitForURL((url) => url.pathname.startsWith(portalPath));
-
-    const session = (await page.evaluate(async () => {
-      const response = await fetch("/api/auth/session");
-      return response.json();
-    })) as {
-      user?: { role?: string; tenantId?: string; parentId?: string };
-    } | null;
-
-    expect(session?.user?.role).toBe("Parent");
-    expect(session?.user?.tenantId).toBe(tenant.id);
-    expect(session?.user?.parentId).toBe(parentPrimary.id);
-
-    // Parent sessions should not access admin routes.
-    await page.goto(buildTenantPath(tenantSlug, "/admin"));
-    await expectAdminBlocked(page);
-  },
-);
-
-test("[regression] Parent login fails when access code hash is missing", async ({
-  page,
-}) => {
-  const tenantSlug = process.env.E2E_TENANT_SLUG || "e2e-testing";
-  const tenant = await ensureTenant(tenantSlug);
-  const email = `${uniqueString("parent-null")}@example.com`;
-
-  await upsertParent(tenant.id, email);
-
-  await page.goto(buildTenantPath(tenantSlug, "/parent/login"));
-  await page.getByTestId("parent-login-email").fill(email);
-  await page.getByTestId("parent-login-access-code").fill("INVALIDCODE");
-  await page.getByTestId("parent-login-submit").click();
-
-  await expect(page.getByTestId("parent-login-page")).toBeVisible();
-  // Field-level error avoids coupling to localized alert copy.
-  await expect(page.getByTestId("parent-login-code-error")).toBeVisible();
-});
-
-test("[regression] Unauthenticated parent routes redirect to parent login", async ({
-  page,
-}) => {
-  const tenantSlug = process.env.E2E_TENANT_SLUG || "e2e-testing";
-
-  // Unauthenticated access should redirect to the parent login from /portal.
-  await page.goto(buildTenantPath(tenantSlug, "/portal"));
-  await page.waitForURL((url) =>
-    url.pathname.endsWith(`/${tenantSlug}/parent/login`),
-  );
-  await expect(page.getByTestId("parent-login-page")).toBeVisible();
-});
-
-

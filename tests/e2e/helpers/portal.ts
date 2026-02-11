@@ -6,7 +6,6 @@ import { loginAsAdmin } from "./auth";
 import {
   createStudentAndLinkParent,
   loginAsParentWithAccessCode,
-  resetParentAccessCode,
 } from "./parent-auth";
 import { resolveCenterAndTutor, uniqueString } from "./data";
 import { buildTenantApiPath, buildTenantPath } from "./tenant";
@@ -99,7 +98,9 @@ export function buildPortalApiPath(tenantSlug: string, suffix = "") {
 }
 
 async function createParentWithoutStudents(page: Page, tenantSlug: string) {
-  // Create a standalone parent record for empty-state coverage when env creds are absent.
+  // Legacy helper name: parents must now be linked to at least one student to authenticate
+  // via magic links. We keep the "without students" naming to avoid churn in seed callers,
+  // but we actually link the parent to a student that has no sessions.
   const uniqueToken = uniqueString("portal-parent0");
   const parentEmail = `e2e.parent0.${uniqueToken}@example.com`;
   const response = await postWithRetry(
@@ -119,6 +120,32 @@ async function createParentWithoutStudents(page: Page, tenantSlug: string) {
   if (!parentId) {
     throw new Error("Expected parent id in parent create response.");
   }
+
+  // Create a student but intentionally do not create any sessions for it.
+  const studentResponse = await postWithRetry(
+    page,
+    buildTenantApiPath(tenantSlug, "/api/students"),
+    {
+      data: {
+        firstName: `E2E-${uniqueToken}`,
+        lastName: "Student0",
+      },
+    },
+  );
+  expect(studentResponse.status()).toBe(201);
+  const studentPayload = (await studentResponse.json()) as StudentCreateResponse;
+  const studentId = studentPayload.student?.id;
+  if (!studentId) {
+    throw new Error("Expected student id in student create response.");
+  }
+
+  const linkResponse = await postWithRetry(
+    page,
+    buildTenantApiPath(tenantSlug, `/api/students/${studentId}/parents`),
+    { data: { parentEmail } },
+  );
+  expect(linkResponse.status()).toBe(201);
+
   return { parentId, parentEmail };
 }
 
@@ -239,21 +266,14 @@ async function seedPortalData(
   await loginAsAdmin(page, tenantSlug);
 
   const parent0Record = await createParentWithoutStudents(page, tenantSlug);
-  const parent0AccessCode = await resetParentAccessCode(
-    page,
-    tenantSlug,
-    parent0Record.parentId,
-  );
+  // Parent auth is magic-link based; access codes are deprecated and ignored by the login helper.
+  const parent0AccessCode = "MAGIC_LINK";
 
   const { studentId, parentId, parentEmail } = await createStudentAndLinkParent(
     page,
     tenantSlug,
   );
-  const parent1AccessCode = await resetParentAccessCode(
-    page,
-    tenantSlug,
-    parentId,
-  );
+  const parent1AccessCode = "MAGIC_LINK";
 
   const unlinkedStudentId = await createUnlinkedStudent(page, tenantSlug);
   const { tutor, center } = await resolveCenterAndTutor(page, tenantSlug);

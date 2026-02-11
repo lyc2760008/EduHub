@@ -44,7 +44,21 @@ export function hashMagicLinkToken(rawToken: string) {
 
 // Resolve the request origin for absolute magic-link URLs.
 export function getRequestOrigin(req: Request) {
-  const proto = req.headers.get("x-forwarded-proto") ?? "https";
+  // Prefer `x-forwarded-proto` (set by proxies like Vercel), otherwise fall back
+  // to the request URL protocol. This keeps local/dev magic links on `http://`
+  // without requiring extra env wiring, while still producing correct `https://`
+  // origins in production deployments.
+  const protoFromUrl = (() => {
+    try {
+      return new URL(req.url).protocol.replace(":", "");
+    } catch {
+      return null;
+    }
+  })();
+
+  const appEnv = process.env.APP_ENV ?? process.env.NODE_ENV ?? "development";
+  const defaultProto = appEnv === "production" ? "https" : "http";
+  const proto = req.headers.get("x-forwarded-proto") ?? protoFromUrl ?? defaultProto;
   const host =
     req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "";
   if (host) return `${proto}://${host}`;

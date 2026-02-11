@@ -39,25 +39,18 @@ type ParentSnapshot = {
   email: string;
 };
 
-function isLoopbackHost(host: string) {
-  const normalized = host.toLowerCase();
-  return (
-    normalized === "localhost" ||
-    normalized === "127.0.0.1" ||
-    normalized === "0.0.0.0" ||
-    normalized.endsWith(".localhost")
-  );
-}
-
 function resolveMagicLinkOrigin(request: Request) {
-  // Prefer the request origin, but avoid emitting localhost URLs in email links.
+  // Prefer the request origin whenever possible.
+  //
+  // Important: do NOT "correct" loopback origins (localhost / lvh.me / etc).
+  // In local/dev environments, admins often send test invites to themselves and
+  // expect the email link to open the *same* dev server (including the port).
+  // Forcing an env-based base domain here can drop the port (e.g. `lvh.me`)
+  // and produce a broken link like `http://lvh.me/...` (connection refused).
   const origin = getRequestOrigin(request);
   if (origin) {
     try {
-      const host = new URL(origin).hostname;
-      if (!isLoopbackHost(host)) {
-        return origin;
-      }
+      return new URL(origin).origin;
     } catch {
       // Fall through to env-based origin resolution.
     }

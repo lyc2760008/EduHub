@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 
 import Card from "@/components/parent/Card";
 import ParentShell from "@/components/parent/ParentShell";
+import { consumeParentMagicLinkToken } from "./_actions/consumeParentMagicLink";
 
 type PageProps = {
   params: Promise<{ tenant: string }>;
@@ -28,23 +29,20 @@ export default function ParentVerifyPage({ params }: PageProps) {
   useEffect(() => {
     if (!token) return;
 
-    const controller = new AbortController();
-
     let redirectTimeout: number | null = null;
+    let cancelled = false;
 
     async function consumeToken() {
       try {
-        const response = await fetch(
-          `/${tenant}/api/parent-auth/magic-link/consume?token=${encodeURIComponent(
-            token,
-          )}`,
-          { method: "GET", signal: controller.signal },
-        );
-        const data = (await response.json()) as
-          | { ok: true; redirectTo?: string }
-          | { ok: false; reason?: string };
+        // Use a server action so NextAuth can set cookies reliably (no CSRF/callback indirection).
+        const data = await consumeParentMagicLinkToken({
+          tenantSlug: tenant,
+          token,
+        });
 
-        if (!response.ok || !data) {
+        if (cancelled) return;
+
+        if (!data) {
           setStatus("failure");
           return;
         }
@@ -62,14 +60,14 @@ export default function ParentVerifyPage({ params }: PageProps) {
           setStatus("expired");
           return;
         }
-        if (data.reason === "invalid" || data.reason === "missing") {
+        if (data.reason === "invalid") {
           setStatus("invalid");
           return;
         }
 
         setStatus("failure");
       } catch {
-        if (!controller.signal.aborted) {
+        if (!cancelled) {
           setStatus("failure");
         }
       }
@@ -78,7 +76,7 @@ export default function ParentVerifyPage({ params }: PageProps) {
     void consumeToken();
 
     return () => {
-      controller.abort();
+      cancelled = true;
       if (redirectTimeout) {
         window.clearTimeout(redirectTimeout);
       }

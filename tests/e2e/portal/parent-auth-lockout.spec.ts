@@ -1,4 +1,5 @@
-// Playwright coverage for parent auth throttling/lockout UX (Step 20.8C).
+// Playwright coverage for parent auth throttling UX (Step 20.8C).
+// Parent auth is magic-link based; throttling is enforced on repeated link requests.
 import { expect, test } from "@playwright/test";
 
 import { uniqueString } from "..\/helpers/data";
@@ -9,7 +10,7 @@ test.use({ storageState: { cookies: [], origins: [] } });
 
 // Tagged for Playwright suite filtering.
 test.describe("[regression] Parent auth throttling UI", () => {
-  test("Repeated failures trigger throttle and stay enforced server-side", async ({
+  test("Repeated link requests trigger throttle and stay enforced server-side", async ({
     page,
   }) => {
     const tenantSlug = process.env.E2E_TENANT_SLUG || "e2e-testing";
@@ -19,52 +20,40 @@ test.describe("[regression] Parent auth throttling UI", () => {
       );
     }
 
-    const email = `e2e.throttle.${uniqueString("auth")}` +
-      "@example.com";
-    const accessCode = "WRONG-CODE";
+    const email = `e2e.throttle.${uniqueString("auth")}@example.com`;
     const loginPath = buildTenantPath(tenantSlug, "/parent/login");
 
     await page.goto(loginPath);
     await page.getByTestId("parent-login-email").fill(email);
-    await page.getByTestId("parent-login-access-code").fill(accessCode);
 
-    const alert = page.getByTestId("parent-login-alert");
-    for (let attempt = 0; attempt < 10; attempt += 1) {
-      const authResponsePromise = page.waitForResponse(
-        (response) =>
-          response.url().includes("/api/auth/callback/parent-credentials") &&
-          response.request().method() === "POST",
-      );
-      await page.getByTestId("parent-login-submit").click();
-      await authResponsePromise;
+    const rateLimitAlert = page.getByTestId("parent-login-rate-limit");
+    const successView = page.getByTestId("parent-login-success");
 
-      try {
-        // Give the UI a moment to surface throttle/lockout without sleeping.
-        await expect(alert).toBeVisible({ timeout: 1000 });
-        break;
-      } catch {
-        // Continue submitting until throttle appears or attempts are exhausted.
+    // First attempt moves to the success view, unless throttling is already enforced.
+    await page.getByTestId("parent-login-submit").click();
+    await Promise.race([
+      rateLimitAlert.waitFor({ state: "visible" }),
+      successView.waitFor({ state: "visible" }),
+    ]);
+
+    // If we weren't throttled immediately, keep resending until the rate limit UI appears.
+    if ((await rateLimitAlert.count()) === 0) {
+      const resendButton = page.getByTestId("parent-login-resend");
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        await resendButton.click();
+        if ((await rateLimitAlert.count()) > 0) break;
       }
-
-      // Invalid credentials still surface as field-level errors before throttling.
-      await expect(page.getByTestId("parent-login-code-error")).toBeVisible();
     }
 
-    // UI should show the throttle/lockout callout once enforced.
-    await expect(alert).toBeVisible();
+    // UI should show the throttle callout once enforced.
+    await expect(rateLimitAlert).toBeVisible();
 
-    const submitButton = page.getByTestId("parent-login-submit");
-    // Another attempt should remain blocked by throttle/lockout.
-    if (!(await submitButton.isDisabled())) {
-      const retryResponsePromise = page.waitForResponse(
-        (response) =>
-          response.url().includes("/api/auth/callback/parent-credentials") &&
-          response.request().method() === "POST",
-      );
-      await submitButton.click();
-      await retryResponsePromise;
-      await expect(alert).toBeVisible();
-    }
+    // Another attempt should still keep the throttle callout visible.
+    const resendButton = page
+      .getByTestId("parent-login-resend")
+      .or(page.getByTestId("parent-login-submit"));
+    await resendButton.click();
+    await expect(rateLimitAlert).toBeVisible();
 
     await expect(page.getByTestId("parent-login-page")).toBeVisible();
   });
