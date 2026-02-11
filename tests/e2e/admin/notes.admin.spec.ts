@@ -1,4 +1,4 @@
-// Session notes admin E2E coverage: save/persist, tenant context, and cross-tenant guard.
+// Session summary admin E2E coverage: save/persist, tenant context, and cross-tenant guard.
 import { expect, test } from "@playwright/test";
 
 import { loginViaUI } from "..\/helpers/auth";
@@ -92,17 +92,15 @@ test.describe("[regression] Session notes - admin", () => {
     await expect(page.getByTestId("notes-section")).toBeVisible();
 
     const internalValue = uniqueString("E2E internal");
-    const parentValue = uniqueString("E2E parent");
-
-    await page.getByTestId("notes-internal-input").fill(internalValue);
-    await page.getByTestId("notes-parent-visible-input").fill(parentValue);
-
-    await page.getByTestId("notes-save-button").click();
+    // Session summary now persists only staff-facing internal content.
+    await page.getByTestId("session-summary-internal-input").fill(internalValue);
+    await page.getByTestId("session-summary-save-button").click();
     await expect(page.getByTestId("notes-saved-toast")).toBeVisible();
 
     await page.reload();
-    await expect(page.getByTestId("notes-internal-input")).toHaveValue(internalValue);
-    await expect(page.getByTestId("notes-parent-visible-input")).toHaveValue(parentValue);
+    await expect(page.getByTestId("session-summary-internal-input")).toHaveValue(
+      internalValue,
+    );
 
     // Cross-tenant attempt should be blocked (404 preferred, 403 acceptable).
     const otherTenantSlug = uniqueString("ghost-tenant").toLowerCase();

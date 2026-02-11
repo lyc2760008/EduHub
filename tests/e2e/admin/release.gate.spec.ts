@@ -134,26 +134,21 @@ test.describe("[slow] [regression] Release gate", () => {
     await expect(page.getByTestId("attendance-save-success")).toBeVisible();
 
     const internalNote = `E2E internal ${suffix}`;
-    const parentNote = `E2E parent ${suffix}`;
     await saveNotes(page, {
       internalNote,
-      parentVisibleNote: parentNote,
     });
 
     await page.reload();
-    // Notes panel can hydrate after attendance on slower CI-like runs; wait for editability first.
-    await expect(page.getByTestId("notes-internal-input")).toBeEnabled({
+    // Session summary can hydrate after attendance on slower CI-like runs; wait for editability first.
+    await expect(page.getByTestId("session-summary-internal-input")).toBeEnabled({
       timeout: 30_000,
     });
-    await expect(page.getByTestId("notes-parent-visible-input")).toBeEnabled({
-      timeout: 30_000,
-    });
-    await expect(page.getByTestId("notes-internal-input")).toHaveValue(internalNote, {
-      timeout: 30_000,
-    });
-    await expect(page.getByTestId("notes-parent-visible-input")).toHaveValue(parentNote, {
-      timeout: 30_000,
-    });
+    await expect(page.getByTestId("session-summary-internal-input")).toHaveValue(
+      internalNote,
+      {
+        timeout: 30_000,
+      },
+    );
     await expect(
       page.getByTestId(`attendance-status-select-${student.id}`),
     ).toHaveValue("PRESENT");
@@ -251,7 +246,6 @@ test.describe("[slow] [regression] Release gate", () => {
 
     await saveNotes(page, {
       internalNote: `E2E internal ${suffix}`,
-      parentVisibleNote: `E2E parent ${suffix}`,
     });
 
     if (otherTutorSessionId) {

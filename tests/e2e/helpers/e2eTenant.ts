@@ -3,6 +3,11 @@ import bcrypt from "bcryptjs";
 import { DateTime } from "luxon";
 
 import type { Prisma, PrismaClient } from "../../../src/generated/prisma/client";
+import {
+  STEP223_INTERNAL_ONLY_SENTINEL,
+  STEP223_PROGRESS_NOTE_COUNT,
+  buildStep223ParentVisibleNote,
+} from "./step203";
 
 // DbClient allows helpers to run with either the full Prisma client or a transaction client.
 type DbClient = PrismaClient | Prisma.TransactionClient;
@@ -203,14 +208,15 @@ export async function upsertE2EFixtures(prisma: DbClient) {
     (tenant.slug.toLowerCase().startsWith("e2e")
       ? `${tenant.slug}-secondary`
       : process.env.SEED_SECOND_TENANT_SLUG || "acme");
-  if (secondaryTenantSlug && secondaryTenantSlug !== tenant.slug) {
-    // Ensure a second tenant exists for cross-tenant RBAC checks.
-    await ensureE2ETenant(
-      prisma,
-      secondaryTenantSlug,
-      process.env.E2E_SECOND_TENANT_NAME || "E2E Secondary",
-    );
-  }
+  const secondaryTenant =
+    secondaryTenantSlug && secondaryTenantSlug !== tenant.slug
+      ? // Ensure a second tenant exists for cross-tenant RBAC checks.
+        await ensureE2ETenant(
+          prisma,
+          secondaryTenantSlug,
+          process.env.E2E_SECOND_TENANT_NAME || "E2E Secondary",
+        )
+      : null;
 
   const studentId = `e2e-${tenant.slug}-${runId}-student-s1`;
   const unlinkedStudentId = `e2e-${tenant.slug}-${runId}-student-s2`;
@@ -219,10 +225,21 @@ export async function upsertE2EFixtures(prisma: DbClient) {
   // Parent magic-link eligibility requires at least one linked student; keep a dedicated student for A0
   // so tests can authenticate as a "different parent" without affecting A1's session fixtures.
   const parentA0StudentId = `e2e-${tenant.slug}-${runId}-student-s4`;
+  // Step 22.3 requires a linked parent-owned student with no notes for empty-state assertions.
+  const progressEmptyStudentId = `e2e-${tenant.slug}-${runId}-student-s5`;
+  // Cross-tenant student fixture ensures URL-crafted probing cannot leak records across tenants.
+  const crossTenantStudentId = `e2e-${secondaryTenantSlug}-${runId}-student-cross-tenant-s1`;
   const upcomingSessionId = `e2e-${tenant.slug}-${runId}-session-upcoming`;
   const pastSessionId = `e2e-${tenant.slug}-${runId}-session-past`;
   const tutorBSessionId = `e2e-${tenant.slug}-${runId}-session-tutor-b`;
   const unlinkedSessionId = `e2e-${tenant.slug}-${runId}-session-unlinked`;
+  const progressSessionIds = Array.from(
+    { length: STEP223_PROGRESS_NOTE_COUNT },
+    (_, index) =>
+      `e2e-${tenant.slug}-${runId}-session-progress-note-${String(index + 1).padStart(2, "0")}`,
+  );
+  const progressInternalOnlySessionId =
+    `e2e-${tenant.slug}-${runId}-session-progress-internal-only`;
   const absenceHappySessionId =
     `e2e-${tenant.slug}-${runId}-session-absence-happy`;
   const absenceDuplicateSessionId =
@@ -266,6 +283,8 @@ export async function upsertE2EFixtures(prisma: DbClient) {
   const unlinkedStudentName = { firstName: "E2E Student", lastName: "S2" };
   const missingEmailStudentName = { firstName: "E2E Student", lastName: "S3" };
   const parentA0StudentName = { firstName: "E2E Student", lastName: "A0" };
+  const progressEmptyStudentName = { firstName: "E2E Student", lastName: "S5 Empty" };
+  const crossTenantStudentName = { firstName: "E2E Student", lastName: "CrossTenant" };
 
   const timezone = "America/Edmonton";
   const nowLocal = DateTime.now().setZone(timezone);
@@ -330,6 +349,18 @@ export async function upsertE2EFixtures(prisma: DbClient) {
   );
   const absenceAutoAssistApprovedStart = withUniqueSessionSeconds(
     nowLocal.plus({ days: 3 }).set({ hour: 10, minute: 45 }),
+  );
+  const progressNoteStarts = progressSessionIds.map((_, index) =>
+    withUniqueSessionSeconds(
+      // Keep progress-note sessions far in the future so they do not disturb near-term scheduling tests.
+      nowLocal.plus({ days: 120 + index }).set({
+        hour: 8 + (index % 6),
+        minute: (index * 5) % 60,
+      }),
+    ),
+  );
+  const progressInternalOnlyStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 119 }).set({ hour: 7, minute: 45 }),
   );
 
   await withTransaction(prisma, async (tx) => {
@@ -671,6 +702,44 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       select: { id: true },
     });
 
+    const progressEmptyStudent = await tx.student.upsert({
+      where: { id: progressEmptyStudentId },
+      update: {
+        tenantId: tenant.id,
+        firstName: progressEmptyStudentName.firstName,
+        lastName: progressEmptyStudentName.lastName,
+        status: "ACTIVE",
+      },
+      create: {
+        id: progressEmptyStudentId,
+        tenantId: tenant.id,
+        firstName: progressEmptyStudentName.firstName,
+        lastName: progressEmptyStudentName.lastName,
+        status: "ACTIVE",
+      },
+      select: { id: true },
+    });
+
+    if (secondaryTenant) {
+      // Seed a deterministic cross-tenant student so portal RBAC tests can probe with a real foreign ID.
+      await tx.student.upsert({
+        where: { id: crossTenantStudentId },
+        update: {
+          tenantId: secondaryTenant.id,
+          firstName: crossTenantStudentName.firstName,
+          lastName: crossTenantStudentName.lastName,
+          status: "ACTIVE",
+        },
+        create: {
+          id: crossTenantStudentId,
+          tenantId: secondaryTenant.id,
+          firstName: crossTenantStudentName.firstName,
+          lastName: crossTenantStudentName.lastName,
+          status: "ACTIVE",
+        },
+      });
+    }
+
     await tx.studentParent.upsert({
       where: {
         tenantId_studentId_parentId: {
@@ -701,6 +770,23 @@ export async function upsertE2EFixtures(prisma: DbClient) {
         tenantId: tenant.id,
         studentId: parentA0Student.id,
         parentId: parentA0.id,
+        relationship: "GUARDIAN",
+      },
+    });
+
+    await tx.studentParent.upsert({
+      where: {
+        tenantId_studentId_parentId: {
+          tenantId: tenant.id,
+          studentId: progressEmptyStudent.id,
+          parentId: parentA1.id,
+        },
+      },
+      update: { relationship: "GUARDIAN" },
+      create: {
+        tenantId: tenant.id,
+        studentId: progressEmptyStudent.id,
+        parentId: parentA1.id,
         relationship: "GUARDIAN",
       },
     });
@@ -1157,6 +1243,58 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       select: { id: true },
     });
 
+    const progressNoteSessions = await Promise.all(
+      progressSessionIds.map(async (sessionId, index) =>
+        tx.session.upsert({
+          where: { id: sessionId },
+          update: {
+            tenantId: tenant.id,
+            centerId: center.id,
+            tutorId: tutorUser.id,
+            sessionType: "ONE_ON_ONE",
+            startAt: progressNoteStarts[index].toJSDate(),
+            endAt: progressNoteStarts[index].plus({ hours: 1 }).toJSDate(),
+            timezone,
+          },
+          create: {
+            id: sessionId,
+            tenantId: tenant.id,
+            centerId: center.id,
+            tutorId: tutorUser.id,
+            sessionType: "ONE_ON_ONE",
+            startAt: progressNoteStarts[index].toJSDate(),
+            endAt: progressNoteStarts[index].plus({ hours: 1 }).toJSDate(),
+            timezone,
+          },
+          select: { id: true },
+        }),
+      ),
+    );
+
+    const progressInternalOnlySession = await tx.session.upsert({
+      where: { id: progressInternalOnlySessionId },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: progressInternalOnlyStart.toJSDate(),
+        endAt: progressInternalOnlyStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: progressInternalOnlySessionId,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: progressInternalOnlyStart.toJSDate(),
+        endAt: progressInternalOnlyStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
     await tx.sessionStudent.upsert({
       where: {
         tenantId_sessionId_studentId: {
@@ -1445,6 +1583,40 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       },
     });
 
+    for (const progressSession of progressNoteSessions) {
+      await tx.sessionStudent.upsert({
+        where: {
+          tenantId_sessionId_studentId: {
+            tenantId: tenant.id,
+            sessionId: progressSession.id,
+            studentId: student.id,
+          },
+        },
+        update: {},
+        create: {
+          tenantId: tenant.id,
+          sessionId: progressSession.id,
+          studentId: student.id,
+        },
+      });
+    }
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: progressInternalOnlySession.id,
+          studentId: student.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: progressInternalOnlySession.id,
+        studentId: student.id,
+      },
+    });
+
     // Clear parent requests tied to absence sessions so tests start from a clean slate.
     await tx.parentRequest.deleteMany({
       where: {
@@ -1526,6 +1698,69 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       },
     });
 
+    for (let index = 0; index < progressNoteSessions.length; index += 1) {
+      const progressSession = progressNoteSessions[index];
+      await tx.attendance.upsert({
+        where: {
+          tenantId_sessionId_studentId: {
+            tenantId: tenant.id,
+            sessionId: progressSession.id,
+            studentId: student.id,
+          },
+        },
+        update: {
+          status: "PRESENT",
+          // Keep a staff-only note populated to assert API responses never leak internal fields.
+          note: `STEP223_INTERNAL_NOTE_${String(index + 1).padStart(2, "0")}`,
+          parentVisibleNote: buildStep223ParentVisibleNote(index + 1),
+          parentVisibleNoteUpdatedAt: now,
+          markedByUserId: tutorUser.id,
+          markedAt: now,
+        },
+        create: {
+          tenantId: tenant.id,
+          sessionId: progressSession.id,
+          studentId: student.id,
+          status: "PRESENT",
+          note: `STEP223_INTERNAL_NOTE_${String(index + 1).padStart(2, "0")}`,
+          parentVisibleNote: buildStep223ParentVisibleNote(index + 1),
+          parentVisibleNoteUpdatedAt: now,
+          markedByUserId: tutorUser.id,
+          markedAt: now,
+        },
+      });
+    }
+
+    await tx.attendance.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: progressInternalOnlySession.id,
+          studentId: student.id,
+        },
+      },
+      update: {
+        status: "PRESENT",
+        note: STEP223_INTERNAL_ONLY_SENTINEL,
+        // Explicit null parent-visible note drives "no leak" assertions in Step 22.3 tests.
+        parentVisibleNote: null,
+        parentVisibleNoteUpdatedAt: null,
+        markedByUserId: tutorUser.id,
+        markedAt: now,
+      },
+      create: {
+        tenantId: tenant.id,
+        sessionId: progressInternalOnlySession.id,
+        studentId: student.id,
+        status: "PRESENT",
+        note: STEP223_INTERNAL_ONLY_SENTINEL,
+        parentVisibleNote: null,
+        parentVisibleNoteUpdatedAt: null,
+        markedByUserId: tutorUser.id,
+        markedAt: now,
+      },
+    });
+
     // ParentA0 is intentionally left without linked students for empty-state tests.
     void parentA0;
     // Tutor B and unlinked student/session support access-control coverage.
@@ -1542,6 +1777,10 @@ export async function upsertE2EFixtures(prisma: DbClient) {
     studentId,
     unlinkedStudentId,
     missingEmailStudentId,
+    progressEmptyStudentId,
+    progressSessionIds,
+    progressInternalOnlySessionId,
+    crossTenantStudentId,
     upcomingSessionId,
     pastSessionId,
     tutorBSessionId,

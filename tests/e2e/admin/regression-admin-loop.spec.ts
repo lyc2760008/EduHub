@@ -209,18 +209,13 @@ test.describe("[slow] [regression] Admin regression loop", () => {
     ).toHaveValue("PRESENT");
 
     const internalNote = `E2E internal ${suffix}`;
-    const parentNote = `E2E parent ${suffix}`;
     await saveNotes(page, {
       internalNote,
-      parentVisibleNote: parentNote,
     });
 
     await page.reload();
-    await expect(page.getByTestId("notes-internal-input")).toHaveValue(
+    await expect(page.getByTestId("session-summary-internal-input")).toHaveValue(
       internalNote,
-    );
-    await expect(page.getByTestId("notes-parent-visible-input")).toHaveValue(
-      parentNote,
     );
 
     await page.goto(buildTenantPath(tenantSlug, "/admin/reports"));

@@ -99,6 +99,7 @@
       "subjects": "Subjects",
       "levels": "Levels",
       "sessions": "Sessions",
+      "tutorMySessions": "My sessions",
       "requests": "Requests",
       "audit": "Audit log",
       "help": "Help",
@@ -1835,6 +1836,101 @@
     "status": {
       "active": "Active",
       "inactive": "Inactive"
+    }
+  },
+  "tutorSessions": {
+    "_comment": "Tutor My Sessions copy for Step 22.4 session execution pack.",
+    "page": {
+      "title": "My sessions",
+      "subtitle": "View and run your upcoming sessions."
+    },
+    "filters": {
+      "dateRange": {
+        "label": "Date range"
+      },
+      "startDate": {
+        "label": "Start date"
+      },
+      "endDate": {
+        "label": "End date"
+      },
+      "status": {
+        "label": "Status",
+        "all": "All",
+        "scheduled": "Scheduled",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      }
+    },
+    "list": {
+      "sectionTitle": "Sessions",
+      "runSession": "Run session",
+      "location": {
+        "online": "Online"
+      },
+      "loadMore": "Load more",
+      "loadingMore": "Loading..."
+    },
+    "loading": "Loading sessions...",
+    "empty": {
+      "title": "No sessions in this date range",
+      "body": "Try a different date range."
+    },
+    "error": {
+      "title": "Unable to load sessions",
+      "body": "Please refresh the page and try again.",
+      "retry": "Try again"
+    },
+    "validation": {
+      "invalidDateRange": "End date must be on or after start date."
+    }
+  },
+  "tutorRunSession": {
+    "_comment": "Tutor Run Session copy for attendance + parent-visible note execution.",
+    "page": {
+      "title": "Run session",
+      "back": "Back to my sessions"
+    },
+    "roster": {
+      "sectionTitle": "Attendance",
+      "status": {
+        "label": "Attendance status"
+      }
+    },
+    "attendance": {
+      "present": "Present",
+      "absent": "Absent",
+      "late": "Late",
+      "excused": "Excused"
+    },
+    "note": {
+      "parentVisible": {
+        "label": "Note shared with parents",
+        "helper": "Visible to parents"
+      }
+    },
+    "save": {
+      "cta": "Save",
+      "saving": "Saving...",
+      "saved": "Saved",
+      "toast": {
+        "success": "Saved",
+        "error": "Unable to save changes"
+      },
+      "error": {
+        "body": "Please try again."
+      }
+    },
+    "emptyRoster": {
+      "title": "No students in this session",
+      "body": "There’s no roster to take attendance for."
+    },
+    "error": {
+      "load": {
+        "title": "Unable to load session",
+        "body": "Please refresh the page and try again.",
+        "retry": "Try again"
+      }
     }
   },
   "parentStudentProgress": {

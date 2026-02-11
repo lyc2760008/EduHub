@@ -16,6 +16,7 @@ How to use: Paste this doc before PO planning.
 
 Change log:
 
+- 2026-02-11: Dev — Step 22.4 implemented Tutor Session Execution Pack v1 (My Sessions + Run Session) with tutor-only RBAC, server-scoped APIs, and attendance + parent-visible note save flow.
 - 2026-02-11: Dev — Step 22.3 implemented parent Student Detail Progress Notes timeline (v1), read-only with parent-visible note scoping.
 - 2026-02-11: Dev — Repo-intel delta merge: added explicit capability statements (parent landing redirect, onboarding dismiss, request resolve, session generate, group future sync, invite-copy audit, tutor scoped operations) and marked unconfirmed claims as UNKNOWN/TODO.
 - 2026-02-11: Dev — Step 0.1 upgraded Current State Snapshot to v2 (route capabilities + @state annotations + generator heuristics).
@@ -52,6 +53,8 @@ Change log:
 - Step 22.2 — Admin parent magic link invite/resend from Student Detail → Parents section. Route: `/[tenant]/admin/students/[id]`. Endpoint: `src/app/api/parents/[parentId]/send-magic-link/route.ts`. Shared helper: `src/lib/auth/parentMagicLink.ts`.
 <!-- Step 22.3: Parent Student Detail progress notes timeline (read-only) -->
 - Step 22.3 — Parent Student Detail now includes Progress Notes timeline (v1). Route: `/[tenant]/portal/students/[id]`. Endpoint: `src/app/api/portal/students/[id]/progress-notes/route.ts`. Data source: `Attendance.parentVisibleNote` (parent-visible only).
+<!-- Step 22.4: Tutor Session Execution Pack v1 (My Sessions + Run Session). -->
+- Step 22.4 — Tutor Session Execution Pack v1 shipped with tutor-only routes `/[tenant]/tutor/sessions` and `/[tenant]/tutor/sessions/[id]`, plus tutor APIs for scoped list/detail/save under `src/app/[tenant]/api/tutor/sessions/*`. Tutors can edit only attendance status (`PRESENT/ABSENT/LATE/EXCUSED`) and `Attendance.parentVisibleNote` (parent-visible note only).
 
 ## Route Inventory
 
@@ -109,6 +112,20 @@ Parent routes (app/[tenant]/(parent)/...):
   - Capabilities:
   - `view:list`
   - Access control summary: Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`).
+
+Tutor routes (app/[tenant]/tutor/...):
+
+- Path: `/[tenant]/tutor/sessions`
+  - Description: Tutor My Sessions list (upcoming window + date range + run action).
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Tutor layout guard (`src/app/[tenant]/tutor/layout.tsx`, `requireTutorContextOrThrow`).
+- Path: `/[tenant]/tutor/sessions/[id]`
+  - Description: Tutor Run Session attendance + parent-visible notes.
+  - Capabilities:
+  - `view:detail`
+  - `update:attendance`
+  - Access control summary: Tutor layout guard + tutor-scoped APIs (`src/app/[tenant]/api/tutor/sessions/[id]/route.ts`, `src/app/[tenant]/api/tutor/sessions/[id]/save/route.ts`).
 
 Admin routes (app/[tenant]/(admin)/...):
 
@@ -233,6 +250,15 @@ Parent nav items (from `src/components/parent/PortalTopNav.tsx`):
 - Sessions ? `/[tenant]/portal/sessions`.
 - Requests ? `/[tenant]/portal/requests`.
 
+Tutor shell/nav sources:
+
+- `src/components/tutor/TutorShell.tsx` (tutor shell wrapper + tutor nav link).
+- `src/lib/nav/adminNavTree.ts` (admin shell handoff nav entry `admin.nav.tutorMySessions` visible to Tutor role).
+
+Tutor nav items:
+
+- My Sessions ? `/[tenant]/tutor/sessions`.
+
 Duplicate/ambiguous nav labels to confirm:
 
 - `/admin/reports` appears as both the Reports group href and a report item in `src/lib/nav/adminNavTree.ts` (confirm intended behavior).
@@ -244,7 +270,9 @@ Duplicate/ambiguous nav labels to confirm:
 - Staff/admin auth uses NextAuth credentials with tenant membership check (`src/lib/auth/options.ts`).
 - Parent portal access guard uses `requireParentAccess` (`src/lib/rbac/parent.ts`) in parent/portal layouts.
 - Admin page guard uses `requirePageRole` (`src/lib/rbac/page.ts`) + `AdminAccessGate` (`src/components/admin/shared/AdminAccessGate.tsx`).
+- Tutor page guard uses `requireTutorContextOrThrow` (`src/lib/tutor/guard.ts`) in `src/app/[tenant]/tutor/layout.tsx`.
 - Tutor permissions on shared operations APIs are ownership-scoped (`READ_ROLES` + `tutorId` filtering/checks) in sessions/attendance/notes endpoints (`src/app/api/sessions/route.ts`, `src/app/api/sessions/[id]/attendance/route.ts`, `src/app/api/sessions/[id]/notes/route.ts`).
+- Tutor-specific session execution APIs are ownership-scoped and tenant-safe in `src/app/[tenant]/api/tutor/sessions/route.ts`, `src/app/[tenant]/api/tutor/sessions/[id]/route.ts`, and `src/app/[tenant]/api/tutor/sessions/[id]/save/route.ts`.
 - Session max age (high-level):
 - Global JWT maxAge configured at 90 days (`src/lib/auth/options.ts`).
 - Parent sessions: 90 days when remember-me is true, 7 days when remember-me is false (`src/lib/auth/options.ts`).

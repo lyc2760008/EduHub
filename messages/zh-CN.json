@@ -99,6 +99,7 @@
       "subjects": "科目",
       "levels": "级别",
       "sessions": "课程",
+      "tutorMySessions": "我的课程",
       "requests": "申请",
       "audit": "审计日志",
       "help": "帮助",
@@ -1393,6 +1394,101 @@
     "status": {
       "active": "启用",
       "inactive": "停用"
+    }
+  },
+  "tutorSessions": {
+    "_comment": "Step 22.4 导师“我的课程”页面文案。",
+    "page": {
+      "title": "我的课程",
+      "subtitle": "查看并执行您即将到来的课程。"
+    },
+    "filters": {
+      "dateRange": {
+        "label": "日期范围"
+      },
+      "startDate": {
+        "label": "开始日期"
+      },
+      "endDate": {
+        "label": "结束日期"
+      },
+      "status": {
+        "label": "状态",
+        "all": "全部",
+        "scheduled": "已安排",
+        "completed": "已完成",
+        "cancelled": "已取消"
+      }
+    },
+    "list": {
+      "sectionTitle": "课程列表",
+      "runSession": "开始上课",
+      "location": {
+        "online": "线上"
+      },
+      "loadMore": "加载更多",
+      "loadingMore": "加载中..."
+    },
+    "loading": "正在加载课程...",
+    "empty": {
+      "title": "此日期范围内暂无课程",
+      "body": "请尝试选择其他日期范围。"
+    },
+    "error": {
+      "title": "无法加载课程",
+      "body": "请刷新页面后再试。",
+      "retry": "重试"
+    },
+    "validation": {
+      "invalidDateRange": "结束日期需晚于或等于开始日期。"
+    }
+  },
+  "tutorRunSession": {
+    "_comment": "Step 22.4 导师“开始上课”页面文案（出勤 + 家长可见备注）。",
+    "page": {
+      "title": "开始上课",
+      "back": "返回我的课程"
+    },
+    "roster": {
+      "sectionTitle": "出勤",
+      "status": {
+        "label": "出勤状态"
+      }
+    },
+    "attendance": {
+      "present": "出勤",
+      "absent": "缺勤",
+      "late": "迟到",
+      "excused": "请假"
+    },
+    "note": {
+      "parentVisible": {
+        "label": "与家长分享的备注",
+        "helper": "家长可见"
+      }
+    },
+    "save": {
+      "cta": "保存",
+      "saving": "保存中...",
+      "saved": "已保存",
+      "toast": {
+        "success": "已保存",
+        "error": "无法保存更改"
+      },
+      "error": {
+        "body": "请重试。"
+      }
+    },
+    "emptyRoster": {
+      "title": "本次课程暂无学生",
+      "body": "没有可用于点名的学生名单。"
+    },
+    "error": {
+      "load": {
+        "title": "无法加载课程",
+        "body": "请刷新页面后再试。",
+        "retry": "重试"
+      }
     }
   },
   "portal": {
