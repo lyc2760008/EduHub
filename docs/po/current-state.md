@@ -16,6 +16,7 @@ How to use: Paste this doc before PO planning.
 
 Change log:
 
+- 2026-02-11: Dev — Step 22.5 canonicalized parent home: /[tenant]/portal; /[tenant]/parent is redirect-only.
 - 2026-02-11: Dev — Step 22.4 implemented Tutor Session Execution Pack v1 (My Sessions + Run Session) with tutor-only RBAC, server-scoped APIs, and attendance + parent-visible note save flow.
 - 2026-02-11: Dev — Step 22.3 implemented parent Student Detail Progress Notes timeline (v1), read-only with parent-visible note scoping.
 - 2026-02-11: Dev — Repo-intel delta merge: added explicit capability statements (parent landing redirect, onboarding dismiss, request resolve, session generate, group future sync, invite-copy audit, tutor scoped operations) and marked unconfirmed claims as UNKNOWN/TODO.
@@ -42,7 +43,7 @@ Change log:
 - TODO: confirm Step ID — Parent portal home + sessions + requests + students. Routes: `/[tenant]/portal`, `/[tenant]/portal/sessions`, `/[tenant]/portal/sessions/[id]`, `/[tenant]/portal/requests`, `/[tenant]/portal/students`, `/[tenant]/portal/students/[id]`.
 - TODO: confirm Step ID — Parent portal account/help views. Routes: `/[tenant]/portal/account`, `/[tenant]/portal/help`.
 - TODO: confirm Step ID — Parent auth (magic link + verify). Routes: `/[tenant]/parent/login`, `/[tenant]/parent/auth/verify`.
-- TODO: confirm Step ID — Parent auth success landing. Route: `/[tenant]/parent`. Capability: `view:list` (parent landing that links to `/[tenant]/portal`).
+- TODO: confirm Step ID — Parent auth success canonicalization. Route: `/[tenant]/parent` (redirect-only legacy entry) -> `/[tenant]/portal` (canonical home). Capability: `view:list`.
 - TODO: confirm Step ID — Parent onboarding dismissal. Endpoint: `/api/portal/onboarding/dismiss`. Capability: `onboarding:dismiss_welcome` (updates `Parent.hasSeenWelcome`).
 - TODO: confirm Step ID — Admin request resolution action. Endpoint: `/api/requests/[id]/resolve`. Capability: `request:resolve` (approve/decline pending absence request).
 - TODO: confirm Step ID — Session generation action. Endpoint: `/api/sessions/generate`. Capability: `session:create_generate_batch`.
@@ -63,12 +64,12 @@ This section now tracks route-level capabilities (v2). Full inventory + file evi
 Parent routes (app/[tenant]/(parent)/...):
 
 - Path: `/[tenant]/parent`
-  - Description: Parent post-verify landing page.
+  - Description: Legacy/auth entry route; silently redirects to `/[tenant]/portal`.
   - Capabilities:
   - `view:list`
-  - Access control summary: Parent layout guard (`src/app/[tenant]/(parent)/parent/layout.tsx`, `requireParentAccess`).
+  - Access control summary: Parent layout guard (`src/app/[tenant]/(parent)/parent/layout.tsx`, `requireParentAccess`) then redirect-only page behavior.
 - Path: `/[tenant]/portal`
-  - Description: Parent portal dashboard/home.
+  - Description: Canonical parent portal dashboard/home.
   - Capabilities:
   - `view:list`
   - Access control summary: Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`, `requireParentAccess`).
@@ -266,7 +267,7 @@ Duplicate/ambiguous nav labels to confirm:
 ## Auth & Sessions (as implemented)
 
 - Parent auth uses magic links with remember-me handling via NextAuth credentials (`src/lib/auth/options.ts`) and parent auth endpoints under `src/app/[tenant]/api/parent-auth/magic-link/*`.
-- Parent verify flow consumes token via server action and redirects to `/[tenant]/parent` before portal navigation (`src/app/[tenant]/(parent-auth)/parent/auth/verify/_actions/consumeParentMagicLink.ts`).
+- Parent verify flow consumes token via server action and redirects to canonical `/[tenant]/portal`; `/[tenant]/parent` is retained as a redirect-only legacy entry (`src/app/[tenant]/(parent-auth)/parent/auth/verify/_actions/consumeParentMagicLink.ts`, `src/app/[tenant]/(parent)/parent/page.tsx`).
 - Staff/admin auth uses NextAuth credentials with tenant membership check (`src/lib/auth/options.ts`).
 - Parent portal access guard uses `requireParentAccess` (`src/lib/rbac/parent.ts`) in parent/portal layouts.
 - Admin page guard uses `requirePageRole` (`src/lib/rbac/page.ts`) + `AdminAccessGate` (`src/components/admin/shared/AdminAccessGate.tsx`).

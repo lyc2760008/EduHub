@@ -55,7 +55,8 @@ export default function ParentVerifyPage({ params }: PageProps) {
 
         if (data.ok) {
           setStatus("success");
-          const destination = data.redirectTo ?? `/${tenant}/parent`;
+          // Keep fallback aligned with canonical parent home routing.
+          const destination = data.redirectTo ?? `/${tenant}/portal`;
           redirectTimeout = window.setTimeout(() => {
             router.replace(destination);
           }, 900);
