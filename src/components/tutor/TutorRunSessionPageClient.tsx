@@ -19,6 +19,7 @@ type TutorRunSessionResponse = {
     label: string;
     locationLabel: string | null;
     sessionType: string;
+    zoomLink: string | null;
   };
   roster: Array<{
     studentId: string;
@@ -218,6 +219,16 @@ export default function TutorRunSessionPageClient({
           {t("tutorRunSession.page.title")}
         </h1>
         <p className="text-sm text-slate-600">{summaryLine}</p>
+        {session.zoomLink?.trim() ? (
+          <a
+            className="text-sm font-semibold text-slate-700 underline"
+            href={session.zoomLink}
+            rel="noreferrer"
+            target="_blank"
+          >
+            {t("session.zoomLink.open")}
+          </a>
+        ) : null}
       </header>
 
       {rows.length === 0 ? (

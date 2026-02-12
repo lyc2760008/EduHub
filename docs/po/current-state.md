@@ -16,6 +16,7 @@ How to use: Paste this doc before PO planning.
 
 Change log:
 
+- 2026-02-12: Dev — Step 22.7 shipped Scheduling Efficiency Pack v1 + Zoom link: session generation now runs Preview -> Commit with shared planner logic, admin bulk cancel (reason-code, audited), group detail roster-sync entry confirm flow, and nullable `Session.zoomLink` exposed as admin edit + tutor/parent read-only detail.
 - 2026-02-12: Dev — Step 22.6 shipped Admin Audit + Support Pack v1: redacted server-side audit query/read model, CSV export, expanded mutation audit coverage, and upgraded audit log UX (search/filter/sort/pagination + detail drill-in).
 - 2026-02-11: Dev — Step 22.5 canonicalized parent home: /[tenant]/portal; /[tenant]/parent is redirect-only.
 - 2026-02-11: Dev — Step 22.4 implemented Tutor Session Execution Pack v1 (My Sessions + Run Session) with tutor-only RBAC, server-scoped APIs, and attendance + parent-visible note save flow.
@@ -59,6 +60,8 @@ Change log:
 - Step 22.4 — Tutor Session Execution Pack v1 shipped with tutor-only routes `/[tenant]/tutor/sessions` and `/[tenant]/tutor/sessions/[id]`, plus tutor APIs for scoped list/detail/save under `src/app/[tenant]/api/tutor/sessions/*`. Tutors can edit only attendance status (`PRESENT/ABSENT/LATE/EXCUSED`) and `Attendance.parentVisibleNote` (parent-visible note only).
 <!-- Step 22.6: Admin Audit + Support Pack v1 -->
 - Step 22.6 — Admin Audit + Support Pack v1 shipped. Audit Log now supports server-side URL-backed search/filter/sort/pagination, redacted detail drill-in, and tenant-scoped CSV export (`/api/admin/audit/export`, capped + truncation header). Expanded audited mutation actions: `request.resolved`, `sessions.generated`, `group.futureSessions.synced`, `attendance.updated`, `notes.updated`, `parent.invite.sent`.
+<!-- Step 22.7: Scheduling Efficiency Pack v1 + Zoom link -->
+- Step 22.7 — Scheduling Efficiency Pack v1 + Zoom link shipped. Session generation now requires Preview -> Commit via shared planning logic (`/api/sessions/generate/preview`, `/api/sessions/generate`), admin sessions list supports bulk cancel with required reason-code + audit action `sessions.bulkCanceled`, group detail includes future-session roster sync confirm entry, and `Session.zoomLink` (nullable) is supported in admin create/edit plus tutor and parent session detail read-only views.
 
 ## Route Inventory
 
@@ -219,6 +222,12 @@ Key API capabilities (explicit, code-verified):
 - Path: `/api/sessions/generate`
   - Capability: `session:create_generate_batch`
   - Evidence: `src/app/api/sessions/generate/route.ts` (`POST`, transaction with `session.create` + `sessionStudent.createMany`).
+- Path: `/api/sessions/generate/preview`
+  - Capability: `session:create_generate_batch` (dry-run preview only)
+  - Evidence: `src/app/api/sessions/generate/preview/route.ts` (`POST`, shared planner logic with no writes).
+- Path: `/api/sessions/bulk-cancel`
+  - Capability: `session:update_bulk_cancel`
+  - Evidence: `src/app/api/sessions/bulk-cancel/route.ts` (`POST`, admin-only, tenant-safe all-or-nothing update + audit).
 - Path: `/api/groups/[id]/sync-future-sessions`
   - Capability: `session_roster:sync_future`
   - Evidence: `src/app/api/groups/[id]/sync-future-sessions/route.ts` (`POST`, `sessionStudent.createMany`).

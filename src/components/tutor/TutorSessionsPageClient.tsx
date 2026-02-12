@@ -16,6 +16,7 @@ type TutorSessionListItem = {
   label: string;
   locationLabel: string | null;
   sessionType: string;
+  zoomLink: string | null;
 };
 
 type TutorSessionsResponse = {
@@ -247,6 +248,16 @@ export default function TutorSessionsPageClient({
                       <p className="text-sm font-semibold text-slate-900">{dateTimeLabel}</p>
                       <p className="text-sm text-slate-700">{displayLabel}</p>
                       <p className="text-xs text-slate-500">{locationLabel}</p>
+                      {item.zoomLink?.trim() ? (
+                        <a
+                          className="text-xs font-semibold text-slate-700 underline"
+                          href={item.zoomLink}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          {t("session.zoomLink.open")}
+                        </a>
+                      ) : null}
                     </div>
                     <div>
                       <Link

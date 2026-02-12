@@ -24,6 +24,7 @@ export type RedactedAuditEvent = {
   action: string;
   entityType: string | null;
   entityId: string | null;
+  entityDisplay: string | null;
   result: AuditEventResult;
   correlationId: string | null;
   metadata: Record<string, SafeMetadataValue> | null;
@@ -44,11 +45,15 @@ const SAFE_METADATA_KEYS = new Set<string>([
   "sessionsUpdatedCount",
   "sessionsSkippedCount",
   "sessionsAffectedCount",
+  "canceledCount",
   "rowsUpdatedCount",
   "updatedCount",
   "clearedCount",
   "studentsAddedCount",
   "totalFutureSessions",
+  "reasonCode",
+  "dateRangeFrom",
+  "dateRangeTo",
   "inputRangeFrom",
   "inputRangeTo",
   "presentCount",
@@ -145,7 +150,21 @@ function sanitizeMetadata(metadata: Prisma.JsonValue | null) {
   return Object.keys(sanitized).length ? sanitized : null;
 }
 
-export function redactAuditEvent(raw: AuditEventQueryRow): RedactedAuditEvent {
+function sanitizeEntityDisplay(entityDisplay: string | null | undefined) {
+  if (!entityDisplay) return null;
+  const trimmed = entityDisplay.trim();
+  if (!trimmed) return null;
+  // Keep display-only labels safe from accidental PII leakage (especially emails).
+  if (EMAIL_PATTERN.test(trimmed)) return null;
+  return trimmed.length > 140 ? trimmed.slice(0, 140) : trimmed;
+}
+
+export function redactAuditEvent(
+  raw: AuditEventQueryRow,
+  options?: {
+    entityDisplay?: string | null;
+  },
+): RedactedAuditEvent {
   return {
     id: raw.id,
     occurredAt: raw.occurredAt.toISOString(),
@@ -155,6 +174,7 @@ export function redactAuditEvent(raw: AuditEventQueryRow): RedactedAuditEvent {
     action: raw.action,
     entityType: raw.entityType ?? null,
     entityId: raw.entityId ?? null,
+    entityDisplay: sanitizeEntityDisplay(options?.entityDisplay),
     result: raw.result,
     correlationId: raw.correlationId ?? null,
     metadata: sanitizeMetadata(raw.metadata as Prisma.JsonValue | null),

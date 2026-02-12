@@ -487,6 +487,11 @@ model Session {
   tutorId     String
   sessionType SessionType
   groupId     String?
+  // Optional meeting URL; validate/normalize in the server layer before persisting.
+  zoomLink    String?
+  // Cancel metadata for bulk operations when status enum is not present.
+  canceledAt  DateTime?
+  cancelReasonCode String?
   startAt     DateTime
   endAt       DateTime
   // Store the IANA timezone string provided by the client for display.

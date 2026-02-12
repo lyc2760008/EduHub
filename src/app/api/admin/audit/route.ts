@@ -10,6 +10,10 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Role } from "@/generated/prisma/client";
 import { parseAuditEventQuery, queryAuditEventsPage } from "@/lib/audit/queryAuditEvents";
 import { redactAuditEvent } from "@/lib/audit/redactAuditEvent";
+import {
+  getAuditEntityDisplay,
+  resolveAuditEntityDisplayLookup,
+} from "@/lib/audit/resolveAuditEntityDisplay";
 import { requireRole } from "@/lib/rbac";
 import {
   ReportApiError,
@@ -33,13 +37,22 @@ export async function GET(req: NextRequest) {
       tenantId,
       parsedQuery,
     });
+    const entityDisplayLookup = await resolveAuditEntityDisplayLookup({
+      tenantId,
+      rows: result.items,
+    });
 
     const totalPages = Math.max(1, Math.ceil(result.totalCount / result.pageSize));
     const hasNextPage = result.page < totalPages;
     const hasPreviousPage = result.page > 1;
 
     return NextResponse.json({
-      items: result.items.map((row) => redactAuditEvent(row)),
+      items: result.items.map((row) =>
+        redactAuditEvent(row, {
+          // Resolve tenant-scoped entity labels so admins can read names instead of opaque IDs.
+          entityDisplay: getAuditEntityDisplay(row, entityDisplayLookup),
+        }),
+      ),
       pageInfo: {
         page: result.page,
         pageSize: result.pageSize,

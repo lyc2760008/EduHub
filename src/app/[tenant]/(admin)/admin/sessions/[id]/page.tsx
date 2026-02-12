@@ -11,6 +11,7 @@ import Link from "next/link";
 import type { Role } from "@/generated/prisma/client";
 import SessionAttendanceSection from "@/components/admin/sessions/SessionAttendanceSection";
 import SessionNotesSection from "@/components/admin/sessions/SessionNotesSection";
+import SessionZoomLinkSection from "@/components/admin/sessions/SessionZoomLinkSection";
 import AdminAccessGate from "@/components/admin/shared/AdminAccessGate";
 import AdminPageShell from "@/components/admin/shared/AdminPageShell";
 import { prisma } from "@/lib/db/prisma";
@@ -38,6 +39,8 @@ export default async function SessionDetailPage({ params }: PageProps) {
       {async (access) => {
         const tenantId = access.tenant.tenantId;
         const isTutor = access.membership.role === "Tutor";
+        const canEditZoomLink =
+          access.membership.role === "Owner" || access.membership.role === "Admin";
         // Pass viewer identity to client sections that resolve absence requests.
         const viewerName = access.user.name ?? null;
         const viewerEmail = access.user.email ?? "";
@@ -60,6 +63,7 @@ export default async function SessionDetailPage({ params }: PageProps) {
             startAt: true,
             endAt: true,
             timezone: true,
+            zoomLink: true,
             sessionStudents: {
               select: {
                 student: {
@@ -197,8 +201,26 @@ export default async function SessionDetailPage({ params }: PageProps) {
                     {formatDateTime(session.endAt)}
                   </p>
                 </div>
+                <div>
+                  <span className="text-xs uppercase text-slate-500">
+                    {t("session.zoomLink.label")}
+                  </span>
+                  <p className="mt-1 font-medium">
+                    {session.zoomLink?.trim()
+                      ? t("session.zoomLink.open")
+                      : t("generic.dash")}
+                  </p>
+                </div>
               </div>
             </section>
+
+            {/* Zoom link editing is restricted to admin-owner roles on the server. */}
+            <SessionZoomLinkSection
+              canEdit={canEditZoomLink}
+              initialZoomLink={session.zoomLink}
+              sessionId={session.id}
+              tenant={tenant}
+            />
 
             {/* Attendance section uses client-side fetch to keep page load minimal. */}
             <SessionAttendanceSection

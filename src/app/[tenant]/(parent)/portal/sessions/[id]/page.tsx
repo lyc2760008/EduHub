@@ -32,6 +32,9 @@ type PortalSessionDetail = {
   startAt: string;
   endAt: string | null;
   timezone?: string | null;
+  zoomLink?: string | null;
+  canceledAt?: string | null;
+  cancelReasonCode?: string | null;
   groupId?: string | null;
   groupName?: string | null;
   centerId?: string | null;
@@ -163,6 +166,23 @@ function resolveReasonLabelKey(reasonCode: string | null | undefined) {
   if (!reasonCode) return "generic.dash";
   const match = ABSENCE_REASON_OPTIONS.find((option) => option.value === reasonCode);
   return match?.labelKey ?? "generic.dash";
+}
+
+function getSessionCancelReasonLabelKey(reasonCode: string | null | undefined) {
+  switch (reasonCode) {
+    case "WEATHER":
+      return "portal.sessions.cancelReason.WEATHER";
+    case "TUTOR_UNAVAILABLE":
+      return "portal.sessions.cancelReason.TUTOR_UNAVAILABLE";
+    case "HOLIDAY":
+      return "portal.sessions.cancelReason.HOLIDAY";
+    case "LOW_ENROLLMENT":
+      return "portal.sessions.cancelReason.LOW_ENROLLMENT";
+    case "OTHER":
+      return "portal.sessions.cancelReason.OTHER";
+    default:
+      return null;
+  }
 }
 
 export default function PortalSessionDetailPage() {
@@ -475,8 +495,12 @@ export default function PortalSessionDetailPage() {
   }, [activeStudentId, sessionDetail]);
 
   const session = sessionDetail?.session ?? null;
+  const isSessionCanceled = Boolean(session?.canceledAt);
   // Prefer the session timezone so parent times align with admin display.
   const sessionTimeZone = session?.timezone ?? tenantTimeZone;
+  const sessionCancelReasonKey = getSessionCancelReasonLabelKey(
+    session?.cancelReasonCode,
+  );
   const sessionTypeKey = session ? getSessionTypeLabelKey(session.sessionType) : null;
   const sessionTypeLabel = sessionTypeKey ? t(sessionTypeKey) : t("generic.dash");
   const sessionTitle = session?.groupName?.trim() || sessionTypeLabel;
@@ -574,6 +598,44 @@ export default function PortalSessionDetailPage() {
     );
   }
 
+  if (isSessionCanceled) {
+    return (
+      <div className="space-y-6" data-testid="portal-session-detail-canceled">
+        <div className="space-y-3">
+          <Link
+            href={backHref}
+            className="text-sm text-[var(--muted)]"
+          >
+            {t("portal.common.back")}
+          </Link>
+          <PageHeader titleKey="portal.sessionDetail.title" />
+        </div>
+        <Card>
+          <div className="space-y-3 text-center">
+            <h2 className="text-base font-semibold text-[var(--text)]">
+              {t("portal.sessionDetail.canceled.title")}
+            </h2>
+            <p className="text-sm text-[var(--muted)]">
+              {t("portal.sessionDetail.canceled.body")}
+            </p>
+            <p className="text-sm text-[var(--text)]">
+              {t("portal.sessionDetail.canceled.reasonLabel")}:{" "}
+              {sessionCancelReasonKey
+                ? t(sessionCancelReasonKey)
+                : t("portal.sessionDetail.canceled.reasonUnknown")}
+            </p>
+            <Link
+              href={backHref}
+              className="inline-flex h-11 items-center rounded-xl bg-[var(--primary)] px-4 text-sm font-semibold text-[var(--primary-foreground)]"
+            >
+              {t("portal.sessionDetail.canceled.backToSessions")}
+            </Link>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   const dateTimeLabel = formatPortalDateTimeRange(
     session.startAt,
     session.endAt,
@@ -647,6 +709,21 @@ export default function PortalSessionDetailPage() {
                   {durationLabel || t("generic.dash")}
                 </span>
               </div>
+              {session.zoomLink?.trim() ? (
+                <div className="grid gap-1 md:grid-cols-[160px_1fr] md:items-center">
+                  <span className="text-sm text-[var(--muted)]">
+                    {t("session.zoomLink.label")}
+                  </span>
+                  <a
+                    className="w-fit text-sm font-semibold text-[var(--primary)] underline"
+                    href={session.zoomLink}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    {t("session.zoomLink.open")}
+                  </a>
+                </div>
+              ) : null}
               <div className="grid gap-1 md:grid-cols-[160px_1fr] md:items-center">
                 <span className="text-sm text-[var(--muted)]">
                   {t("portal.sessionDetail.field.students")}

@@ -39,6 +39,7 @@ type AuditEventRecord = {
   action: string;
   entityType: string | null;
   entityId: string | null;
+  entityDisplay: string | null;
   result: AuditResult;
   correlationId: string | null;
   metadata: Record<string, unknown> | null;
@@ -175,6 +176,13 @@ function getEntityLabelKey(entityType: string | null) {
   if (!entityType) return "generic.dash";
   const option = ENTITY_TYPE_OPTIONS.find((entry) => entry.value === entityType);
   return option?.labelKey ?? "adminAudit.entity.unknown";
+}
+
+function getPrimaryEntityValue(record: AuditEventRecord) {
+  const display = record.entityDisplay?.trim();
+  if (display) return display;
+  const entityId = record.entityId?.trim();
+  return entityId || null;
 }
 
 function buildSafeMetadataEntries(metadata: AuditEventRecord["metadata"]) {
@@ -540,8 +548,19 @@ export default function AuditLogClient({ tenant }: AuditLogClientProps) {
         sortField: "entityType",
         renderCell: (record) => {
           const entityLabel = t(getEntityLabelKey(record.entityType));
-          if (!record.entityId) return <span>{entityLabel}</span>;
-          return <span>{`${entityLabel} - ${record.entityId}`}</span>;
+          const primaryEntityValue = getPrimaryEntityValue(record);
+          if (!primaryEntityValue) return <span>{entityLabel}</span>;
+          const shouldShowRawId =
+            Boolean(record.entityDisplay?.trim()) && Boolean(record.entityId?.trim());
+          if (!shouldShowRawId) {
+            return <span>{`${entityLabel} - ${primaryEntityValue}`}</span>;
+          }
+          return (
+            <div className="flex flex-col">
+              <span>{`${entityLabel} - ${primaryEntityValue}`}</span>
+              <span className="text-xs text-slate-500">{record.entityId}</span>
+            </div>
+          );
         },
       },
       {
@@ -861,13 +880,25 @@ export default function AuditLogClient({ tenant }: AuditLogClientProps) {
                     <span className="text-xs font-semibold text-slate-500">
                       {t("adminAudit.table.entity")}
                     </span>
-                    <span>
-                      {selectedEvent.entityId
-                        ? `${t(getEntityLabelKey(selectedEvent.entityType))} - ${
-                            selectedEvent.entityId
-                          }`
-                        : t(getEntityLabelKey(selectedEvent.entityType))}
-                    </span>
+                    {(() => {
+                      const entityLabel = t(getEntityLabelKey(selectedEvent.entityType));
+                      const primaryEntityValue = getPrimaryEntityValue(selectedEvent);
+                      const shouldShowRawId =
+                        Boolean(selectedEvent.entityDisplay?.trim()) &&
+                        Boolean(selectedEvent.entityId?.trim());
+                      if (!primaryEntityValue) return <span>{entityLabel}</span>;
+                      if (!shouldShowRawId) {
+                        return <span>{`${entityLabel} - ${primaryEntityValue}`}</span>;
+                      }
+                      return (
+                        <div className="flex flex-col gap-1">
+                          <span>{`${entityLabel} - ${primaryEntityValue}`}</span>
+                          <span className="text-xs text-slate-500">
+                            {selectedEvent.entityId}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div className="grid gap-1">
                     <span className="text-xs font-semibold text-slate-500">

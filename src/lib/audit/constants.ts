@@ -3,6 +3,7 @@ export const AUDIT_ACTIONS = {
   // Step 22.6 action keys use dot notation for stable filtering and CSV export.
   REQUEST_RESOLVED: "request.resolved",
   SESSIONS_GENERATED: "sessions.generated",
+  SESSIONS_BULK_CANCELED: "sessions.bulkCanceled",
   GROUP_FUTURE_SESSIONS_SYNCED: "group.futureSessions.synced",
   ATTENDANCE_UPDATED: "attendance.updated",
   NOTES_UPDATED: "notes.updated",

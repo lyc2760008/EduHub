@@ -68,15 +68,35 @@ type FormState = {
   startTime: string;
   endTime: string;
   timezone: string;
+  zoomLink: string;
 };
 
-type GeneratorResponse = {
-  dryRun: boolean;
-  totalOccurrences: number;
-  createdCount?: number;
-  skippedCount?: number;
-  occurrences: Array<{ startAt: string; endAt: string }>;
-  occurrencesNote?: string;
+type PreviewReasonCode =
+  | "DUPLICATE_SESSION_EXISTS"
+  | "TUTOR_START_COLLISION"
+  | "STUDENT_START_COLLISION";
+
+type GeneratorPreviewResponse = {
+  range: { from: string; to: string };
+  wouldCreateCount: number;
+  wouldSkipDuplicateCount: number;
+  wouldConflictCount: number;
+  duplicatesSummary: {
+    count: number;
+    sample: Array<{ date: string; reason: PreviewReasonCode }>;
+  };
+  conflictsSummary: {
+    count: number;
+    sample: Array<{ date: string; reason: PreviewReasonCode }>;
+  };
+  zoomLinkApplied: boolean;
+};
+
+type GeneratorCommitResponse = {
+  createdCount: number;
+  skippedDuplicateCount: number;
+  conflictCount: number;
+  range: { from: string; to: string };
 };
 
 const DEFAULT_FORM: FormState = {
@@ -91,6 +111,7 @@ const DEFAULT_FORM: FormState = {
   startTime: "",
   endTime: "",
   timezone: "",
+  zoomLink: "",
 };
 
 const WEEKDAY_VALUES = [1, 2, 3, 4, 5, 6, 7] as const;
@@ -121,14 +142,17 @@ export default function SessionGeneratorModal({
   const weekdayRequiredMessage = t("admin.sessions.messages.weekdayRequired");
   const studentRequiredMessage = t("admin.sessions.messages.studentRequired");
   const groupRequiredMessage = t("admin.sessions.messages.groupRequired");
+  const invalidZoomLinkMessage = t("session.zoomLink.invalid");
   const validationErrorMessage = t("admin.sessions.messages.validationError");
   const generateErrorMessage = t("admin.sessions.messages.generateError");
   const [form, setForm] = useState<FormState>(() => ({
     ...DEFAULT_FORM,
     timezone: defaultTimezone,
   }));
-  const [isSaving, setIsSaving] = useState(false);
-  const [preview, setPreview] = useState<GeneratorResponse | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [isCommitLoading, setIsCommitLoading] = useState(false);
+  const [preview, setPreview] = useState<GeneratorPreviewResponse | null>(null);
+  const [previewPayloadSignature, setPreviewPayloadSignature] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const filteredTutors = useMemo(() => {
@@ -155,6 +179,9 @@ export default function SessionGeneratorModal({
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+    // Invalidate stale preview whenever generation inputs change.
+    setPreview(null);
+    setPreviewPayloadSignature(null);
   }
 
   function handleSessionTypeChange(value: SessionType) {
@@ -164,6 +191,8 @@ export default function SessionGeneratorModal({
       studentId: value === "ONE_ON_ONE" ? prev.studentId : "",
       groupId: value === "ONE_ON_ONE" ? "" : prev.groupId,
     }));
+    setPreview(null);
+    setPreviewPayloadSignature(null);
   }
 
   function toggleWeekday(weekday: number) {
@@ -176,6 +205,8 @@ export default function SessionGeneratorModal({
       }
       return { ...prev, weekdays: Array.from(selected).sort() };
     });
+    setPreview(null);
+    setPreviewPayloadSignature(null);
   }
 
   function applyCenterSelection(centerId: string) {
@@ -186,6 +217,19 @@ export default function SessionGeneratorModal({
       centerId,
       timezone: centerTimezone || prev.timezone || defaultTimezone,
     }));
+    setPreview(null);
+    setPreviewPayloadSignature(null);
+  }
+
+  function isValidZoomLinkInput(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed) return true;
+    try {
+      const parsed = new URL(trimmed);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
   }
 
   function validateForm() {
@@ -212,10 +256,14 @@ export default function SessionGeneratorModal({
       return groupRequiredMessage;
     }
 
+    if (!isValidZoomLinkInput(form.zoomLink)) {
+      return invalidZoomLinkMessage;
+    }
+
     return null;
   }
 
-  function buildPayload(dryRun: boolean) {
+  function buildPayload() {
     return {
       centerId: form.centerId,
       tutorId: form.tutorId,
@@ -228,71 +276,93 @@ export default function SessionGeneratorModal({
       startTime: form.startTime,
       endTime: form.endTime,
       timezone: form.timezone || defaultTimezone,
-      dryRun,
+      zoomLink: form.zoomLink.trim() || null,
     };
   }
 
+  function buildPayloadSignature() {
+    return JSON.stringify(buildPayload());
+  }
+
+  function previewReasonLabelKey(reason: PreviewReasonCode) {
+    if (reason === "DUPLICATE_SESSION_EXISTS") {
+      return "admin.sessions.generate.preview.reason.duplicate";
+    }
+    if (reason === "STUDENT_START_COLLISION") {
+      return "admin.sessions.generate.preview.reason.studentConflict";
+    }
+    return "admin.sessions.generate.preview.reason.tutorConflict";
+  }
+
+  const isActionBusy = isPreviewLoading || isCommitLoading;
+  const canCommit =
+    Boolean(preview) && previewPayloadSignature === buildPayloadSignature();
+
   async function runPreview() {
-    setIsSaving(true);
+    setIsPreviewLoading(true);
     setError(null);
     setPreview(null);
 
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
-      setIsSaving(false);
+      setIsPreviewLoading(false);
       return;
     }
 
-    const result = await fetchJson<GeneratorResponse>(
-      buildTenantApiUrl(tenant, "/sessions/generate"),
+    const payload = buildPayload();
+    const signature = JSON.stringify(payload);
+    const result = await fetchJson<GeneratorPreviewResponse>(
+      buildTenantApiUrl(tenant, "/sessions/generate/preview"),
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildPayload(true)),
+        body: JSON.stringify(payload),
       },
     );
 
     if (!result.ok) {
       const isValidation = result.status === 400;
       setError(isValidation ? validationErrorMessage : generateErrorMessage);
-      setIsSaving(false);
+      setIsPreviewLoading(false);
       return;
     }
 
     setPreview(result.data);
-    setIsSaving(false);
+    setPreviewPayloadSignature(signature);
+    setIsPreviewLoading(false);
   }
 
   async function runCommit() {
-    setIsSaving(true);
+    if (!canCommit) return;
+    setIsCommitLoading(true);
     setError(null);
 
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
-      setIsSaving(false);
+      setIsCommitLoading(false);
       return;
     }
 
-    const result = await fetchJson<GeneratorResponse>(
+    const result = await fetchJson<GeneratorCommitResponse>(
       buildTenantApiUrl(tenant, "/sessions/generate"),
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildPayload(false)),
+        body: JSON.stringify(buildPayload()),
       },
     );
 
     if (!result.ok) {
       const isValidation = result.status === 400;
       setError(isValidation ? validationErrorMessage : generateErrorMessage);
-      setIsSaving(false);
+      setIsCommitLoading(false);
       return;
     }
 
     await onCommitted(t("admin.sessions.messages.generateSuccess"));
-    setIsSaving(false);
+    setIsCommitLoading(false);
     onClose();
   }
 
@@ -306,7 +376,7 @@ export default function SessionGeneratorModal({
             <>
               <button
                 className={secondaryButton}
-                disabled={isSaving}
+                disabled={isActionBusy}
                 onClick={onClose}
                 type="button"
               >
@@ -316,20 +386,24 @@ export default function SessionGeneratorModal({
                 <button
                   className={primaryButton}
                   data-testid="generator-preview-button"
-                  disabled={isSaving}
+                  disabled={isActionBusy}
                   onClick={runPreview}
                   type="button"
                 >
-                  {t("admin.sessions.actions.preview")}
+                  {isPreviewLoading
+                    ? t("admin.sessions.generate.previewLoading")
+                    : t("admin.sessions.generate.preview.label")}
                 </button>
                 <button
                   className={secondaryButton}
                   data-testid="generator-confirm-button"
-                  disabled={isSaving}
+                  disabled={isActionBusy || !canCommit}
                   onClick={runCommit}
                   type="button"
                 >
-                  {t("admin.sessions.actions.confirm")}
+                  {isCommitLoading
+                    ? t("admin.sessions.generate.commitLoading")
+                    : t("admin.sessions.generate.commit")}
                 </button>
               </div>
             </>
@@ -568,6 +642,24 @@ export default function SessionGeneratorModal({
                 ))}
               </select>
             </AdminFormField>
+            <AdminFormField
+              label={t("admin.sessions.generate.zoomLink.label")}
+              htmlFor="sessions-generator-zoom-link"
+            >
+              <div className="grid gap-2">
+                <input
+                  className={inputBase}
+                  id="sessions-generator-zoom-link"
+                  placeholder="https://"
+                  type="url"
+                  value={form.zoomLink}
+                  onChange={(event) => updateField("zoomLink", event.target.value)}
+                />
+                <p className="text-xs text-slate-500">
+                  {t("admin.sessions.generate.zoomLink.helper")}
+                </p>
+              </div>
+            </AdminFormField>
           </form>
         </AdminModalShell>
 
@@ -575,35 +667,78 @@ export default function SessionGeneratorModal({
 
         {preview ? (
           <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm text-slate-700">
-                {t("admin.sessions.messages.previewCount")}
-              </p>
-              <span
-                className="text-sm font-semibold text-slate-900"
-                data-testid="generator-preview-count"
-              >
-                {preview.totalOccurrences}
+            <h3 className="text-sm font-semibold text-slate-900">
+              {t("admin.sessions.generate.preview.summary")}
+            </h3>
+            <div className="mt-3 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
+              <div className="flex items-center justify-between gap-2">
+                <span>{t("admin.sessions.generate.preview.createdCount")}</span>
+                <span className="font-semibold text-slate-900">
+                  {preview.wouldCreateCount}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span>{t("admin.sessions.generate.preview.duplicateCount")}</span>
+                <span className="font-semibold text-slate-900">
+                  {preview.wouldSkipDuplicateCount}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span>{t("admin.sessions.generate.preview.conflictCount")}</span>
+                <span className="font-semibold text-slate-900">
+                  {preview.wouldConflictCount}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span>{t("admin.sessions.generate.preview.zoomLinkSet")}</span>
+                <span className="font-semibold text-slate-900">
+                  {preview.zoomLinkApplied
+                    ? t("admin.sessions.generate.preview.zoomLinkYes")
+                    : t("admin.sessions.generate.preview.zoomLinkNo")}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3 grid gap-1 text-xs text-slate-600">
+              <span>
+                {t("admin.sessions.generate.preview.rangeFrom")}:{" "}
+                {new Intl.DateTimeFormat(locale, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                }).format(new Date(preview.range.from))}
+              </span>
+              <span>
+                {t("admin.sessions.generate.preview.rangeTo")}:{" "}
+                {new Intl.DateTimeFormat(locale, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                }).format(new Date(preview.range.to))}
               </span>
             </div>
-            {preview.occurrencesNote ? (
-              <p className="mt-2 text-xs text-slate-500">
-                {t("admin.sessions.messages.previewTruncated")}
-              </p>
+
+            {preview.duplicatesSummary.sample.length > 0 ? (
+              <ul className="mt-3 grid gap-1 text-xs text-slate-600">
+                {preview.duplicatesSummary.sample.map((sample, index) => (
+                  <li key={`duplicate-${sample.date}-${index}`}>
+                    {new Intl.DateTimeFormat(locale, {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    }).format(new Date(sample.date))}{" "}
+                    - {t(previewReasonLabelKey(sample.reason))}
+                  </li>
+                ))}
+              </ul>
             ) : null}
-            {preview.occurrences.length ? (
-              <ul className="mt-3 grid gap-2 text-xs text-slate-600">
-                {preview.occurrences.slice(0, 5).map((occurrence, index) => (
-                  <li key={`${occurrence.startAt}-${index}`}>
+
+            {preview.conflictsSummary.sample.length > 0 ? (
+              <ul className="mt-2 grid gap-1 text-xs text-slate-600">
+                {preview.conflictsSummary.sample.map((sample, index) => (
+                  <li key={`conflict-${sample.date}-${index}`}>
                     {new Intl.DateTimeFormat(locale, {
                       dateStyle: "medium",
                       timeStyle: "short",
-                    }).format(new Date(occurrence.startAt))}{" "}
-                    →{" "}
-                    {new Intl.DateTimeFormat(locale, {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    }).format(new Date(occurrence.endAt))}
+                    }).format(new Date(sample.date))}{" "}
+                    - {t(previewReasonLabelKey(sample.reason))}
                   </li>
                 ))}
               </ul>

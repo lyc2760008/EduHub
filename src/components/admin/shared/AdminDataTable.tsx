@@ -12,7 +12,7 @@ import {
 
 export type AdminDataTableColumn<T> = {
   key: string;
-  label: string;
+  label: ReactNode;
   sortable?: boolean;
   sortField?: string;
   renderCell: (row: T) => ReactNode;
