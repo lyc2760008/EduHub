@@ -52,6 +52,18 @@ function resolveOtherTenantSlug(primarySlug: string) {
     : "acme";
 }
 
+function isSignedInParentLanding(pathname: string, tenantSlug: string) {
+  // Step 22.5 canonicalizes signed-in parent landing to /portal, but legacy /parent
+  // can still appear in older environments. Accept both to keep this backend contract stable.
+  const parentRoot = `/${tenantSlug}/parent`;
+  const portalRoot = `/${tenantSlug}/portal`;
+  return (
+    pathname.startsWith(portalRoot) ||
+    (pathname.startsWith(parentRoot) &&
+      !pathname.startsWith(`${parentRoot}/auth/verify`))
+  );
+}
+
 let db: Client;
 
 // Force a clean session so token consumption is exercised on a fresh browser context.
@@ -142,7 +154,7 @@ async function mintTokenViaEndpoint(
   page: Page,
   tenantSlug: string,
   parentEmail: string,
-): Promise<string> {
+): Promise<string | null> {
   const secret = process.env.E2E_TEST_SECRET?.trim();
   if (!secret) {
     throw new Error("E2E_TEST_SECRET is required for endpoint-minted parent magic links.");
@@ -160,6 +172,11 @@ async function mintTokenViaEndpoint(
       data: { parentEmail, rememberMe: true },
     },
   );
+
+  if (response.status() === 404) {
+    // Local runs may keep the test-only endpoint disabled even when E2E_TEST_SECRET is set.
+    return null;
+  }
 
   if (!response.ok()) {
     throw new Error(
@@ -183,14 +200,17 @@ async function issueMagicLinkToken(input: {
   parentEmail: string;
 }): Promise<IssuedMagicLinkToken> {
   // STAGING uses a different AUTH_SECRET than local runs, so DB-inserted hashes from
-  // the runner will not match there. Prefer the guarded endpoint when secret is available.
+  // the runner will not match there. Prefer the guarded endpoint when secret is available,
+  // but gracefully fall back when local environments keep that endpoint disabled (404).
   if (process.env.E2E_TEST_SECRET?.trim()) {
     const rawToken = await mintTokenViaEndpoint(
       input.page,
       input.tenantSlug,
       input.parentEmail,
     );
-    return { mode: "endpoint", rawToken };
+    if (rawToken) {
+      return { mode: "endpoint", rawToken };
+    }
   }
 
   // Local/CI fallback path keeps this spec runnable without test-only endpoint wiring.
@@ -229,11 +249,9 @@ test("[regression] Magic-link verify establishes a session and consumes the toke
   await page.goto(verifyPath, { waitUntil: "domcontentloaded" });
   await expect(page.getByTestId("parent-verify-page")).toBeVisible();
 
-  // Verify page redirects to /parent; portal navigation confirms session actually exists.
+  // Verify page redirects to a signed-in parent landing (/portal canonical, /parent legacy).
   await page.waitForURL(
-    (url) =>
-      url.pathname.startsWith(`/${tenantSlug}/parent`) &&
-      !url.pathname.startsWith(`/${tenantSlug}/parent/auth/verify`),
+    (url) => isSignedInParentLanding(url.pathname, tenantSlug),
     { timeout: 20_000 },
   );
   await page.goto(buildTenantPath(tenantSlug, "/portal"), { waitUntil: "domcontentloaded" });
@@ -275,9 +293,7 @@ test("[regression] Magic-link tokens are single-use", async ({ page, browser }) 
   // First consume should succeed.
   await page.goto(verifyPath, { waitUntil: "domcontentloaded" });
   await page.waitForURL(
-    (url) =>
-      url.pathname.startsWith(`/${tenantSlug}/parent`) &&
-      !url.pathname.startsWith(`/${tenantSlug}/parent/auth/verify`),
+    (url) => isSignedInParentLanding(url.pathname, tenantSlug),
     { timeout: 20_000 },
   );
 

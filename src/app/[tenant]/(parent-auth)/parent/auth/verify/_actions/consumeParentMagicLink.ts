@@ -31,7 +31,8 @@ export async function consumeParentMagicLinkToken(input: {
   }
 
   // Keep the destination relative to avoid leaking/depending on AUTH_URL/NEXTAUTH_URL.
-  const redirectTo = `/${tenantSlug}/parent`;
+  // Canonical parent home is /portal; /parent is a legacy redirect-only entrypoint.
+  const redirectTo = `/${tenantSlug}/portal`;
 
   try {
     const redirectUrl = (await signIn("parent-magic-link", {
@@ -63,4 +64,3 @@ export async function consumeParentMagicLinkToken(input: {
     return { ok: false, reason: mapErrorCode(code) };
   }
 }
-

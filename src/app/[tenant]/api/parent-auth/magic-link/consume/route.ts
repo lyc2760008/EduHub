@@ -40,7 +40,8 @@ export async function GET(req: NextRequest, context: Params) {
   // Avoid emitting absolute URLs back to the client. Absolute URLs can pick up
   // `AUTH_URL/NEXTAUTH_URL` (often `http://localhost:3000` in dev), which
   // would send parents to the wrong host after consuming a valid token.
-  const redirectTo = `/${tenantSlug}/parent`;
+  // Canonical parent home is /portal; /parent remains a legacy redirect-only path.
+  const redirectTo = `/${tenantSlug}/portal`;
 
   const redirectUrl = (await signIn("parent-magic-link", {
     token,
