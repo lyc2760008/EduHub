@@ -9,6 +9,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { DateTime } from "luxon";
 import { z } from "zod";
 
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from "@/lib/audit/constants";
+import { toAuditErrorCode } from "@/lib/audit/errorCode";
+import { writeAuditEvent } from "@/lib/audit/writeAuditEvent";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
 import { requireRole } from "@/lib/rbac";
@@ -16,7 +19,12 @@ import {
   generateOccurrences,
   type SessionOccurrence,
 } from "@/lib/sessions/generator";
-import { Prisma, SessionType, type Role } from "@/generated/prisma/client";
+import {
+  AuditActorType,
+  Prisma,
+  SessionType,
+  type Role,
+} from "@/generated/prisma/client";
 
 export const runtime = "nodejs";
 
@@ -65,11 +73,18 @@ function buildOccurrencePreview(occurrences: SessionOccurrence[]) {
 }
 
 export async function POST(req: NextRequest) {
+  let tenantId: string | null = null;
+  let actorId: string | null = null;
+  let actorDisplay: string | null = null;
+  let entityIdentifier: string | null = null;
   try {
     // RBAC guard runs first to avoid leaking tenant data to unauthorized users.
     const ctx = await requireRole(req, ADMIN_ROLES);
     if (ctx instanceof Response) return ctx;
-    const tenantId = ctx.tenant.tenantId;
+    const scopedTenantId = ctx.tenant.tenantId;
+    tenantId = scopedTenantId;
+    actorId = ctx.user.id;
+    actorDisplay = ctx.user.name ?? null;
 
     let body: unknown;
     try {
@@ -91,6 +106,7 @@ export async function POST(req: NextRequest) {
 
     const data = parsed.data;
     const dryRun = data.dryRun ?? true;
+    entityIdentifier = data.groupId ?? data.centerId;
 
     if (!isValidTimezone(data.timezone)) {
       return NextResponse.json(
@@ -175,7 +191,7 @@ export async function POST(req: NextRequest) {
     }
 
     const center = await prisma.center.findFirst({
-      where: { id: data.centerId, tenantId },
+      where: { id: data.centerId, tenantId: scopedTenantId },
       select: { id: true },
     });
     if (!center) {
@@ -186,7 +202,7 @@ export async function POST(req: NextRequest) {
     }
 
     const tutorMembership = await prisma.tenantMembership.findFirst({
-      where: { tenantId, userId: data.tutorId, role: "Tutor" },
+      where: { tenantId: scopedTenantId, userId: data.tutorId, role: "Tutor" },
       select: { id: true },
     });
     if (!tutorMembership) {
@@ -200,7 +216,7 @@ export async function POST(req: NextRequest) {
     }
 
     const staffCenter = await prisma.staffCenter.findFirst({
-      where: { tenantId, userId: data.tutorId, centerId: data.centerId },
+      where: { tenantId: scopedTenantId, userId: data.tutorId, centerId: data.centerId },
       select: { id: true },
     });
     if (!staffCenter) {
@@ -215,7 +231,7 @@ export async function POST(req: NextRequest) {
 
     if (data.sessionType === "ONE_ON_ONE") {
       const student = await prisma.student.findFirst({
-        where: { id: data.studentId, tenantId },
+        where: { id: data.studentId, tenantId: scopedTenantId },
         select: { id: true },
       });
       if (!student) {
@@ -232,7 +248,7 @@ export async function POST(req: NextRequest) {
       rosterStudentIds = [data.studentId!];
     } else if (data.groupId) {
       const group = await prisma.group.findFirst({
-        where: { id: data.groupId, tenantId },
+        where: { id: data.groupId, tenantId: scopedTenantId },
         select: { id: true, centerId: true, type: true },
       });
       if (!group) {
@@ -264,7 +280,7 @@ export async function POST(req: NextRequest) {
       }
 
       const roster = await prisma.groupStudent.findMany({
-        where: { tenantId, groupId: data.groupId },
+        where: { tenantId: scopedTenantId, groupId: data.groupId },
         select: { studentId: true },
       });
       rosterStudentIds = roster.map((entry) => entry.studentId);
@@ -274,7 +290,7 @@ export async function POST(req: NextRequest) {
     if (occurrences.length) {
       const existingSessions = await prisma.session.findMany({
         where: {
-          tenantId,
+          tenantId: scopedTenantId,
           tutorId: data.tutorId,
           centerId: data.centerId,
           startAt: { in: occurrences.map((occ) => occ.startAtUtc) },
@@ -301,7 +317,7 @@ export async function POST(req: NextRequest) {
         try {
           const session = await tx.session.create({
             data: {
-              tenantId,
+              tenantId: scopedTenantId,
               centerId: data.centerId,
               tutorId: data.tutorId,
               sessionType: data.sessionType,
@@ -321,7 +337,7 @@ export async function POST(req: NextRequest) {
           if (rosterStudentIds.length) {
             await tx.sessionStudent.createMany({
               data: rosterStudentIds.map((studentId) => ({
-                tenantId,
+                tenantId: scopedTenantId,
                 sessionId: session.id,
                 studentId,
               })),
@@ -341,6 +357,26 @@ export async function POST(req: NextRequest) {
       }
     });
 
+    await writeAuditEvent({
+      tenantId: scopedTenantId,
+      actorType: AuditActorType.USER,
+      actorId,
+      actorDisplay,
+      action: AUDIT_ACTIONS.SESSIONS_GENERATED,
+      entityType: AUDIT_ENTITY_TYPES.SESSION,
+      entityId: entityIdentifier,
+      result: "SUCCESS",
+      metadata: {
+        // Counts + range are safe operational metadata for support triage.
+        sessionsCreatedCount: createdCount,
+        sessionsUpdatedCount: 0,
+        sessionsSkippedCount: skippedCount,
+        inputRangeFrom: data.startDate,
+        inputRangeTo: data.endDate,
+      },
+      request: req,
+    });
+
     return NextResponse.json({
       dryRun: false,
       totalOccurrences: occurrences.length,
@@ -353,6 +389,22 @@ export async function POST(req: NextRequest) {
       createdSessionIds: createdIds,
     });
   } catch (error) {
+    if (tenantId) {
+      await writeAuditEvent({
+        tenantId,
+        actorType: AuditActorType.USER,
+        actorId,
+        actorDisplay,
+        action: AUDIT_ACTIONS.SESSIONS_GENERATED,
+        entityType: AUDIT_ENTITY_TYPES.SESSION,
+        entityId: entityIdentifier,
+        result: "FAILURE",
+        metadata: {
+          errorCode: toAuditErrorCode(error),
+        },
+        request: req,
+      });
+    }
     console.error("POST /api/sessions/generate failed", error);
     return jsonError(500, "Internal server error");
   }

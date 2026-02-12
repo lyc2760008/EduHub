@@ -166,6 +166,12 @@ enum AuditActorType {
   SYSTEM
 }
 
+// Audit event result supports failure filtering and support triage.
+enum AuditEventResult {
+  SUCCESS
+  FAILURE
+}
+
 // AuditEvent is a tenant-scoped security/audit log for key portal/admin actions.
 model AuditEvent {
   id           String         @id @default(cuid())
@@ -180,6 +186,10 @@ model AuditEvent {
   // Entity type is a small enum-like string to keep query filters predictable.
   entityType   String?
   entityId     String?
+  // Result is explicit to support safe success/failure filters in admin tooling.
+  result       AuditEventResult @default(SUCCESS)
+  // Correlation ID links audit events to request traces without storing headers/bodies.
+  correlationId String?
   // Metadata must remain small and never include access codes or secrets.
   metadata     Json?
   ip           String?
@@ -189,6 +199,8 @@ model AuditEvent {
 
   @@index([tenantId, occurredAt])
   @@index([tenantId, action, occurredAt])
+  @@index([tenantId, result, occurredAt])
+  @@index([tenantId, entityType, occurredAt])
   @@index([tenantId, entityType, entityId])
   @@index([tenantId, action, actorDisplay, occurredAt])
 }

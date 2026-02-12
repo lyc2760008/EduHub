@@ -1,7 +1,7 @@
-// Admin audit log client now uses the shared table toolkit + query contract for consistency.
+// Admin audit log client uses URL-backed table state and redacted APIs for support-safe triage.
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
 import AdminDataTable, {
@@ -17,6 +17,7 @@ import {
   AdminErrorPanel,
   type AdminEmptyState,
 } from "@/components/admin/shared/AdminTableStatePanels";
+import { inputBase, primaryButton, secondaryButton } from "@/components/admin/shared/adminUiClasses";
 import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
 import { fetchJson } from "@/lib/api/fetchJson";
 import { buildAdminTableParams } from "@/lib/admin-table/buildAdminTableParams";
@@ -27,82 +28,118 @@ import {
 import { AUDIT_ACTIONS } from "@/lib/audit/constants";
 
 type AuditActorType = "PARENT" | "USER" | "SYSTEM";
+type AuditResult = "SUCCESS" | "FAILURE";
 
 type AuditEventRecord = {
   id: string;
   occurredAt: string;
   actorType: AuditActorType;
+  actorId: string | null;
   actorDisplay: string | null;
   action: string;
   entityType: string | null;
   entityId: string | null;
+  result: AuditResult;
+  correlationId: string | null;
   metadata: Record<string, unknown> | null;
-  ip: string | null;
-  userAgent: string | null;
 };
 
-type AuditResponse = {
-  rows: AuditEventRecord[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
+type AuditListResponse = {
+  items: AuditEventRecord[];
+  pageInfo: {
+    page: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
   sort: { field: string | null; dir: "asc" | "desc" };
   appliedFilters: Record<string, unknown>;
 };
 
-type RangePreset = "today" | "7d" | "30d" | "all";
-type CategoryFilter = "all" | "auth" | "requests" | "attendance" | "admin";
-type ActorFilter = "all" | "parent" | "admin" | "tutor";
+type AuditDetailResponse = {
+  item: AuditEventRecord;
+};
 
-const RANGE_OPTIONS: Array<{ value: RangePreset; labelKey: string }> = [
-  { value: "today", labelKey: "admin.audit.filter.range.today" },
-  { value: "7d", labelKey: "admin.audit.filter.range.7d" },
-  { value: "30d", labelKey: "admin.audit.filter.range.30d" },
-  { value: "all", labelKey: "admin.audit.filter.range.all" },
+type ActionTypeFilter =
+  | "all"
+  | "auth"
+  | "sessions"
+  | "people"
+  | "requests"
+  | "catalog"
+  | "system";
+
+type ResultFilter = "all" | AuditResult;
+type ExportToastTone = "success" | "error";
+
+type ExportToast = {
+  tone: ExportToastTone;
+  title: string;
+  body: string;
+};
+
+const ACTION_TYPE_OPTIONS: Array<{ value: ActionTypeFilter; labelKey: string }> = [
+  { value: "all", labelKey: "adminAudit.actionType.all" },
+  { value: "auth", labelKey: "adminAudit.actionType.auth" },
+  { value: "sessions", labelKey: "adminAudit.actionType.sessions" },
+  { value: "people", labelKey: "adminAudit.actionType.people" },
+  { value: "requests", labelKey: "adminAudit.actionType.requests" },
+  { value: "catalog", labelKey: "adminAudit.actionType.catalog" },
+  { value: "system", labelKey: "adminAudit.actionType.system" },
 ];
 
-const CATEGORY_OPTIONS: Array<{ value: CategoryFilter; labelKey: string }> = [
-  { value: "all", labelKey: "admin.audit.filter.category.all" },
-  { value: "auth", labelKey: "admin.audit.filter.category.auth" },
-  { value: "requests", labelKey: "admin.audit.filter.category.requests" },
-  { value: "attendance", labelKey: "admin.audit.filter.category.attendance" },
-  { value: "admin", labelKey: "admin.audit.filter.category.admin" },
+const ENTITY_TYPE_OPTIONS: Array<{ value: string; labelKey: string }> = [
+  { value: "all", labelKey: "adminAudit.entity.all" },
+  { value: "REQUEST", labelKey: "adminAudit.entity.request" },
+  { value: "SESSION", labelKey: "adminAudit.entity.session" },
+  { value: "ATTENDANCE", labelKey: "adminAudit.entity.attendance" },
+  { value: "GROUP", labelKey: "adminAudit.entity.group" },
+  { value: "STUDENT", labelKey: "adminAudit.entity.student" },
+  { value: "PARENT", labelKey: "adminAudit.entity.parent" },
+  { value: "REPORT", labelKey: "adminAudit.entity.report" },
+  { value: "ACCESS_CODE", labelKey: "adminAudit.entity.accessCode" },
+  { value: "SYSTEM", labelKey: "adminAudit.entity.system" },
 ];
 
-const ACTOR_OPTIONS: Array<{ value: ActorFilter; labelKey: string }> = [
-  { value: "all", labelKey: "admin.audit.filter.actorType.all" },
-  { value: "parent", labelKey: "admin.audit.filter.actorType.parent" },
-  { value: "admin", labelKey: "admin.audit.filter.actorType.admin" },
-  { value: "tutor", labelKey: "admin.audit.filter.actorType.tutor" },
+const RESULT_OPTIONS: Array<{ value: ResultFilter; labelKey: string }> = [
+  { value: "all", labelKey: "adminAudit.result.all" },
+  { value: "SUCCESS", labelKey: "adminAudit.result.success" },
+  { value: "FAILURE", labelKey: "adminAudit.result.failure" },
 ];
 
 const ACTION_LABELS: Record<string, string> = {
-  [AUDIT_ACTIONS.PARENT_LOGIN_SUCCEEDED]:
-    "admin.audit.event.parentLoginSucceeded",
-  [AUDIT_ACTIONS.PARENT_LOGIN_FAILED]: "admin.audit.event.parentLoginFailed",
-  [AUDIT_ACTIONS.PARENT_LOGIN_THROTTLED]:
-    "admin.audit.event.parentLoginThrottled",
-  PARENT_LOGIN_LOCKED: "admin.audit.event.parentLoginLocked",
-  [AUDIT_ACTIONS.PARENT_ACCESS_CODE_RESET]:
-    "admin.audit.event.parentAccessCodeResetByAdmin",
-  [AUDIT_ACTIONS.ABSENCE_REQUEST_CREATED]:
-    "admin.audit.event.absenceRequestCreated",
+  [AUDIT_ACTIONS.REQUEST_RESOLVED]: "adminAudit.actions.requestResolved",
+  [AUDIT_ACTIONS.SESSIONS_GENERATED]: "adminAudit.actions.sessionsGenerated",
+  [AUDIT_ACTIONS.GROUP_FUTURE_SESSIONS_SYNCED]:
+    "adminAudit.actions.groupFutureSessionsSynced",
+  [AUDIT_ACTIONS.ATTENDANCE_UPDATED]: "adminAudit.actions.attendanceUpdated",
+  [AUDIT_ACTIONS.NOTES_UPDATED]: "adminAudit.actions.notesUpdated",
+  [AUDIT_ACTIONS.PARENT_INVITE_SENT]: "adminAudit.actions.parentInviteSent",
+  [AUDIT_ACTIONS.PARENT_INVITE_RESENT]: "adminAudit.actions.parentInviteResent",
+  [AUDIT_ACTIONS.PARENT_INVITE_COPIED]: "adminAudit.actions.parentInviteCopied",
+  [AUDIT_ACTIONS.PARENT_LOGIN_SUCCEEDED]: "adminAudit.actions.parentLoginSucceeded",
+  [AUDIT_ACTIONS.PARENT_LOGIN_FAILED]: "adminAudit.actions.parentLoginFailed",
+  [AUDIT_ACTIONS.PARENT_LOGIN_THROTTLED]: "adminAudit.actions.parentLoginThrottled",
+  [AUDIT_ACTIONS.PARENT_ACCESS_CODE_RESET]: "adminAudit.actions.parentAccessCodeReset",
+  [AUDIT_ACTIONS.ABSENCE_REQUEST_CREATED]: "adminAudit.actions.absenceRequestCreated",
   [AUDIT_ACTIONS.ABSENCE_REQUEST_WITHDRAWN]:
-    "admin.audit.event.absenceRequestWithdrawn",
+    "adminAudit.actions.absenceRequestWithdrawn",
   [AUDIT_ACTIONS.ABSENCE_REQUEST_RESUBMITTED]:
-    "admin.audit.event.absenceRequestResubmitted",
-  ABSENCE_REQUEST_APPROVED: "admin.audit.event.absenceRequestApproved",
-  ABSENCE_REQUEST_DECLINED: "admin.audit.event.absenceRequestDeclined",
-  ATTENDANCE_MARKED: "admin.audit.event.attendanceMarked",
-  ATTENDANCE_UPDATED: "admin.audit.event.attendanceUpdated",
-  [AUDIT_ACTIONS.ATTENDANCE_PARENT_VISIBLE_NOTE_UPDATED]:
-    "admin.audit.event.parentVisibleNoteUpdated",
-  STUDENT_LINKED_TO_PARENT: "admin.audit.event.studentLinkedToParent",
-  STUDENT_UNLINKED_FROM_PARENT: "admin.audit.event.studentUnlinkedFromParent",
+    "adminAudit.actions.absenceRequestResubmitted",
+  [AUDIT_ACTIONS.ABSENCE_REQUEST_RESOLVED]: "adminAudit.actions.absenceRequestResolved",
 };
 
-// Guard against exposing sensitive metadata fields (access codes, secrets, hashes).
-const SENSITIVE_METADATA_KEY = /(access|code|token|secret|password|hash)/i;
+const FAILURE_REASON_KEY_BY_CODE: Record<string, string> = {
+  validation_error: "adminAudit.failure.validation",
+  rate_limited: "adminAudit.failure.rateLimited",
+  internal_error: "adminAudit.failure.generic",
+  send_failed: "adminAudit.failure.generic",
+};
+
+const DISALLOWED_METADATA_KEY_PATTERN =
+  /(token|access[_-]?code|cookie|authorization|password|secret|api[_-]?key|set-cookie)/i;
 
 function toDateOnly(value: Date) {
   const year = value.getFullYear();
@@ -111,146 +148,59 @@ function toDateOnly(value: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function buildRangeFilters(preset: RangePreset) {
-  if (preset === "all") return {};
+function buildDefaultDateRange() {
   const now = new Date();
-  const to = toDateOnly(now);
-  if (preset === "today") {
-    return { from: to, to };
-  }
-  const offsetDays = preset === "7d" ? 7 : 30;
   const fromDate = new Date(now);
-  fromDate.setDate(fromDate.getDate() - offsetDays);
-  return { from: toDateOnly(fromDate), to };
-}
-
-function resolveRangePreset(filters: Record<string, unknown>) {
-  const from = typeof filters.from === "string" ? filters.from : "";
-  const to = typeof filters.to === "string" ? filters.to : "";
-  if (!from && !to) return "all";
-  const todayRange = buildRangeFilters("today");
-  if (from === todayRange.from && to === todayRange.to) return "today";
-  const weekRange = buildRangeFilters("7d");
-  if (from === weekRange.from && to === weekRange.to) return "7d";
-  const monthRange = buildRangeFilters("30d");
-  if (from === monthRange.from && to === monthRange.to) return "30d";
-  return "custom";
-}
-
-function mapActorFilterToApi(filter: ActorFilter) {
-  if (filter === "parent") return "PARENT";
-  if (filter === "admin") return "ADMIN";
-  if (filter === "tutor") return "TUTOR";
-  return null;
-}
-
-function mapActorFilterFromApi(value: string | null) {
-  if (value === "PARENT") return "parent";
-  if (value === "ADMIN") return "admin";
-  if (value === "TUTOR") return "tutor";
-  if (value === "USER") return "admin";
-  return "all";
+  fromDate.setDate(fromDate.getDate() - 7);
+  return {
+    from: toDateOnly(fromDate),
+    to: toDateOnly(now),
+  };
 }
 
 function formatDateTime(value: string, locale: string) {
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "";
+  if (Number.isNaN(parsed.getTime())) return value;
   return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(parsed);
 }
 
-function truncateId(value: string | null) {
-  if (!value) return null;
-  if (value.length <= 8) return value;
-  return `${value.slice(0, 8)}...`;
+function getActionLabelKey(action: string) {
+  return ACTION_LABELS[action] ?? "adminAudit.actions.unknown";
 }
 
-function normalizeMetadata(metadata: AuditEventRecord["metadata"]) {
+function getEntityLabelKey(entityType: string | null) {
+  if (!entityType) return "generic.dash";
+  const option = ENTITY_TYPE_OPTIONS.find((entry) => entry.value === entityType);
+  return option?.labelKey ?? "adminAudit.entity.unknown";
+}
+
+function buildSafeMetadataEntries(metadata: AuditEventRecord["metadata"]) {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
-    return null;
+    return [];
   }
-  return metadata;
-}
-
-function getCategoryLabelKey(action: string) {
-  if (action.startsWith("PARENT_LOGIN") || action.includes("ACCESS_CODE")) {
-    return "admin.audit.filter.category.auth";
-  }
-  if (action.startsWith("ABSENCE_REQUEST")) {
-    return "admin.audit.filter.category.requests";
-  }
-  if (action.startsWith("ATTENDANCE")) {
-    return "admin.audit.filter.category.attendance";
-  }
-  return "admin.audit.filter.category.admin";
-}
-
-function getActionLabelKey(record: AuditEventRecord) {
-  if (record.action === AUDIT_ACTIONS.ABSENCE_REQUEST_RESOLVED) {
-    const metadata = normalizeMetadata(record.metadata);
-    const status = metadata?.resolvedStatus;
-    if (status === "APPROVED") {
-      return "admin.audit.event.absenceRequestApproved";
-    }
-    if (status === "DECLINED") {
-      return "admin.audit.event.absenceRequestDeclined";
-    }
-  }
-  return ACTION_LABELS[record.action] ?? "generic.dash";
-}
-
-function getActorRoleLabelKey(record: AuditEventRecord) {
-  if (record.actorType === "PARENT") {
-    return "admin.audit.filter.actorType.parent";
-  }
-  if (record.actorType === "USER") {
-    // Heuristic mapping: attendance events are tutor-heavy; other staff actions default to admin.
-    return record.action.startsWith("ATTENDANCE")
-      ? "admin.audit.filter.actorType.tutor"
-      : "admin.audit.filter.actorType.admin";
-  }
-  return "admin.audit.filter.actorType.admin";
-}
-
-function formatActorLabel(record: AuditEventRecord, t: (key: string) => string) {
-  const roleLabel = t(getActorRoleLabelKey(record));
-  const actorLabel = record.actorDisplay?.trim() || t("generic.dash");
-  const dash = t("generic.dash");
-  return `${roleLabel} ${dash} ${actorLabel}`;
-}
-
-function formatEntitySummary(record: AuditEventRecord, t: (key: string) => string) {
-  if (!record.entityType && !record.entityId) {
-    return t("generic.dash");
-  }
-  // Use the entity type + truncated ID when richer context isn't available.
-  const entityLabel = record.entityType ?? t("generic.dash");
-  const truncatedId = truncateId(record.entityId);
-  if (!truncatedId) return entityLabel;
-  const dash = t("generic.dash");
-  return `${entityLabel} ${dash} ${truncatedId}`;
-}
-
-function getMetadataEntries(metadata: Record<string, unknown>) {
+  // Defense in depth: suppress sensitive-looking keys even if backend redaction regresses.
   return Object.entries(metadata)
     .filter(([key, value]) => {
-      if (SENSITIVE_METADATA_KEY.test(key)) return false;
+      if (DISALLOWED_METADATA_KEY_PATTERN.test(key)) return false;
       if (value === null || value === undefined) return false;
-      if (typeof value === "string" && !value.trim()) return false;
-      if (Array.isArray(value) && value.length === 0) return false;
-      if (typeof value === "object" && !Array.isArray(value)) {
+      if (typeof value === "string") return value.trim().length > 0;
+      if (Array.isArray(value)) return value.length > 0;
+      if (typeof value === "object") {
         return Object.keys(value as Record<string, unknown>).length > 0;
       }
       return true;
     })
-    .map(([key, value]) => {
-      if (typeof value === "object") {
-        return { key, value: JSON.stringify(value, null, 2) };
-      }
-      return { key, value: String(value) };
-    });
+    .slice(0, 30);
+}
+
+function formatMetadataValue(value: unknown) {
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return JSON.stringify(value, null, 2);
 }
 
 type AuditLogClientProps = {
@@ -260,6 +210,7 @@ type AuditLogClientProps = {
 export default function AuditLogClient({ tenant }: AuditLogClientProps) {
   const t = useTranslations();
   const locale = useLocale();
+  const didInitializeDateRangeRef = useRef(false);
 
   const [events, setEvents] = useState<AuditEventRecord[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -267,8 +218,16 @@ export default function AuditLogClient({ tenant }: AuditLogClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
-  const [selected, setSelected] = useState<AuditEventRecord | null>(null);
+  const [dateRangeError, setDateRangeError] = useState<string | null>(null);
+
+  const [selectedEvent, setSelectedEvent] = useState<AuditEventRecord | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportToast, setExportToast] = useState<ExportToast | null>(null);
 
   const { state, setSearch, setFilter, setFilters, setSort, setPage, setPageSize, resetAll } =
     useAdminTableQueryState({
@@ -277,60 +236,57 @@ export default function AuditLogClient({ tenant }: AuditLogClientProps) {
       defaultPageSize: 25,
       maxPageSize: 100,
       allowedPageSizes: [25, 50, 100],
-      allowedFilterKeys: ["from", "to", "category", "actorType"],
+      allowedFilterKeys: ["from", "to", "actor", "actionType", "entityType", "result"],
     });
+
+  useEffect(() => {
+    if (didInitializeDateRangeRef.current) return;
+    didInitializeDateRangeRef.current = true;
+
+    const hasFrom = typeof state.filters.from === "string" && state.filters.from.length > 0;
+    const hasTo = typeof state.filters.to === "string" && state.filters.to.length > 0;
+    if (hasFrom || hasTo) return;
+
+    // Initialize default range to the last 7 days unless URL filters already provide a range.
+    setFilters({
+      ...state.filters,
+      ...buildDefaultDateRange(),
+    });
+  }, [setFilters, state.filters]);
 
   const [searchInput, setSearchInput] = useState(() => state.search);
   const debouncedSearch = useDebouncedValue(searchInput, 400);
+
+  useEffect(() => {
+    setSearchInput(state.search);
+  }, [state.search]);
+
   useEffect(() => {
     if (debouncedSearch === state.search) return;
     setSearch(debouncedSearch);
   }, [debouncedSearch, setSearch, state.search]);
 
-  const resolvedRangePreset = useMemo(() => resolveRangePreset(state.filters), [state.filters]);
-  const rangePreset = resolvedRangePreset === "custom" ? "all" : resolvedRangePreset;
-
-  useEffect(() => {
-    if (resolvedRangePreset !== "custom") return;
-    // Remove unsupported range filters so the preset UI stays in sync with the URL state.
-    const nextFilters = { ...state.filters };
-    delete nextFilters.from;
-    delete nextFilters.to;
-    setFilters(nextFilters);
-  }, [resolvedRangePreset, setFilters, state.filters]);
-
   const loadEvents = useCallback(async () => {
     setIsLoading(true);
     setListError(null);
 
-    // Step 21.3 Admin Table query contract keeps audit list params consistent.
     const params = buildAdminTableParams(state);
 
     try {
-      const result = await fetchJson<AuditResponse>(
+      const result = await fetchJson<AuditListResponse>(
         buildTenantApiUrl(tenant, `/admin/audit?${params.toString()}`),
         { cache: "no-store" },
       );
 
-      if (!result.ok && (result.status === 401 || result.status === 403)) {
-        setListError(t("admin.audit.error.body"));
-        return false;
-      }
-
-      if (!result.ok && result.status === 0) {
-        console.error("Failed to load audit events", result.details);
-        setListError(t("common.error"));
-        return false;
-      }
-
       if (!result.ok) {
-        setListError(t("admin.audit.error.body"));
-        return false;
+        setListError(t("adminAudit.error.body"));
+        setEvents([]);
+        setTotalCount(0);
+        return;
       }
 
-      setEvents(result.data.rows ?? []);
-      setTotalCount(result.data.totalCount ?? 0);
-      return true;
+      setEvents(result.data.items ?? []);
+      setTotalCount(result.data.pageInfo?.totalCount ?? 0);
     } finally {
       setIsLoading(false);
     }
@@ -339,72 +295,176 @@ export default function AuditLogClient({ tenant }: AuditLogClientProps) {
   useEffect(() => {
     const handle = setTimeout(() => {
       void loadEvents();
-      setSelected(null);
+      setSelectedEvent(null);
+      setSelectedEventId(null);
       setIsDrawerOpen(false);
+      setDetailError(null);
     }, 0);
     return () => clearTimeout(handle);
   }, [loadEvents, reloadNonce]);
 
-  const handleRowClick = useCallback((record: AuditEventRecord) => {
-    setSelected(record);
-    setIsDrawerOpen(true);
-  }, []);
+  const loadDetail = useCallback(
+    async (eventId: string) => {
+      setIsDrawerOpen(true);
+      setSelectedEventId(eventId);
+      setSelectedEvent(null);
+      setDetailError(null);
+      setIsDetailLoading(true);
+
+      const result = await fetchJson<AuditDetailResponse>(
+        buildTenantApiUrl(tenant, `/admin/audit/${eventId}`),
+        { cache: "no-store" },
+      );
+
+      if (!result.ok) {
+        setDetailError(t("adminAudit.error.body"));
+        setIsDetailLoading(false);
+        return;
+      }
+
+      setSelectedEvent(result.data.item ?? null);
+      setIsDetailLoading(false);
+    },
+    [t, tenant],
+  );
+
+  const handleRowClick = useCallback(
+    (record: AuditEventRecord) => {
+      void loadDetail(record.id);
+    },
+    [loadDetail],
+  );
 
   const closeDrawer = useCallback(() => {
     setIsDrawerOpen(false);
-    setSelected(null);
+    setSelectedEventId(null);
+    setSelectedEvent(null);
+    setDetailError(null);
   }, []);
+
+  const updateDateRange = useCallback(
+    (nextFrom: string, nextTo: string) => {
+      if (nextFrom && nextTo && nextTo < nextFrom) {
+        setDateRangeError(t("adminAudit.filters.dateRangeInvalid"));
+        return;
+      }
+      setDateRangeError(null);
+      const nextFilters = { ...state.filters };
+      if (nextFrom) nextFilters.from = nextFrom;
+      else delete nextFilters.from;
+      if (nextTo) nextFilters.to = nextTo;
+      else delete nextFilters.to;
+      setFilters(nextFilters);
+    },
+    [setFilters, state.filters, t],
+  );
+
+  const handleExportCsv = useCallback(async () => {
+    setIsExporting(true);
+    setExportToast(null);
+
+    try {
+      const params = buildAdminTableParams(state, { includePaging: false });
+      const query = params.toString();
+      const response = await fetch(
+        buildTenantApiUrl(
+          tenant,
+          `/admin/audit/export${query ? `?${query}` : ""}`,
+        ),
+        {
+          method: "GET",
+        },
+      );
+
+      if (!response.ok) {
+        setExportToast({
+          tone: "error",
+          title: t("adminAudit.export.toast.error.title"),
+          body: t("adminAudit.export.toast.error.body"),
+        });
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "audit-export.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+
+      setExportToast({
+        tone: "success",
+        title: t("adminAudit.export.toast.success.title"),
+        body: t("adminAudit.export.toast.success.body"),
+      });
+    } catch {
+      setExportToast({
+        tone: "error",
+        title: t("adminAudit.export.toast.error.title"),
+        body: t("adminAudit.export.toast.error.body"),
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  }, [state, t, tenant]);
 
   const filterChips = useMemo<AdminFilterChip[]>(() => {
     const chips: AdminFilterChip[] = [];
+    const from = typeof state.filters.from === "string" ? state.filters.from : "";
+    const to = typeof state.filters.to === "string" ? state.filters.to : "";
+    const actor = typeof state.filters.actor === "string" ? state.filters.actor : "";
+    const actionType =
+      typeof state.filters.actionType === "string" ? state.filters.actionType : "all";
+    const entityType =
+      typeof state.filters.entityType === "string" ? state.filters.entityType : "all";
+    const result = typeof state.filters.result === "string" ? state.filters.result : "all";
 
-    const actorFilter =
-      typeof state.filters.actorType === "string"
-        ? mapActorFilterFromApi(state.filters.actorType)
-        : "all";
-    if (actorFilter !== "all") {
+    if (from || to) {
       chips.push({
-        key: "actorType",
-        label: t("admin.audit.filter.actorType.label"),
-        value:
-          ACTOR_OPTIONS.find((option) => option.value === actorFilter)?.labelKey
-            ? t(
-                ACTOR_OPTIONS.find((option) => option.value === actorFilter)!
-                  .labelKey,
-              )
-            : t("admin.audit.filter.actorType.all"),
-        onRemove: () => setFilter("actorType", null),
+        key: "dateRange",
+        label: t("adminAudit.filters.dateRange"),
+        value: `${from || t("generic.dash")} -> ${to || t("generic.dash")}`,
+        onRemove: () => updateDateRange("", ""),
       });
     }
 
-    const categoryFilter =
-      typeof state.filters.category === "string" ? state.filters.category : "all";
-    if (categoryFilter && categoryFilter !== "all") {
-      const categoryOption = CATEGORY_OPTIONS.find(
-        (option) => option.value === categoryFilter,
-      );
+    if (actor.trim()) {
       chips.push({
-        key: "category",
-        label: t("admin.audit.filter.category.label"),
-        value: categoryOption ? t(categoryOption.labelKey) : String(categoryFilter),
-        onRemove: () => setFilter("category", null),
+        key: "actor",
+        label: t("adminAudit.filters.actor"),
+        value: actor.trim(),
+        onRemove: () => setFilter("actor", null),
       });
     }
 
-    if (rangePreset !== "all") {
-      const rangeOption = RANGE_OPTIONS.find(
-        (option) => option.value === rangePreset,
-      );
+    if (actionType !== "all") {
       chips.push({
-        key: "range",
-        label: t("admin.audit.filter.range.label"),
-        value: rangeOption ? t(rangeOption.labelKey) : t("admin.audit.filter.range.all"),
-        onRemove: () => {
-          const nextFilters = { ...state.filters };
-          delete nextFilters.from;
-          delete nextFilters.to;
-          setFilters(nextFilters);
-        },
+        key: "actionType",
+        label: t("adminAudit.filters.actionType"),
+        value: t(`adminAudit.actionType.${actionType}`),
+        onRemove: () => setFilter("actionType", null),
+      });
+    }
+
+    if (entityType !== "all") {
+      chips.push({
+        key: "entityType",
+        label: t("adminAudit.filters.entityType"),
+        value: t(getEntityLabelKey(entityType)),
+        onRemove: () => setFilter("entityType", null),
+      });
+    }
+
+    if (result !== "all") {
+      const normalizedResult = result.toLowerCase();
+      chips.push({
+        key: "result",
+        label: t("adminAudit.filters.result"),
+        value: t(`adminAudit.result.${normalizedResult}`),
+        onRemove: () => setFilter("result", null),
       });
     }
 
@@ -418,71 +478,91 @@ export default function AuditLogClient({ tenant }: AuditLogClientProps) {
     }
 
     return chips;
-  }, [rangePreset, setFilter, setFilters, setSearch, state.filters, state.search, t]);
+  }, [setFilter, setSearch, state.filters, state.search, t, updateDateRange]);
 
-  const clearAll = () => {
+  const clearAll = useCallback(() => {
+    const defaultRange = buildDefaultDateRange();
+    setDateRangeError(null);
     setSearchInput("");
-    resetAll({ sortField: "occurredAt", sortDir: "desc" });
-  };
+    resetAll({
+      search: "",
+      sortField: "occurredAt",
+      sortDir: "desc",
+      filters: {
+        from: defaultRange.from,
+        to: defaultRange.to,
+      },
+    });
+  }, [resetAll]);
 
   const columns: AdminDataTableColumn<AuditEventRecord>[] = useMemo(
     () => [
       {
-        key: "time",
-        label: t("admin.audit.col.time"),
+        key: "timestamp",
+        label: t("adminAudit.table.timestamp"),
         sortable: true,
         sortField: "occurredAt",
         renderCell: (record) => (
-          <span data-testid="audit-row-time" data-time={record.occurredAt}>
-            {formatDateTime(record.occurredAt, locale) || t("generic.dash")}
-          </span>
+          <span>{formatDateTime(record.occurredAt, locale)}</span>
         ),
       },
       {
         key: "actor",
-        label: t("admin.audit.col.actor"),
+        label: t("adminAudit.table.actor"),
         sortable: true,
-        sortField: "actorType",
-        renderCell: (record) => (
-          <div
-            className="flex flex-col"
-            data-testid="audit-row-actor"
-            data-actor-type={record.actorType}
-            data-actor-display={record.actorDisplay ?? ""}
-          >
-            <span className="text-sm text-slate-900">
-              {formatActorLabel(record, t)}
-            </span>
-            <span className="text-xs text-slate-500">
-              {t(getCategoryLabelKey(record.action))}
-            </span>
-          </div>
-        ),
+        sortField: "actorDisplay",
+        renderCell: (record) => {
+          const actorLabel =
+            record.actorType === "SYSTEM"
+              ? t("adminAudit.systemActor")
+              : record.actorDisplay?.trim() || t("adminAudit.actor.userFallback");
+          return (
+            <div className="flex flex-col">
+              <span className="text-sm text-slate-900">{actorLabel}</span>
+              <span className="text-xs text-slate-500">
+                {record.actorId ?? t("generic.dash")}
+              </span>
+            </div>
+          );
+        },
       },
       {
         key: "action",
-        label: t("admin.audit.col.action"),
+        label: t("adminAudit.table.action"),
         sortable: true,
         sortField: "action",
-        renderCell: (record) => (
-          <span data-testid="audit-row-action" data-action={record.action}>
-            {t(getActionLabelKey(record))}
-          </span>
-        ),
+        renderCell: (record) => <span>{t(getActionLabelKey(record.action))}</span>,
       },
       {
         key: "entity",
-        label: t("admin.audit.col.entity"),
+        label: t("adminAudit.table.entity"),
         sortable: true,
         sortField: "entityType",
-        renderCell: (record) => (
-          <span
-            data-testid="audit-row-entity"
-            data-entity-type={record.entityType ?? ""}
-          >
-            {formatEntitySummary(record, t)}
-          </span>
-        ),
+        renderCell: (record) => {
+          const entityLabel = t(getEntityLabelKey(record.entityType));
+          if (!record.entityId) return <span>{entityLabel}</span>;
+          return <span>{`${entityLabel} - ${record.entityId}`}</span>;
+        },
+      },
+      {
+        key: "result",
+        label: t("adminAudit.table.result"),
+        sortable: true,
+        sortField: "result",
+        renderCell: (record) => {
+          const isSuccess = record.result === "SUCCESS";
+          return (
+            <span
+              className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${
+                isSuccess
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                  : "border-red-200 bg-red-50 text-red-700"
+              }`}
+            >
+              {isSuccess ? t("adminAudit.result.success") : t("adminAudit.result.failure")}
+            </span>
+          );
+        },
       },
     ],
     [locale, t],
@@ -490,17 +570,33 @@ export default function AuditLogClient({ tenant }: AuditLogClientProps) {
 
   const emptyState: AdminEmptyState = useMemo(
     () => ({
-      title: t("admin.audit.empty.title"),
-      body: t("admin.audit.empty.body"),
+      title: t("adminAudit.empty.title"),
+      body: t("adminAudit.empty.body"),
     }),
     [t],
   );
 
-  const actorFilterValue = mapActorFilterFromApi(
-    typeof state.filters.actorType === "string" ? state.filters.actorType : null,
+  const fromFilter = typeof state.filters.from === "string" ? state.filters.from : "";
+  const toFilter = typeof state.filters.to === "string" ? state.filters.to : "";
+  const actorFilter = typeof state.filters.actor === "string" ? state.filters.actor : "";
+  const actionTypeFilter =
+    typeof state.filters.actionType === "string" ? state.filters.actionType : "all";
+  const entityTypeFilter =
+    typeof state.filters.entityType === "string" ? state.filters.entityType : "all";
+  const resultFilter = typeof state.filters.result === "string" ? state.filters.result : "all";
+
+  const selectedMetadataEntries = useMemo(
+    () => buildSafeMetadataEntries(selectedEvent?.metadata ?? null),
+    [selectedEvent?.metadata],
   );
-  const categoryFilterValue =
-    typeof state.filters.category === "string" ? state.filters.category : "all";
+
+  const exportDisabled = isLoading || Boolean(listError) || totalCount === 0;
+  const selectedFailureCode =
+    selectedEvent?.result === "FAILURE" &&
+    selectedEvent.metadata &&
+    typeof selectedEvent.metadata.errorCode === "string"
+      ? selectedEvent.metadata.errorCode
+      : null;
 
   return (
     <div className="flex flex-col gap-6" data-testid="audit-log">
@@ -511,10 +607,49 @@ export default function AuditLogClient({ tenant }: AuditLogClientProps) {
         onOpenFilters={() => setIsFilterSheetOpen(true)}
         filterChips={filterChips}
         onClearAllFilters={clearAll}
+        searchPlaceholder={t("adminAudit.search.placeholder")}
+        filtersLabel={t("adminAudit.filters.label")}
+        clearAllLabel={t("admin.table.filters.clearAll")}
+        rightSlot={(
+          <div className="flex flex-col items-end gap-2">
+            <button
+              type="button"
+              className={primaryButton}
+              onClick={() => void handleExportCsv()}
+              disabled={exportDisabled || isExporting}
+              data-testid="audit-log-export-csv"
+            >
+              {isExporting ? t("adminAudit.export.exporting") : t("adminAudit.export.csv")}
+            </button>
+            <p className="max-w-[320px] text-right text-xs text-slate-500">
+              {exportDisabled
+                ? t("adminAudit.export.disabledNoData")
+                : t("adminAudit.export.helper")}
+            </p>
+          </div>
+        )}
       />
 
+      {exportToast ? (
+        <section
+          className={`rounded border px-3 py-2 ${
+            exportToast.tone === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+              : "border-red-200 bg-red-50 text-red-700"
+          }`}
+          data-testid="audit-export-toast"
+        >
+          <p className="text-sm font-semibold">{exportToast.title}</p>
+          <p className="text-xs">{exportToast.body}</p>
+        </section>
+      ) : null}
+
       {listError ? (
-        <AdminErrorPanel onRetry={() => setReloadNonce((value) => value + 1)} />
+        <AdminErrorPanel
+          title={t("adminAudit.error.title")}
+          body={t("adminAudit.error.body")}
+          onRetry={() => setReloadNonce((value) => value + 1)}
+        />
       ) : null}
 
       {!listError ? (
@@ -546,81 +681,105 @@ export default function AuditLogClient({ tenant }: AuditLogClientProps) {
         onClose={() => setIsFilterSheetOpen(false)}
         onReset={clearAll}
       >
-        <AdminFormField label={t("admin.audit.filter.range.label")} htmlFor="audit-filter-range">
-          <select
-            id="audit-filter-range"
-            className="rounded border border-slate-300 px-3 py-2"
-            value={rangePreset}
-            onChange={(event) => {
-              const preset = event.target.value as RangePreset;
-              const nextFilters = { ...state.filters };
-              const range = buildRangeFilters(preset);
-              if (range.from) {
-                nextFilters.from = range.from;
-              } else {
-                delete nextFilters.from;
-              }
-              if (range.to) {
-                nextFilters.to = range.to;
-              } else {
-                delete nextFilters.to;
-              }
-              setFilters(nextFilters);
-            }}
-            data-testid="audit-range-filter"
-          >
-            {RANGE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {t(option.labelKey)}
-              </option>
-            ))}
-          </select>
+        <AdminFormField label={t("adminAudit.filters.startDate")} htmlFor="audit-filter-start-date">
+          <input
+            id="audit-filter-start-date"
+            type="date"
+            className={inputBase}
+            value={fromFilter}
+            onChange={(event) => updateDateRange(event.target.value, toFilter)}
+            data-testid="audit-filter-start-date"
+          />
         </AdminFormField>
-        <AdminFormField
-          label={t("admin.audit.filter.category.label")}
-          htmlFor="audit-filter-category"
-        >
-          <select
-            id="audit-filter-category"
-            className="rounded border border-slate-300 px-3 py-2"
-            value={categoryFilterValue}
-            onChange={(event) => {
-              const value = event.target.value as CategoryFilter;
-              if (!value || value === "all") {
-                setFilter("category", null);
-              } else {
-                setFilter("category", value);
-              }
-            }}
-            data-testid="audit-category-filter"
-          >
-            {CATEGORY_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {t(option.labelKey)}
-              </option>
-            ))}
-          </select>
+
+        <AdminFormField label={t("adminAudit.filters.endDate")} htmlFor="audit-filter-end-date">
+          <input
+            id="audit-filter-end-date"
+            type="date"
+            className={inputBase}
+            value={toFilter}
+            onChange={(event) => updateDateRange(fromFilter, event.target.value)}
+            data-testid="audit-filter-end-date"
+          />
         </AdminFormField>
-        <AdminFormField
-          label={t("admin.audit.filter.actorType.label")}
-          htmlFor="audit-filter-actor"
-        >
-          <select
+
+        {dateRangeError ? (
+          <p className="text-xs text-red-600">{dateRangeError}</p>
+        ) : null}
+
+        <AdminFormField label={t("adminAudit.filters.actor")} htmlFor="audit-filter-actor">
+          <input
             id="audit-filter-actor"
-            className="rounded border border-slate-300 px-3 py-2"
-            value={actorFilterValue}
+            className={inputBase}
+            value={actorFilter}
+            placeholder={t("adminAudit.filters.actorPlaceholder")}
+            onChange={(event) => setFilter("actor", event.target.value)}
+            data-testid="audit-filter-actor"
+          />
+        </AdminFormField>
+
+        <AdminFormField label={t("adminAudit.filters.actionType")} htmlFor="audit-filter-action-type">
+          <select
+            id="audit-filter-action-type"
+            className={inputBase}
+            value={actionTypeFilter}
             onChange={(event) => {
-              const value = event.target.value as ActorFilter;
-              const mapped = mapActorFilterToApi(value);
-              if (!mapped) {
-                setFilter("actorType", null);
-              } else {
-                setFilter("actorType", mapped);
+              const nextValue = event.target.value;
+              if (!nextValue || nextValue === "all") {
+                setFilter("actionType", null);
+                return;
               }
+              setFilter("actionType", nextValue);
             }}
-            data-testid="audit-actor-filter"
+            data-testid="audit-filter-action-type"
           >
-            {ACTOR_OPTIONS.map((option) => (
+            {ACTION_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {t(option.labelKey)}
+              </option>
+            ))}
+          </select>
+        </AdminFormField>
+
+        <AdminFormField label={t("adminAudit.filters.entityType")} htmlFor="audit-filter-entity-type">
+          <select
+            id="audit-filter-entity-type"
+            className={inputBase}
+            value={entityTypeFilter}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              if (!nextValue || nextValue === "all") {
+                setFilter("entityType", null);
+                return;
+              }
+              setFilter("entityType", nextValue);
+            }}
+            data-testid="audit-filter-entity-type"
+          >
+            {ENTITY_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {t(option.labelKey)}
+              </option>
+            ))}
+          </select>
+        </AdminFormField>
+
+        <AdminFormField label={t("adminAudit.filters.result")} htmlFor="audit-filter-result">
+          <select
+            id="audit-filter-result"
+            className={inputBase}
+            value={resultFilter}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              if (!nextValue || nextValue === "all") {
+                setFilter("result", null);
+                return;
+              }
+              setFilter("result", nextValue);
+            }}
+            data-testid="audit-filter-result"
+          >
+            {RESULT_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {t(option.labelKey)}
               </option>
@@ -636,135 +795,151 @@ export default function AuditLogClient({ tenant }: AuditLogClientProps) {
           aria-modal="true"
           data-testid="audit-detail-drawer"
         >
-          <div className="h-full w-full max-w-full overflow-y-auto bg-white p-6 shadow-xl md:w-[480px]">
-            {selected ? (
-              <div className="flex flex-col gap-4">
-                <div>
+          <div className="h-full w-full max-w-full overflow-y-auto bg-white p-6 shadow-xl md:w-[500px]">
+            {isDetailLoading ? (
+              <div className="flex h-full items-center justify-center text-sm text-slate-500">
+                {t("adminAudit.loading")}
+              </div>
+            ) : detailError ? (
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-red-700">
+                  {t("adminAudit.error.title")}
+                </p>
+                <p className="text-sm text-red-700">{detailError}</p>
+                <button
+                  type="button"
+                  className={secondaryButton}
+                  onClick={() => {
+                    if (!selectedEventId) return;
+                    void loadDetail(selectedEventId);
+                  }}
+                >
+                  {t("admin.table.state.error.retry")}
+                </button>
+              </div>
+            ) : selectedEvent ? (
+              <div className="flex h-full flex-col gap-4">
+                <div className="flex items-start justify-between gap-2">
                   <h2 className="text-lg font-semibold text-slate-900">
-                    {t("admin.audit.detail.title")}
+                    {t("adminAudit.detail.title")}
                   </h2>
-                  <p className="text-sm text-slate-600">
-                    {t(getActionLabelKey(selected))} {t("generic.dash")} {" "}
-                    {formatDateTime(selected.occurredAt, locale)}
-                  </p>
-                </div>
-
-                <section className="space-y-2">
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    {t("admin.audit.detail.section.summary")}
-                  </h3>
-                  <div className="grid gap-3 text-sm text-slate-700">
-                    <div className="grid gap-1">
-                      <span className="text-xs font-semibold text-slate-500">
-                        {t("admin.audit.col.time")}
-                      </span>
-                      <span>
-                        {formatDateTime(selected.occurredAt, locale) ||
-                          t("generic.dash")}
-                      </span>
-                    </div>
-                    <div className="grid gap-1">
-                      <span className="text-xs font-semibold text-slate-500">
-                        {t("admin.audit.detail.field.category")}
-                      </span>
-                      <span>{t(getCategoryLabelKey(selected.action))}</span>
-                    </div>
-                    <div className="grid gap-1">
-                      <span className="text-xs font-semibold text-slate-500">
-                        {t("admin.audit.col.actor")}
-                      </span>
-                      <span>{formatActorLabel(selected, t)}</span>
-                    </div>
-                    <div className="grid gap-1">
-                      <span className="text-xs font-semibold text-slate-500">
-                        {t("admin.audit.col.action")}
-                      </span>
-                      <span>{t(getActionLabelKey(selected))}</span>
-                    </div>
-                    <div className="grid gap-1">
-                      <span className="text-xs font-semibold text-slate-500">
-                        {t("admin.audit.col.entity")}
-                      </span>
-                      <span>{formatEntitySummary(selected, t)}</span>
-                    </div>
-                  </div>
-                </section>
-
-                {(() => {
-                  const metadata = normalizeMetadata(selected.metadata);
-                  const entries = metadata ? getMetadataEntries(metadata) : [];
-                  const showIp = Boolean(selected.ip);
-                  const showUserAgent = Boolean(selected.userAgent);
-
-                  if (!entries.length && !showIp && !showUserAgent) return null;
-
-                  return (
-                    <details className="rounded border border-slate-200 px-3 py-2">
-                      <summary className="cursor-pointer text-sm font-semibold text-slate-900">
-                        {t("admin.audit.detail.section.metadata")}
-                      </summary>
-                      <div className="mt-3 grid gap-3 text-sm text-slate-700">
-                        {entries.map((entry) => (
-                          <div key={entry.key} className="grid gap-1">
-                            <span className="text-xs font-semibold text-slate-500">
-                              {entry.key}
-                            </span>
-                            {entry.value.includes("\n") ? (
-                              <pre className="whitespace-pre-wrap rounded bg-slate-50 p-2 text-xs text-slate-700">
-                                {entry.value}
-                              </pre>
-                            ) : (
-                              <span className="break-words">{entry.value}</span>
-                            )}
-                          </div>
-                        ))}
-                        {showIp ? (
-                          <div className="grid gap-1">
-                            <span className="text-xs font-semibold text-slate-500">
-                              {t("admin.audit.detail.field.ip")}
-                            </span>
-                            <span className="break-words">{selected.ip}</span>
-                          </div>
-                        ) : null}
-                        {showUserAgent ? (
-                          <div className="grid gap-1">
-                            <span className="text-xs font-semibold text-slate-500">
-                              {t("admin.audit.detail.field.userAgent")}
-                            </span>
-                            {selected.userAgent && selected.userAgent.length > 120 ? (
-                              <details className="rounded border border-slate-200 px-2 py-1">
-                                <summary className="cursor-pointer text-xs text-slate-700">
-                                  {`${selected.userAgent.slice(0, 120)}...`}
-                                </summary>
-                                <p className="mt-2 break-words text-xs text-slate-700">
-                                  {selected.userAgent}
-                                </p>
-                              </details>
-                            ) : (
-                              <span className="break-words">{selected.userAgent}</span>
-                            )}
-                          </div>
-                        ) : null}
-                      </div>
-                    </details>
-                  );
-                })()}
-
-                <div className="mt-auto flex justify-end">
                   <button
                     type="button"
-                    className="rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+                    className={secondaryButton}
                     onClick={closeDrawer}
+                    data-testid="audit-detail-close"
                   >
                     {t("actions.close")}
                   </button>
                 </div>
+
+                <section className="grid gap-3 rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                  <div className="grid gap-1">
+                    <span className="text-xs font-semibold text-slate-500">
+                      {t("adminAudit.table.timestamp")}
+                    </span>
+                    <span>{formatDateTime(selectedEvent.occurredAt, locale)}</span>
+                  </div>
+                  <div className="grid gap-1">
+                    <span className="text-xs font-semibold text-slate-500">
+                      {t("adminAudit.table.actor")}
+                    </span>
+                    <span>
+                      {selectedEvent.actorType === "SYSTEM"
+                        ? t("adminAudit.systemActor")
+                        : selectedEvent.actorDisplay?.trim() ||
+                          t("adminAudit.actor.userFallback")}
+                    </span>
+                  </div>
+                  <div className="grid gap-1">
+                    <span className="text-xs font-semibold text-slate-500">
+                      {t("adminAudit.table.action")}
+                    </span>
+                    <span>{t(getActionLabelKey(selectedEvent.action))}</span>
+                  </div>
+                  <div className="grid gap-1">
+                    <span className="text-xs font-semibold text-slate-500">
+                      {t("adminAudit.table.entity")}
+                    </span>
+                    <span>
+                      {selectedEvent.entityId
+                        ? `${t(getEntityLabelKey(selectedEvent.entityType))} - ${
+                            selectedEvent.entityId
+                          }`
+                        : t(getEntityLabelKey(selectedEvent.entityType))}
+                    </span>
+                  </div>
+                  <div className="grid gap-1">
+                    <span className="text-xs font-semibold text-slate-500">
+                      {t("adminAudit.table.result")}
+                    </span>
+                    <span>
+                      {selectedEvent.result === "SUCCESS"
+                        ? t("adminAudit.result.success")
+                        : t("adminAudit.result.failure")}
+                    </span>
+                  </div>
+                </section>
+
+                {selectedEvent.correlationId ? (
+                  <section className="grid gap-1">
+                    <span className="text-xs font-semibold text-slate-500">
+                      {t("adminAudit.detail.correlationId")}
+                    </span>
+                    <code className="break-all rounded bg-slate-100 px-2 py-1 text-xs text-slate-700">
+                      {selectedEvent.correlationId}
+                    </code>
+                  </section>
+                ) : null}
+
+                <section className="space-y-2">
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    {t("adminAudit.detail.detailsSection")}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {t("adminAudit.detail.safeMetadataNote")}
+                  </p>
+
+                  {selectedMetadataEntries.length === 0 ? (
+                    <p className="text-sm text-slate-600">{t("generic.dash")}</p>
+                  ) : (
+                    <div className="grid gap-3">
+                      {selectedMetadataEntries.map(([key, value]) => {
+                        const formatted = formatMetadataValue(value);
+                        return (
+                          <div key={key} className="grid gap-1">
+                            <span className="text-xs font-semibold text-slate-500">{key}</span>
+                            {formatted.includes("\n") ? (
+                              <pre className="whitespace-pre-wrap rounded bg-slate-50 p-2 text-xs text-slate-700">
+                                {formatted}
+                              </pre>
+                            ) : (
+                              <span className="text-sm text-slate-700">{formatted}</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+
+                {selectedEvent.result === "FAILURE" ? (
+                  <section className="rounded border border-red-200 bg-red-50 px-3 py-2">
+                    <p className="text-xs font-semibold text-red-700">
+                      {t("adminAudit.detail.failureReason")}
+                    </p>
+                    <p className="text-sm text-red-700">
+                      {selectedFailureCode
+                        ? t(
+                            FAILURE_REASON_KEY_BY_CODE[selectedFailureCode] ??
+                              "adminAudit.failure.generic",
+                          )
+                        : t("adminAudit.failure.generic")}
+                    </p>
+                  </section>
+                ) : null}
               </div>
-            ) : (
-              <div className="flex h-full items-center justify-center text-sm text-slate-500">
-                {t("common.loading")}
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
       ) : null}

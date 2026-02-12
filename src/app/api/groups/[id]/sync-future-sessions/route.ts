@@ -7,7 +7,13 @@
 // Sync-group-roster API that backfills missing students into future sessions for the same group.
 import { NextRequest, NextResponse } from "next/server";
 
-import type { Role } from "@/generated/prisma/client";
+import {
+  AuditActorType,
+  type Role,
+} from "@/generated/prisma/client";
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from "@/lib/audit/constants";
+import { toAuditErrorCode } from "@/lib/audit/errorCode";
+import { writeAuditEvent } from "@/lib/audit/writeAuditEvent";
 import { prisma } from "@/lib/db/prisma";
 import { getGroupCoreForTenant } from "@/lib/groups/data";
 import { jsonError } from "@/lib/http/response";
@@ -27,13 +33,20 @@ type SessionStudentEdge = {
 };
 
 export async function POST(req: NextRequest, context: Params) {
+  let tenantId: string | null = null;
+  let actorId: string | null = null;
+  let actorDisplay: string | null = null;
+  let groupId: string | null = null;
   try {
     const { id } = await context.params;
+    groupId = id;
 
     // Reuse admin RBAC gate so only Owner/Admin can trigger roster sync.
     const ctx = await requireRole(req, ADMIN_ROLES);
     if (ctx instanceof Response) return ctx;
-    const tenantId = ctx.tenant.tenantId;
+    tenantId = ctx.tenant.tenantId;
+    actorId = ctx.user.id;
+    actorDisplay = ctx.user.name ?? null;
 
     const group = await getGroupCoreForTenant(prisma, tenantId, id);
     if (!group) {
@@ -60,6 +73,23 @@ export async function POST(req: NextRequest, context: Params) {
     const futureSessionIds = futureSessions.map((session) => session.id);
 
     if (!groupStudentIds.length || !futureSessionIds.length) {
+      await writeAuditEvent({
+        tenantId,
+        actorType: AuditActorType.USER,
+        actorId,
+        actorDisplay,
+        action: AUDIT_ACTIONS.GROUP_FUTURE_SESSIONS_SYNCED,
+        entityType: AUDIT_ENTITY_TYPES.GROUP,
+        entityId: group.id,
+        result: "SUCCESS",
+        metadata: {
+          sessionsAffectedCount: 0,
+          studentsAddedCount: 0,
+          totalFutureSessions: futureSessionIds.length,
+        },
+        request: req,
+      });
+
       return NextResponse.json({
         totalFutureSessions: futureSessionIds.length,
         sessionsUpdated: 0,
@@ -100,12 +130,45 @@ export async function POST(req: NextRequest, context: Params) {
       });
     }
 
+    await writeAuditEvent({
+      tenantId,
+      actorType: AuditActorType.USER,
+      actorId,
+      actorDisplay,
+      action: AUDIT_ACTIONS.GROUP_FUTURE_SESSIONS_SYNCED,
+      entityType: AUDIT_ENTITY_TYPES.GROUP,
+      entityId: group.id,
+      result: "SUCCESS",
+      metadata: {
+        sessionsAffectedCount: touchedSessionIds.size,
+        studentsAddedCount: rowsToCreate.length,
+        totalFutureSessions: futureSessionIds.length,
+      },
+      request: req,
+    });
+
     return NextResponse.json({
       totalFutureSessions: futureSessionIds.length,
       sessionsUpdated: touchedSessionIds.size,
       studentsAdded: rowsToCreate.length,
     });
   } catch (error) {
+    if (tenantId) {
+      await writeAuditEvent({
+        tenantId,
+        actorType: AuditActorType.USER,
+        actorId,
+        actorDisplay,
+        action: AUDIT_ACTIONS.GROUP_FUTURE_SESSIONS_SYNCED,
+        entityType: AUDIT_ENTITY_TYPES.GROUP,
+        entityId: groupId,
+        result: "FAILURE",
+        metadata: {
+          errorCode: toAuditErrorCode(error),
+        },
+        request: req,
+      });
+    }
     console.error("POST /api/groups/[id]/sync-future-sessions failed", error);
     return jsonError(500, "Internal server error");
   }

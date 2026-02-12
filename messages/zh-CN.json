@@ -1329,6 +1329,123 @@
       "label": "上次发送：{time}"
     }
   },
+  "adminAudit": {
+    "_comment": "Step 22.6 审计日志页面与导出文案。",
+    "page": {
+      "title": "审计日志",
+      "subtitle": "跟踪系统中的重要操作记录。"
+    },
+    "table": {
+      "timestamp": "时间",
+      "actor": "操作人",
+      "action": "操作",
+      "entity": "对象",
+      "result": "结果"
+    },
+    "actor": {
+      "userFallback": "用户"
+    },
+    "systemActor": "系统",
+    "viewDetails": "查看详情",
+    "search": {
+      "placeholder": "搜索操作人、操作或对象…"
+    },
+    "filters": {
+      "label": "筛选",
+      "dateRange": "日期范围",
+      "dateRangeInvalid": "结束日期必须大于或等于开始日期。",
+      "startDate": "开始日期",
+      "endDate": "结束日期",
+      "actor": "操作人",
+      "actorPlaceholder": "姓名或邮箱包含…",
+      "actionType": "操作类型",
+      "entityType": "对象类型",
+      "result": "结果"
+    },
+    "actionType": {
+      "all": "全部",
+      "auth": "认证",
+      "sessions": "课次",
+      "people": "人员",
+      "requests": "申请",
+      "catalog": "目录",
+      "system": "系统"
+    },
+    "result": {
+      "all": "全部",
+      "success": "成功",
+      "failure": "失败"
+    },
+    "loading": "正在加载审计日志…",
+    "empty": {
+      "title": "未找到审计记录",
+      "body": "请尝试调整搜索或筛选条件。"
+    },
+    "error": {
+      "title": "无法加载审计日志",
+      "body": "请刷新页面后再试。"
+    },
+    "detail": {
+      "title": "审计事件",
+      "correlationId": "关联 ID",
+      "detailsSection": "详情",
+      "safeMetadataNote": "审计详情中不会显示敏感数据。",
+      "failureReason": "失败详情"
+    },
+    "export": {
+      "csv": "导出 CSV",
+      "exporting": "正在导出…",
+      "disabledNoData": "无可导出数据",
+      "helper": "导出当前筛选结果。",
+      "toast": {
+        "success": {
+          "title": "已开始导出",
+          "body": "CSV 下载将很快开始。"
+        },
+        "error": {
+          "title": "无法导出",
+          "body": "请重试。如问题持续，请联系支持人员。"
+        }
+      }
+    },
+    "entity": {
+      "all": "全部",
+      "request": "申请",
+      "session": "课次",
+      "attendance": "出勤",
+      "group": "小组/班级",
+      "student": "学生",
+      "parent": "家长",
+      "report": "报表",
+      "accessCode": "访问码",
+      "system": "系统",
+      "unknown": "对象"
+    },
+    "actions": {
+      "requestResolved": "申请已处理",
+      "sessionsGenerated": "批量生成课次",
+      "groupFutureSessionsSynced": "未来课次名册已同步",
+      "attendanceUpdated": "出勤已更新",
+      "notesUpdated": "备注已更新",
+      "parentInviteSent": "已发送家长登录链接",
+      "parentInviteResent": "已重发家长登录链接",
+      "parentInviteCopied": "已复制家长邀请",
+      "parentLoginSucceeded": "家长登录成功",
+      "parentLoginFailed": "家长登录失败",
+      "parentLoginThrottled": "家长登录被限流",
+      "parentAccessCodeReset": "家长访问码已重置",
+      "absenceRequestCreated": "请假申请已创建",
+      "absenceRequestWithdrawn": "请假申请已撤回",
+      "absenceRequestResubmitted": "请假申请已重新提交",
+      "absenceRequestResolved": "请假申请已处理",
+      "unknown": "未知操作"
+    },
+    "failure": {
+      "validation": "校验错误",
+      "rateLimited": "请求过于频繁",
+      "generic": "操作失败"
+    }
+  },
   "parent": {
     "nav": {
       "dashboard": "??",

@@ -11,6 +11,8 @@ This workflow seeds the staging Neon database from your local machine using `pri
 6. `SEED_SECOND_TENANT_NAME` is optional and defaults to `Acme Staging` in the helper scripts.
 7. `SEED_RUN_MIGRATE=1` is optional and runs `prisma migrate deploy` before seeding.
 8. `DIRECT_URL` is optional and used only when `SEED_RUN_MIGRATE=1` (defaults to `DATABASE_URL` in the helper scripts).
+9. `PRISMA_SEED_ALLOW_ANY_DB=1` is set by the helper scripts to allow intentional staging seed runs.
+10. `SEED_OVERWRITE_PASSWORDS=1` is set by the helper scripts so staging seeded accounts keep known credentials.
 
 **PowerShell (Windows)**
 1. Run the helper script and provide values when prompted.
@@ -33,6 +35,8 @@ $env:SEED_DEMO_TENANT_SLUG="pilot-staging"
 $env:SEED_DEMO_TENANT_NAME="Pilot Staging"
 $env:SEED_SECOND_TENANT_SLUG="acme-staging"
 $env:SEED_SECOND_TENANT_NAME="Acme Staging"
+$env:PRISMA_SEED_ALLOW_ANY_DB="1"
+$env:SEED_OVERWRITE_PASSWORDS="1"
 # optional
 $env:SEED_RUN_MIGRATE="1"
 

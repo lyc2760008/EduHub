@@ -1771,6 +1771,123 @@
       "label": "Last sent {time}"
     }
   },
+  "adminAudit": {
+    "_comment": "Step 22.6 admin audit log UX + CSV export copy.",
+    "page": {
+      "title": "Audit log",
+      "subtitle": "Track important actions across the system."
+    },
+    "table": {
+      "timestamp": "Timestamp",
+      "actor": "Actor",
+      "action": "Action",
+      "entity": "Entity",
+      "result": "Result"
+    },
+    "actor": {
+      "userFallback": "User"
+    },
+    "systemActor": "System",
+    "viewDetails": "View details",
+    "search": {
+      "placeholder": "Search actor, action, or entity…"
+    },
+    "filters": {
+      "label": "Filters",
+      "dateRange": "Date range",
+      "dateRangeInvalid": "End date must be on or after start date.",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "actor": "Actor",
+      "actorPlaceholder": "Name or email contains…",
+      "actionType": "Action type",
+      "entityType": "Entity type",
+      "result": "Result"
+    },
+    "actionType": {
+      "all": "All",
+      "auth": "Auth",
+      "sessions": "Sessions",
+      "people": "People",
+      "requests": "Requests",
+      "catalog": "Catalog",
+      "system": "System"
+    },
+    "result": {
+      "all": "All",
+      "success": "Success",
+      "failure": "Failure"
+    },
+    "loading": "Loading audit log…",
+    "empty": {
+      "title": "No audit events found",
+      "body": "Try adjusting your search or filters."
+    },
+    "error": {
+      "title": "Unable to load audit log",
+      "body": "Please refresh the page and try again."
+    },
+    "detail": {
+      "title": "Audit event",
+      "correlationId": "Correlation ID",
+      "detailsSection": "Details",
+      "safeMetadataNote": "Sensitive data is never shown in audit details.",
+      "failureReason": "Failure details"
+    },
+    "export": {
+      "csv": "Export CSV",
+      "exporting": "Exporting…",
+      "disabledNoData": "No data to export",
+      "helper": "Exports current filtered results.",
+      "toast": {
+        "success": {
+          "title": "Export started",
+          "body": "Your CSV download will begin shortly."
+        },
+        "error": {
+          "title": "Unable to export",
+          "body": "Please try again. If the problem continues, contact support."
+        }
+      }
+    },
+    "entity": {
+      "all": "All",
+      "request": "Request",
+      "session": "Session",
+      "attendance": "Attendance",
+      "group": "Group/Class",
+      "student": "Student",
+      "parent": "Parent",
+      "report": "Report",
+      "accessCode": "Access code",
+      "system": "System",
+      "unknown": "Entity"
+    },
+    "actions": {
+      "requestResolved": "Request resolved",
+      "sessionsGenerated": "Sessions generated",
+      "groupFutureSessionsSynced": "Future sessions synced",
+      "attendanceUpdated": "Attendance updated",
+      "notesUpdated": "Notes updated",
+      "parentInviteSent": "Parent sign-in link sent",
+      "parentInviteResent": "Parent sign-in link resent",
+      "parentInviteCopied": "Parent invite copied",
+      "parentLoginSucceeded": "Parent login succeeded",
+      "parentLoginFailed": "Parent login failed",
+      "parentLoginThrottled": "Parent login throttled",
+      "parentAccessCodeReset": "Parent access code reset",
+      "absenceRequestCreated": "Absence request created",
+      "absenceRequestWithdrawn": "Absence request withdrawn",
+      "absenceRequestResubmitted": "Absence request resubmitted",
+      "absenceRequestResolved": "Absence request resolved",
+      "unknown": "Unknown action"
+    },
+    "failure": {
+      "validation": "Validation error",
+      "rateLimited": "Rate limit exceeded",
+      "generic": "Operation failed"
+    }
+  },
   "parent": {
     "nav": {
       "dashboard": "Dashboard",

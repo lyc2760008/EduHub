@@ -37,6 +37,9 @@ if (-not $env:SEED_DEMO_TENANT_SLUG) { $env:SEED_DEMO_TENANT_SLUG = "pilot-stagi
 if (-not $env:SEED_DEMO_TENANT_NAME) { $env:SEED_DEMO_TENANT_NAME = "Pilot Staging" }
 if (-not $env:SEED_SECOND_TENANT_SLUG) { $env:SEED_SECOND_TENANT_SLUG = "acme-staging" }
 if (-not $env:SEED_SECOND_TENANT_NAME) { $env:SEED_SECOND_TENANT_NAME = "Acme Staging" }
+# Staging refresh is an explicit operation, so opt into non-sandbox seed + password overwrite.
+$env:PRISMA_SEED_ALLOW_ANY_DB = "1"
+$env:SEED_OVERWRITE_PASSWORDS = "1"
 
 # Resolve effective seed emails to match prisma/seed.ts defaults (emails only, no secrets).
 $seedOwnerEmail = if ($env:SEED_OWNER_EMAIL) { $env:SEED_OWNER_EMAIL } else { "owner@demo.local" }

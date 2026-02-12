@@ -16,6 +16,31 @@ This runbook is aligned to the current stack: **Prisma** migrations against **Po
 pnpm prisma migrate status
 ```
 
+## Local Development Safety Rails
+
+The repo now wraps destructive Prisma dev commands with safety guards:
+
+- `pnpm prisma:migrate` blocks `prisma migrate dev` unless `DATABASE_URL` points at a sandbox-style DB name (default regex: `sandbox|scratch|seed|e2e|test|tmp`).
+- `pnpm db:seed` blocks seeding on protected/non-sandbox DBs by default.
+
+Recommended local split:
+
+1. Keep your manual data in a primary DB (for example `eduhub_dev`).
+2. Use a disposable DB (for example `eduhub_scratch`) when running `pnpm prisma:migrate`.
+3. Apply generated migrations to your primary DB with `pnpm prisma migrate deploy`.
+
+Explicit one-time overrides (use only when intentional):
+
+```powershell
+$env:PRISMA_MIGRATE_DEV_ALLOW_ANY_DB="1"
+pnpm prisma:migrate -- --name your_migration_name
+```
+
+```powershell
+$env:PRISMA_SEED_ALLOW_ANY_DB="1"
+pnpm db:seed
+```
+
 ```powershell
 pnpm prisma migrate status
 ```
