@@ -1,77 +1,81 @@
-// Playwright coverage for audit log entries on absence request resolves (Step 20.8C).
+// Regression coverage that request resolution writes a redacted audit event in the admin log.
 import { expect, test } from "@playwright/test";
 
-import { loginAsAdmin } from "..\/helpers/auth";
-import { ensurePortalAbsenceRequest, resolveAbsenceRequest } from "..\/helpers/absence-requests";
-import { loginParentWithAccessCode } from "..\/helpers/portal";
-import { resolveStep204Fixtures } from "..\/helpers/step204";
-import { buildTenantPath } from "..\/helpers/tenant";
+import { ensurePortalAbsenceRequest } from "../helpers/absence-requests";
+import { loginAsAdmin } from "../helpers/auth";
+import { loginAsParentWithAccessCode } from "../helpers/parent-auth";
+import { resolveStep204Fixtures } from "../helpers/step204";
+import { buildTenantApiPath, buildTenantPath } from "../helpers/tenant";
 
-// Tagged for Playwright suite filtering.
+type AuditItem = {
+  id: string;
+  action: string;
+  entityId: string | null;
+  metadata: Record<string, unknown> | null;
+};
+
+type AuditListResponse = {
+  items: AuditItem[];
+};
+
 test.describe("[regression] Audit log absence request resolve", () => {
-  test("Audit log captures resolved absence requests without leaking messages", async ({
+  test("Audit log captures request.resolved without leaking request text", async ({
     page,
   }) => {
     const fixtures = resolveStep204Fixtures();
     const tenantSlug = fixtures.tenantSlug;
-
-    await loginParentWithAccessCode(page, tenantSlug, {
-      email: fixtures.parentA1Email,
-      accessCode: fixtures.accessCode,
-    });
-
     const requestMessage = "Please excuse this absence.";
-    const request = await ensurePortalAbsenceRequest(page, {
+
+    await page.context().clearCookies();
+    await loginAsParentWithAccessCode(
+      page,
+      tenantSlug,
+      fixtures.parentA1Email,
+      fixtures.accessCode,
+    );
+    const pendingRequest = await ensurePortalAbsenceRequest(page, {
       tenantSlug,
       sessionId: fixtures.absenceSessionIds.resolve,
       studentId: fixtures.studentId,
       reasonCode: "ILLNESS",
       message: requestMessage,
     });
-
-    if (request.status !== "PENDING") {
-      throw new Error(
-        `Expected pending request for audit resolve test, got ${request.status}.`,
-      );
-    }
+    expect(pendingRequest.status).toBe("PENDING");
 
     await page.context().clearCookies();
     await loginAsAdmin(page, tenantSlug);
-
-    await resolveAbsenceRequest(page, tenantSlug, request.id, "APPROVED");
-
-    const auditResponsePromise = page.waitForResponse(
-      (response) =>
-        response.url().includes("/api/admin/audit") &&
-        response.request().method() === "GET",
+    const resolveResponse = await page.request.post(
+      buildTenantApiPath(tenantSlug, `/api/requests/${pendingRequest.id}/resolve`),
+      { data: { status: "APPROVED" } },
     );
+    expect(resolveResponse.status()).toBe(200);
+
+    const from = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const to = new Date(Date.now() + 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const query = new URLSearchParams({
+      page: "1",
+      pageSize: "100",
+      sortField: "occurredAt",
+      sortDir: "desc",
+      filters: JSON.stringify({ from, to, action: "request.resolved" }),
+    });
+    const auditResponse = await page.request.get(
+      buildTenantApiPath(tenantSlug, `/api/admin/audit?${query.toString()}`),
+    );
+    expect(auditResponse.status()).toBe(200);
+    const payload = (await auditResponse.json()) as AuditListResponse;
+    const matched = payload.items.find((item) => item.entityId === pendingRequest.id);
+    expect(matched).toBeTruthy();
+    expect(matched?.action).toBe("request.resolved");
+    expect(JSON.stringify(matched?.metadata ?? {})).not.toContain(requestMessage);
+
     await page.goto(buildTenantPath(tenantSlug, "/admin/audit"));
-    await auditResponsePromise;
-
-    const filterResponsePromise = page.waitForResponse(
-      (response) =>
-        response.url().includes("/api/admin/audit") &&
-        response.request().method() === "GET",
-    );
-    // Audit filters live inside the shared filter sheet (Step 21.3 admin table toolkit).
-    await page.getByTestId("audit-log-search-filters-button").click();
-    await expect(page.getByTestId("admin-filters-sheet")).toBeVisible();
-    await page.getByTestId("audit-category-filter").selectOption("requests");
-    await page.getByTestId("admin-filters-sheet-close").click();
-    await filterResponsePromise;
-
-    const actionCell = page.locator(
-      '[data-testid="audit-row-action"][data-action="ABSENCE_REQUEST_RESOLVED"]',
-    );
-    await expect(actionCell.first()).toBeVisible();
-
-    const row = actionCell.first().locator("xpath=ancestor::tr");
-    await row.click();
-
-    const detailDrawer = page.getByTestId("audit-detail-drawer");
-    await expect(detailDrawer).toBeVisible();
-    await expect(detailDrawer).not.toContainText(requestMessage);
+    await expect(page.getByTestId("audit-log-page")).toBeVisible();
+    await page.getByTestId("audit-log-search-input").fill("request.resolved");
+    await expect(page.locator('tr[data-testid^="audit-row-"]').first()).toBeVisible();
   });
 });
-
-

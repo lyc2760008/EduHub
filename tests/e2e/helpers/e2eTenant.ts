@@ -2,13 +2,27 @@
 import bcrypt from "bcryptjs";
 import { DateTime } from "luxon";
 
-import type { Prisma, PrismaClient } from "../../../src/generated/prisma/client";
+import type {
+  AuditActorType,
+  AuditEventResult,
+  Prisma,
+  PrismaClient,
+} from "../../../src/generated/prisma/client";
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from "../../../src/lib/audit/constants";
 import {
   STEP223_INTERNAL_ONLY_SENTINEL,
   STEP223_PROGRESS_NOTE_COUNT,
   buildStep223ParentVisibleNote,
 } from "./step203";
 import { STEP224_INTERNAL_ONLY_SENTINEL } from "./step224";
+import {
+  STEP226_AUDIT_EVENT_COUNT,
+  STEP226_AUDIT_MARKER,
+  STEP226_INTERNAL_ONLY_SENTINEL,
+  buildStep226AuditEntityId,
+  buildStep226AuditEventId,
+  buildStep226MarkerEntityId,
+} from "./step226";
 
 // DbClient allows helpers to run with either the full Prisma client or a transaction client.
 type DbClient = PrismaClient | Prisma.TransactionClient;
@@ -48,6 +62,164 @@ function resolveE2ETenantSlug() {
 function resolveE2ERunId() {
   // Stable run identifiers keep fixture emails deterministic across runs.
   return process.env.E2E_RUN_ID || DEFAULT_E2E_RUN_ID;
+}
+
+type Step226SeedAuditEventsArgs = {
+  tx: Prisma.TransactionClient;
+  tenantId: string;
+  tenantSlug: string;
+  runId: string;
+  adminUserId: string;
+  tutorUserId: string;
+};
+
+function resolveStep226EntityType(action: string) {
+  if (action === AUDIT_ACTIONS.REQUEST_RESOLVED) {
+    return AUDIT_ENTITY_TYPES.REQUEST;
+  }
+  if (action === AUDIT_ACTIONS.GROUP_FUTURE_SESSIONS_SYNCED) {
+    return AUDIT_ENTITY_TYPES.GROUP;
+  }
+  if (
+    action === AUDIT_ACTIONS.PARENT_INVITE_SENT ||
+    action === AUDIT_ACTIONS.PARENT_INVITE_RESENT
+  ) {
+    return AUDIT_ENTITY_TYPES.PARENT;
+  }
+  return AUDIT_ENTITY_TYPES.SESSION;
+}
+
+async function seedStep226AuditEvents({
+  tx,
+  tenantId,
+  tenantSlug,
+  runId,
+  adminUserId,
+  tutorUserId,
+}: Step226SeedAuditEventsArgs) {
+  const idPrefix = `e2e-${tenantSlug}-${runId}-audit-step226-`;
+  const markerEntityId = buildStep226MarkerEntityId(tenantSlug, runId);
+  const actionCycle = [
+    AUDIT_ACTIONS.REQUEST_RESOLVED,
+    AUDIT_ACTIONS.SESSIONS_GENERATED,
+    AUDIT_ACTIONS.GROUP_FUTURE_SESSIONS_SYNCED,
+    AUDIT_ACTIONS.ATTENDANCE_UPDATED,
+    AUDIT_ACTIONS.NOTES_UPDATED,
+    AUDIT_ACTIONS.PARENT_INVITE_SENT,
+    AUDIT_ACTIONS.PARENT_INVITE_RESENT,
+  ] as const;
+
+  // Clear prior Step 22.6 fixture rows so repeated seed runs remain deterministic for pagination checks.
+  await tx.auditEvent.deleteMany({
+    where: {
+      tenantId,
+      id: { startsWith: idPrefix },
+    },
+  });
+
+  const now = DateTime.utc();
+  const seedRows = Array.from({ length: STEP226_AUDIT_EVENT_COUNT }, (_, index) => {
+    const sequence = index + 1;
+    const action = actionCycle[index % actionCycle.length];
+    const result: AuditEventResult = sequence % 8 === 0 ? "FAILURE" : "SUCCESS";
+    const actorType: AuditActorType = sequence % 9 === 0 ? "SYSTEM" : "USER";
+    const actorId =
+      actorType === "SYSTEM"
+        ? null
+        : sequence % 2 === 0
+          ? adminUserId
+          : tutorUserId;
+    const actorDisplay =
+      actorType === "SYSTEM"
+        ? "System"
+        : sequence % 2 === 0
+          ? "E2E Admin"
+          : "E2E Tutor";
+
+    const fallbackMetadata: Prisma.InputJsonValue =
+      result === "FAILURE"
+        ? { errorCode: "validation_error" }
+        : {
+            rowsUpdatedCount: (sequence % 5) + 1,
+          };
+
+    const metadataByAction: Record<string, Prisma.InputJsonValue> = {
+      [AUDIT_ACTIONS.REQUEST_RESOLVED]: {
+        fromStatus: "PENDING",
+        toStatus: sequence % 2 === 0 ? "APPROVED" : "DECLINED",
+      },
+      [AUDIT_ACTIONS.SESSIONS_GENERATED]: {
+        sessionsCreatedCount: (sequence % 4) + 1,
+        sessionsUpdatedCount: 0,
+        sessionsSkippedCount: sequence % 2,
+        inputRangeFrom: "2026-02-01",
+        inputRangeTo: "2026-02-28",
+      },
+      [AUDIT_ACTIONS.GROUP_FUTURE_SESSIONS_SYNCED]: {
+        sessionsAffectedCount: (sequence % 3) + 1,
+        studentsAddedCount: (sequence % 4) + 1,
+        totalFutureSessions: 6 + (sequence % 3),
+      },
+      [AUDIT_ACTIONS.ATTENDANCE_UPDATED]: {
+        rowsUpdatedCount: (sequence % 4) + 1,
+        presentCount: 1,
+        absentCount: 0,
+        lateCount: sequence % 2,
+        excusedCount: 0,
+      },
+      [AUDIT_ACTIONS.NOTES_UPDATED]: {
+        rowsUpdatedCount: 1,
+      },
+      [AUDIT_ACTIONS.PARENT_INVITE_SENT]: {
+        method: "magic_link",
+      },
+      [AUDIT_ACTIONS.PARENT_INVITE_RESENT]: {
+        method: "magic_link",
+      },
+    };
+
+    // Keep fixture events within the recent range so default "last 7 days" filters always include them.
+    const occurredAt = now.minus({ hours: sequence * 3 }).toJSDate();
+    const entityId = buildStep226AuditEntityId(tenantSlug, runId, sequence);
+    const metadata = metadataByAction[action] ?? fallbackMetadata;
+
+    return {
+      id: buildStep226AuditEventId(tenantSlug, runId, sequence),
+      tenantId,
+      occurredAt,
+      actorType,
+      actorId,
+      actorDisplay,
+      action,
+      entityType: resolveStep226EntityType(action),
+      entityId,
+      result,
+      correlationId: `step226-seed-${sequence}`,
+      metadata,
+    };
+  });
+
+  const markerRow = seedRows[5];
+  markerRow.entityId = markerEntityId;
+  // `filterKeys` is allowlisted by audit redaction and safe for deterministic search/export assertions.
+  markerRow.metadata = {
+    ...(markerRow.metadata as Record<string, Prisma.InputJsonValue>),
+    filterKeys: [STEP226_AUDIT_MARKER],
+    rowsUpdatedCount: 2,
+  } as Prisma.InputJsonValue;
+
+  const sentinelRow = seedRows[7];
+  sentinelRow.metadata = {
+    ...(sentinelRow.metadata as Record<string, Prisma.InputJsonValue>),
+    // Unsafe keys are intentionally seeded to verify list/detail/export redaction drops them.
+    internalNoteText: STEP226_INTERNAL_ONLY_SENTINEL,
+    tokenLeakCandidate: "token=seed-should-never-render",
+  } as Prisma.InputJsonValue;
+
+  await tx.auditEvent.createMany({
+    data: seedRows,
+    skipDuplicates: false,
+  });
 }
 
 async function ensureE2ETenant(prisma: DbClient, slug: string, name?: string) {
@@ -2154,6 +2326,15 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       },
     });
 
+    await seedStep226AuditEvents({
+      tx,
+      tenantId: tenant.id,
+      tenantSlug: tenant.slug,
+      runId,
+      adminUserId: adminUser.id,
+      tutorUserId: tutorLoginUser.id,
+    });
+
     // ParentA0 is intentionally left without linked students for empty-state tests.
     void parentA0;
     // Tutor B and unlinked student/session support access-control coverage.
@@ -2162,6 +2343,10 @@ export async function upsertE2EFixtures(prisma: DbClient) {
 
   return {
     tenantSlug: tenant.slug,
+    step226AuditMarker: STEP226_AUDIT_MARKER,
+    step226AuditMarkerEntityId: buildStep226MarkerEntityId(tenant.slug, runId),
+    step226InternalOnlySentinel: STEP226_INTERNAL_ONLY_SENTINEL,
+    step226SeededAuditEventCount: STEP226_AUDIT_EVENT_COUNT,
     parentA0Email,
     parentA1Email,
     accessCode: normalizedParentAccessCode,
@@ -2200,6 +2385,8 @@ export async function cleanupE2ETenantData(prisma: DbClient) {
   const tenant = await getE2ETenant(prisma);
 
   await withTransaction(prisma, async (tx) => {
+    // Audit rows are tenant-scoped fixtures and should be reset between runs for deterministic paging.
+    await tx.auditEvent.deleteMany({ where: { tenantId: tenant.id } });
     // Parent requests must be cleared before sessions/students to satisfy FK constraints.
     await tx.parentRequest.deleteMany({ where: { tenantId: tenant.id } });
     await tx.sessionNote.deleteMany({ where: { tenantId: tenant.id } });
