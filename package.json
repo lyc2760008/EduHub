@@ -49,6 +49,7 @@
     "@prisma/client": "^7.1.0",
     "@sentry/nextjs": "10.38.0",
     "bcryptjs": "^3.0.3",
+    "import-in-the-middle": "2.0.6",
     "luxon": "^3.7.2",
     "next": "16.0.10",
     "next-auth": "5.0.0-beta.30",
@@ -58,6 +59,7 @@
     "pnpm": "^10.28.2",
     "react": "19.2.1",
     "react-dom": "19.2.1",
+    "require-in-the-middle": "8.0.1",
     "xlsx": "^0.18.5",
     "zod": "^3"
   },

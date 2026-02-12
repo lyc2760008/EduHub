@@ -133,6 +133,49 @@ async function postWithRetry(
   throw new Error("Unexpected parent-auth POST retry flow.");
 }
 
+async function mintTokenViaEndpoint(
+  page: Page,
+  tenantSlug: string,
+  parentEmail: string,
+  e2eSecret: string,
+) {
+  // Endpoint minting is preferred for remote deployments where DB token hashing may not match.
+  const response = await postWithRetry(
+    page,
+    buildTenantApiPath(tenantSlug, "/api/test/mint-parent-magic-link"),
+    {
+      headers: {
+        "content-type": "application/json",
+        "x-e2e-secret": e2eSecret,
+        // Ensure tenant resolution for deployments that rely on header-based tenant routing.
+        "x-tenant-slug": tenantSlug,
+      },
+      data: { parentEmail, rememberMe: true },
+    },
+    2,
+  );
+
+  if (response.status() === 404) {
+    // Local runs often keep the test endpoint disabled; caller falls back to DB minting.
+    return null;
+  }
+
+  if (!response.ok()) {
+    // Avoid including PII like the email value; keep the failure actionable for operators.
+    throw new Error(
+      `E2E parent magic-link mint endpoint unavailable (status ${response.status()}). ` +
+        "Ensure the target deployment has E2E_TEST_MODE=1 and E2E_TEST_SECRET configured, " +
+        "and that APP_ENV is set to a non-production value (e.g. 'staging') on the target deployment.",
+    );
+  }
+
+  const payload = (await response.json()) as { ok?: boolean; token?: string };
+  if (!payload?.ok || !payload.token) {
+    throw new Error("E2E parent magic-link mint endpoint returned no token.");
+  }
+  return payload.token;
+}
+
 export function buildTenantUrl(tenantSlug: string, suffix: string) {
   // Resolve a URL that works for subdomain or /t/<slug> tenant routing schemes.
   const baseUrl = resolveBaseUrl();
@@ -307,44 +350,18 @@ export async function loginAsParentWithAccessCode(
   await page.context().clearCookies();
 
   let rawToken: string;
+  const e2eSecret = process.env.E2E_TEST_SECRET?.trim();
+  const endpointToken = e2eSecret
+    ? await mintTokenViaEndpoint(page, tenantSlug, email, e2eSecret)
+    : null;
 
-  const e2eSecret = process.env.E2E_TEST_SECRET;
-  if (e2eSecret) {
-    // Remote-friendly path: mint via the double-guarded test endpoint (no inbox, no DB access,
-    // and no need for the server's AUTH_SECRET in the test runner).
-    const response = await postWithRetry(
-      page,
-      buildTenantApiPath(tenantSlug, "/api/test/mint-parent-magic-link"),
-      {
-        headers: {
-          "content-type": "application/json",
-          "x-e2e-secret": e2eSecret,
-          // Ensure tenant resolution for deployments that rely on header-based tenant routing.
-          "x-tenant-slug": tenantSlug,
-        },
-        data: { parentEmail: email, rememberMe: true },
-      },
-      2,
-    );
-
-    if (!response.ok()) {
-      // Avoid including PII like the email value; keep the failure actionable for operators.
-      throw new Error(
-        `E2E parent magic-link mint endpoint unavailable (status ${response.status()}). ` +
-          "Ensure the target deployment has E2E_TEST_MODE=1 and E2E_TEST_SECRET configured, " +
-          "and that APP_ENV is set to a non-production value (e.g. 'staging') on the target deployment.",
-      );
-    }
-
-    const payload = (await response.json()) as { ok?: boolean; token?: string };
-    if (!payload?.ok || !payload.token) {
-      throw new Error("E2E parent magic-link mint endpoint returned no token.");
-    }
-    rawToken = payload.token;
+  if (endpointToken) {
+    rawToken = endpointToken;
   } else {
     // Local/CI fallback: insert a token row directly into the DB.
     // This requires DATABASE_URL and assumes AUTH_SECRET/NEXTAUTH_SECRET matches the app's secret,
-    // because token hashes are peppered.
+    // because token hashes are peppered. This fallback also handles local runs where
+    // E2E_TEST_SECRET is present but the test-only mint endpoint remains disabled.
     const pool = getPool();
     // Pool is intentionally `any` to keep TypeScript `moduleResolution: bundler` happy.
     // Cast query results locally to avoid leaking pg typing concerns into app builds.
@@ -402,16 +419,18 @@ export async function loginAsParentWithAccessCode(
   await page.goto(verifyPath, { waitUntil: "domcontentloaded" });
 
   const parentRoot = buildTenantPath(tenantSlug, "/parent");
+  const portalPath = buildTenantPath(tenantSlug, "/portal");
   await Promise.race([
-    // Wait for the post-verify redirect. `parent-shell` is visible on the verify page too,
-    // so we wait for a signed-in marker under /parent instead.
+    // Post-verify may land on /parent (legacy) or /portal (canonical Step 22.5 route).
     page.waitForURL(
       (url) =>
         url.pathname.startsWith(parentRoot) &&
         !url.pathname.startsWith(`${parentRoot}/auth/verify`),
       { timeout: 20_000 },
     ),
-    page.getByTestId("parent-landing").waitFor({ state: "visible", timeout: 20_000 }),
+    page.waitForURL((url) => url.pathname.startsWith(portalPath), {
+      timeout: 20_000,
+    }),
   ]);
 
   if (!(await assertParentSession())) {
@@ -421,7 +440,6 @@ export async function loginAsParentWithAccessCode(
   await expect(page.getByTestId("parent-shell")).toBeVisible();
 
   // Normalize post-login landing to the portal dashboard so callers can assert onboarding UI.
-  const portalPath = buildTenantPath(tenantSlug, "/portal");
   await page.goto(portalPath, { waitUntil: "domcontentloaded" });
   await expect(page.getByTestId("portal-dashboard-page")).toBeVisible();
 }

@@ -403,19 +403,19 @@ export async function createGroup(
   await page.getByTestId("save-group-button").click();
   const createResponse = await createResponsePromise;
   expect(createResponse.ok()).toBeTruthy();
-
-  await expect(page.getByTestId("groups-table")).toContainText(input.name);
-
-  const row = page.getByTestId("groups-table").locator("tr", {
-    hasText: input.name,
-  });
-  const rowTestId = await row.getAttribute("data-testid");
-  if (!rowTestId) {
-    throw new Error("Expected a group row data-testid to be present.");
+  const payload = (await createResponse.json()) as {
+    group?: { id?: string };
+  };
+  const createdGroupId = payload.group?.id;
+  if (!createdGroupId) {
+    throw new Error("Expected group id in create-group API response.");
   }
 
+  // Group list is server-sorted/paginated and can contain a large historical dataset on staging.
+  // Treat POST success + response id as canonical create confirmation instead of asserting row visibility.
+
   return {
-    id: rowTestId.replace("group-row-", ""),
+    id: createdGroupId,
     name: input.name,
     centerId,
     programId,
