@@ -5,6 +5,8 @@ export type Step203Fixtures = {
   secondaryTenantSlug: string;
   runId: string;
   accessCode: string;
+  // Secondary parent account supports non-involved parent access-control checks.
+  parentA0Email: string;
   parentA1Email: string;
   tutorAEmail: string;
   tutorBEmail: string;
@@ -82,6 +84,7 @@ export function resolveStep203Fixtures(): Step203Fixtures {
     secondaryTenantSlug,
     runId,
     accessCode: requireAccessCode(),
+    parentA0Email: `e2e.parent.a0${emailSuffix}@example.com`,
     parentA1Email: `e2e.parent.a1${emailSuffix}@example.com`,
     tutorAEmail: `e2e.tutor${emailSuffix}@example.com`,
     tutorBEmail: `e2e.tutor.b${emailSuffix}@example.com`,
