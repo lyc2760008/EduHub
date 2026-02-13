@@ -60,6 +60,10 @@ model Tenant {
   attendances     Attendance[]
   // Session-level notes scoped to this tenant.
   sessionNotes    SessionNote[]
+  // Homework workflow items are tenant-scoped records per session + student.
+  homeworkItems   HomeworkItem[]
+  // Homework files are stored in-db for the MVP implementation.
+  homeworkFiles   HomeworkFile[]
   // Parent-initiated requests scoped to this tenant.
   parentRequests  ParentRequest[]
   // Magic link tokens issued for parent passwordless auth flows.
@@ -95,6 +99,10 @@ model User {
   resolvedParentRequests ParentRequest[] @relation("ParentRequestResolvedBy")
   // Announcement creator relation is optional because system-generated announcements are allowed.
   createdAnnouncements Announcement[] @relation("AnnouncementCreatedBy")
+  // Homework items capture optional creator linkage for assignment lifecycle context.
+  createdHomeworkItems HomeworkItem[] @relation("HomeworkItemCreatedByUser")
+  // Homework files capture optional uploader linkage for version history visibility.
+  uploadedHomeworkFiles HomeworkFile[] @relation("HomeworkFileUploadedByUser")
 }
 
 // Join table linking users to tenants with a single role per tenant.
@@ -151,6 +159,28 @@ enum SessionResourceType {
 enum SessionResourceCreatedByRole {
   ADMIN
   TUTOR
+  SYSTEM
+}
+
+// HomeworkStatus captures the assignment -> submission -> review lifecycle.
+enum HomeworkStatus {
+  ASSIGNED
+  SUBMITTED
+  REVIEWED
+}
+
+// HomeworkFileSlot identifies which workflow slot a versioned file belongs to.
+enum HomeworkFileSlot {
+  ASSIGNMENT
+  SUBMISSION
+  FEEDBACK
+}
+
+// HomeworkUploadedByRole snapshots role context at upload time.
+enum HomeworkUploadedByRole {
+  ADMIN
+  TUTOR
+  PARENT
   SYSTEM
 }
 
@@ -308,6 +338,8 @@ model Student {
   parents         StudentParent[]
   groupStudents   GroupStudent[]
   sessionStudents SessionStudent[]
+  // Homework workflow rows for this student across sessions.
+  homeworkItems   HomeworkItem[]
   // Attendance markings for this student.
   attendances     Attendance[]
   // Parent-initiated requests for this student.
@@ -595,6 +627,8 @@ model Session {
   sessionNotes    SessionNote[]
   // URL-only learning resources and homework links attached to this session.
   resources       SessionResource[]
+  // Homework lifecycle rows scoped per student for this session.
+  homeworkItems   HomeworkItem[]
   // Parent-initiated requests tied to this session.
   parentRequests  ParentRequest[]
 
@@ -623,6 +657,58 @@ model SessionResource {
 
   // Duplicate prevention is handled in server logic (URL+type checks) to keep migrations low-risk.
   @@index([tenantId, sessionId])
+}
+
+// HomeworkItem stores one workflow row per tenant + session + student.
+model HomeworkItem {
+  id              String         @id @default(cuid())
+  tenantId        String
+  sessionId       String
+  studentId       String
+  status          HomeworkStatus @default(ASSIGNED)
+  assignedAt      DateTime?
+  submittedAt     DateTime?
+  reviewedAt      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  createdByUserId String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdByUser User? @relation("HomeworkItemCreatedByUser", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  files HomeworkFile[]
+
+  @@unique([tenantId, sessionId, studentId])
+  @@index([tenantId, status, updatedAt])
+  @@index([tenantId, studentId, status])
+  @@index([tenantId, sessionId])
+}
+
+// HomeworkFile stores versioned slot files.
+// v1 persists bytes in Postgres; API validation enforces <= 5MB per file and the storage seam keeps future object storage migration low-risk.
+model HomeworkFile {
+  id               String                 @id @default(cuid())
+  tenantId         String
+  homeworkItemId   String
+  slot             HomeworkFileSlot
+  version          Int
+  filename         String
+  mimeType         String
+  sizeBytes        Int
+  bytes            Bytes
+  checksum         String?
+  uploadedByUserId String?
+  uploadedByRole   HomeworkUploadedByRole
+  uploadedAt       DateTime               @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  homeworkItem HomeworkItem @relation(fields: [homeworkItemId], references: [id], onDelete: Cascade)
+  uploadedByUser User? @relation("HomeworkFileUploadedByUser", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([homeworkItemId, slot, version])
+  @@index([tenantId, homeworkItemId, slot])
+  @@index([tenantId, uploadedAt])
 }
 
 // SessionStudent captures the roster snapshot at creation time.

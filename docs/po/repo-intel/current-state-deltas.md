@@ -2,6 +2,27 @@
 
 Comparison target: `docs/po/current-state.md` vs repository code (`src/app/**`, `src/lib/**`, Prisma writes).
 
+## 0) Fresh deltas since last sync (2026-02-13)
+
+### A. Homework display semantics now differentiate "no assignment uploaded"
+- Implemented behavior:
+  - UI renders `UNASSIGNED` when persisted status is `ASSIGNED` and assignment file count is `0`.
+- Where:
+  - `src/components/homework/homeworkClient.ts` (`toHomeworkDisplayStatus`)
+  - `src/components/homework/StaffHomeworkQueueClient.tsx`, `src/components/homework/StaffHomeworkDetailClient.tsx`
+  - `src/components/parent/homework/ParentHomeworkInboxClient.tsx`, `src/components/parent/homework/ParentHomeworkDetailClient.tsx`
+- Why this matters:
+  - Removes ambiguous "Assigned" badge when nobody has uploaded an assignment yet.
+
+### B. Parent submission is now blocked until assignment exists
+- Implemented behavior:
+  - `POST /api/portal/homework/[id]/files` requires at least one assignment file on the homework item.
+- Where:
+  - `src/app/api/portal/homework/[id]/files/route.ts` (`ASSIGNMENT_REQUIRED` conflict rule)
+  - Parent detail UI mirrors this rule and hides upload affordance until assignment exists.
+- Why this matters:
+  - Aligns parent workflow with staff-first assignment intent and prevents submission-before-assignment confusion.
+
 ## 1) Missing in `current-state.md` (but implemented in code)
 
 ### A. Parent landing route exists and is part of auth flow

@@ -77,7 +77,8 @@ test.describe("[regression] Parent portal progress notes", () => {
   test("Linked student renders Progress Notes section", async ({ page }) => {
     const fixtures = resolveStep203Fixtures();
     await openStudentDetailAndWaitNotes(page, fixtures.tenantSlug, fixtures.studentId);
-    await expect(page.getByText("Progress Notes")).toBeVisible();
+    // Heading-role targeting avoids strict-mode collisions with similarly worded aria-live loading text.
+    await expect(page.getByRole("heading", { name: "Progress Notes" })).toBeVisible();
     await expect(page.getByTestId("portal-progress-notes-list")).toBeVisible();
   });
 
@@ -116,6 +117,10 @@ test.describe("[regression] Parent portal progress notes", () => {
   }) => {
     const fixtures = resolveStep203Fixtures();
     await openStudentDetailAndWaitNotes(page, fixtures.tenantSlug, fixtures.studentId);
+    // Wait for card render completion so list-order assertions do not race hydration/network timing.
+    await expect
+      .poll(() => page.locator('[data-testid^="portal-progress-note-"]').count())
+      .toBe(STEP223_PROGRESS_PAGE_SIZE);
 
     const rendered = await readRenderedProgressNotes(page);
     expect(rendered.length).toBe(STEP223_PROGRESS_PAGE_SIZE);

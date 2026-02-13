@@ -55,6 +55,17 @@ Note: `docs/po/**` currently has no future Step 20.x/21.x/22.x proposal docs bey
 - Safe deltas only:
   - Validation/constraints/table UX enhancements; avoid creating parallel CRUD routes/components.
 
+### F. Proposed theme: "Homework status overhaul" without migration plan
+- Prior-doc signal:
+  - Homework v1 workflow is already shipped and now includes UI-only `UNASSIGNED` display + parent submission gating.
+- Already exists in code:
+  - Display resolver: `src/components/homework/homeworkClient.ts` (`toHomeworkDisplayStatus`)
+  - Parent submission guard: `src/app/api/portal/homework/[id]/files/route.ts` (`ASSIGNMENT_REQUIRED`)
+- Risk:
+  - Introducing a second parallel interpretation (UI-only unassigned vs new persisted enum) without a single migration strategy can create inconsistent analytics/reporting.
+- Safe deltas only:
+  - Pick one canonical direction for v2 (persisted enum migration OR keep derived display state), then remove the alternative path.
+
 ## 2) Safe next-step zones
 
 ### A. Unknown capability annotations (low duplicate risk, high clarity value)

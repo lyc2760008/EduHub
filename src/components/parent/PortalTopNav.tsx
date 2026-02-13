@@ -22,6 +22,7 @@ type NavKey =
   | "dashboard"
   | "students"
   | "sessions"
+  | "homework"
   | "announcements"
   | "requests";
 
@@ -35,6 +36,7 @@ function resolveActiveKey(pathname: string | null): NavKey {
   if (!pathname) return "dashboard";
   if (pathname.includes("/portal/students")) return "students";
   if (pathname.includes("/portal/sessions")) return "sessions";
+  if (pathname.includes("/portal/homework")) return "homework";
   if (pathname.includes("/portal/announcements")) return "announcements";
   if (pathname.includes("/portal/requests")) return "requests";
   return "dashboard";
@@ -70,6 +72,11 @@ export default function PortalTopNav({
       key: "sessions",
       labelKey: "portal.nav.sessions",
       href: `${basePath}/sessions`,
+    },
+    {
+      key: "homework",
+      labelKey: "parentHomework.nav",
+      href: `${basePath}/homework`,
     },
     {
       key: "announcements",

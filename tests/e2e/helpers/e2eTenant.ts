@@ -38,6 +38,10 @@ import {
   STEP229_RESOURCE_TITLES,
   buildStep229ResourceIds,
 } from "./step229";
+import {
+  buildStep232CrossTenantHomeworkItemId,
+  buildStep232HomeworkItemIds,
+} from "./step232";
 
 // DbClient allows helpers to run with either the full Prisma client or a transaction client.
 type DbClient = PrismaClient | Prisma.TransactionClient;
@@ -606,6 +610,12 @@ export async function upsertE2EFixtures(prisma: DbClient) {
   // Step 22.9 deterministic resource IDs keep CRUD/bulk/report assertions repeatable across runs.
   const step229ResourceIds = buildStep229ResourceIds(
     tenant.slug,
+    secondaryTenantSlug,
+    runId,
+  );
+  // Step 23.2 deterministic homework IDs keep queue/detail/report assertions stable.
+  const step232HomeworkItemIds = buildStep232HomeworkItemIds(tenant.slug, runId);
+  const step232CrossTenantHomeworkItemId = buildStep232CrossTenantHomeworkItemId(
     secondaryTenantSlug,
     runId,
   );
@@ -2364,6 +2374,421 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       },
     });
 
+    // Step 23.2 homework fixtures seed deterministic status/file combinations for parent+tutor+admin tests.
+    const homeworkSeedClock = DateTime.fromISO("2026-02-13T00:00:00Z");
+    const homeworkRows = [
+      {
+        id: step232HomeworkItemIds.parentWithAssignment,
+        sessionId: step224TutorASession1.id,
+        studentId: student.id,
+        status: "ASSIGNED" as const,
+        assignedAt: homeworkSeedClock.plus({ hours: 1 }).toJSDate(),
+        submittedAt: null,
+        reviewedAt: null,
+      },
+      {
+        id: step232HomeworkItemIds.parentWithoutAssignment,
+        sessionId: step227ZoomSession.id,
+        studentId: student.id,
+        status: "ASSIGNED" as const,
+        assignedAt: homeworkSeedClock.plus({ hours: 2 }).toJSDate(),
+        submittedAt: null,
+        reviewedAt: null,
+      },
+      {
+        id: step232HomeworkItemIds.parentUnlinked,
+        sessionId: unlinkedSession.id,
+        studentId: unlinkedStudent.id,
+        status: "SUBMITTED" as const,
+        assignedAt: homeworkSeedClock.plus({ hours: 3 }).toJSDate(),
+        submittedAt: homeworkSeedClock.plus({ hours: 4 }).toJSDate(),
+        reviewedAt: null,
+      },
+      {
+        id: step232HomeworkItemIds.tutorSubmitted,
+        sessionId: step224TutorASession2.id,
+        studentId: missingEmailStudent.id,
+        status: "SUBMITTED" as const,
+        assignedAt: homeworkSeedClock.plus({ hours: 5 }).toJSDate(),
+        submittedAt: homeworkSeedClock.plus({ hours: 6 }).toJSDate(),
+        reviewedAt: null,
+      },
+      {
+        id: step232HomeworkItemIds.tutorNoSubmission,
+        sessionId: step224TutorASession1.id,
+        studentId: unlinkedStudent.id,
+        status: "ASSIGNED" as const,
+        assignedAt: homeworkSeedClock.plus({ hours: 7 }).toJSDate(),
+        submittedAt: null,
+        reviewedAt: null,
+      },
+      {
+        id: step232HomeworkItemIds.tutorOther,
+        sessionId: step224TutorBSession.id,
+        studentId: student.id,
+        status: "REVIEWED" as const,
+        assignedAt: homeworkSeedClock.plus({ hours: 8 }).toJSDate(),
+        submittedAt: homeworkSeedClock.plus({ hours: 9 }).toJSDate(),
+        reviewedAt: homeworkSeedClock.plus({ hours: 15 }).toJSDate(),
+      },
+      {
+        id: step232HomeworkItemIds.bulkEligible,
+        sessionId: step227GroupSessions[0].id,
+        studentId: student.id,
+        status: "SUBMITTED" as const,
+        assignedAt: homeworkSeedClock.plus({ hours: 10 }).toJSDate(),
+        submittedAt: homeworkSeedClock.plus({ hours: 11 }).toJSDate(),
+        reviewedAt: null,
+      },
+      {
+        id: step232HomeworkItemIds.bulkReviewed,
+        sessionId: step227GroupSessions[1].id,
+        studentId: student.id,
+        status: "REVIEWED" as const,
+        assignedAt: homeworkSeedClock.plus({ hours: 12 }).toJSDate(),
+        submittedAt: homeworkSeedClock.plus({ hours: 13 }).toJSDate(),
+        reviewedAt: homeworkSeedClock.plus({ hours: 19 }).toJSDate(),
+      },
+      {
+        id: step232HomeworkItemIds.bulkAssigned,
+        sessionId: step227GroupSessions[2].id,
+        studentId: student.id,
+        status: "ASSIGNED" as const,
+        assignedAt: homeworkSeedClock.plus({ hours: 14 }).toJSDate(),
+        submittedAt: null,
+        reviewedAt: null,
+      },
+      {
+        id: step232HomeworkItemIds.slaAssigned,
+        sessionId: tutorBSession.id,
+        studentId: student.id,
+        status: "ASSIGNED" as const,
+        assignedAt: homeworkSeedClock.plus({ hours: 16 }).toJSDate(),
+        submittedAt: null,
+        reviewedAt: null,
+      },
+    ] as const;
+
+    await tx.homeworkFile.deleteMany({
+      where: {
+        tenantId: tenant.id,
+        homeworkItemId: { in: homeworkRows.map((row) => row.id) },
+      },
+    });
+
+    for (const row of homeworkRows) {
+      await tx.homeworkItem.upsert({
+        where: { id: row.id },
+        update: {
+          tenantId: tenant.id,
+          sessionId: row.sessionId,
+          studentId: row.studentId,
+          status: row.status,
+          assignedAt: row.assignedAt,
+          submittedAt: row.submittedAt,
+          reviewedAt: row.reviewedAt,
+          createdByUserId: adminUser.id,
+        },
+        create: {
+          id: row.id,
+          tenantId: tenant.id,
+          sessionId: row.sessionId,
+          studentId: row.studentId,
+          status: row.status,
+          assignedAt: row.assignedAt,
+          submittedAt: row.submittedAt,
+          reviewedAt: row.reviewedAt,
+          createdByUserId: adminUser.id,
+        },
+      });
+    }
+
+    // Seed bytes are deterministic text payloads; runtime upload validation is covered in Playwright tests.
+    const homeworkBytes = (label: string) => Buffer.from(`E2E_HOMEWORK_${label}`, "utf8");
+    const homeworkFileRows: Prisma.HomeworkFileCreateManyInput[] = [
+      {
+        id: `${step232HomeworkItemIds.parentWithAssignment}-assignment-v1`,
+        tenantId: tenant.id,
+        homeworkItemId: step232HomeworkItemIds.parentWithAssignment,
+        slot: "ASSIGNMENT",
+        version: 1,
+        filename: "step232-parent-assignment-v1.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: homeworkBytes("PARENT_ASSIGNMENT_V1").length,
+        bytes: homeworkBytes("PARENT_ASSIGNMENT_V1"),
+        checksum: null,
+        uploadedByUserId: adminUser.id,
+        uploadedByRole: "ADMIN",
+        uploadedAt: homeworkSeedClock.plus({ hours: 1, minutes: 5 }).toJSDate(),
+      },
+      {
+        id: `${step232HomeworkItemIds.parentUnlinked}-assignment-v1`,
+        tenantId: tenant.id,
+        homeworkItemId: step232HomeworkItemIds.parentUnlinked,
+        slot: "ASSIGNMENT",
+        version: 1,
+        filename: "step232-unlinked-assignment-v1.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: homeworkBytes("UNLINKED_ASSIGNMENT_V1").length,
+        bytes: homeworkBytes("UNLINKED_ASSIGNMENT_V1"),
+        checksum: null,
+        uploadedByUserId: adminUser.id,
+        uploadedByRole: "ADMIN",
+        uploadedAt: homeworkSeedClock.plus({ hours: 3, minutes: 10 }).toJSDate(),
+      },
+      {
+        id: `${step232HomeworkItemIds.parentUnlinked}-submission-v1`,
+        tenantId: tenant.id,
+        homeworkItemId: step232HomeworkItemIds.parentUnlinked,
+        slot: "SUBMISSION",
+        version: 1,
+        filename: "step232-unlinked-submission-v1.docx",
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        sizeBytes: homeworkBytes("UNLINKED_SUBMISSION_V1").length,
+        bytes: homeworkBytes("UNLINKED_SUBMISSION_V1"),
+        checksum: null,
+        uploadedByUserId: null,
+        uploadedByRole: "PARENT",
+        uploadedAt: homeworkSeedClock.plus({ hours: 4, minutes: 10 }).toJSDate(),
+      },
+      {
+        id: `${step232HomeworkItemIds.tutorSubmitted}-assignment-v1`,
+        tenantId: tenant.id,
+        homeworkItemId: step232HomeworkItemIds.tutorSubmitted,
+        slot: "ASSIGNMENT",
+        version: 1,
+        filename: "step232-tutor-submitted-assignment-v1.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: homeworkBytes("TUTOR_SUBMITTED_ASSIGNMENT_V1").length,
+        bytes: homeworkBytes("TUTOR_SUBMITTED_ASSIGNMENT_V1"),
+        checksum: null,
+        uploadedByUserId: adminUser.id,
+        uploadedByRole: "ADMIN",
+        uploadedAt: homeworkSeedClock.plus({ hours: 5, minutes: 10 }).toJSDate(),
+      },
+      {
+        id: `${step232HomeworkItemIds.tutorSubmitted}-submission-v1`,
+        tenantId: tenant.id,
+        homeworkItemId: step232HomeworkItemIds.tutorSubmitted,
+        slot: "SUBMISSION",
+        version: 1,
+        filename: "step232-tutor-submitted-submission-v1.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: homeworkBytes("TUTOR_SUBMITTED_SUBMISSION_V1").length,
+        bytes: homeworkBytes("TUTOR_SUBMITTED_SUBMISSION_V1"),
+        checksum: null,
+        uploadedByUserId: null,
+        uploadedByRole: "PARENT",
+        uploadedAt: homeworkSeedClock.plus({ hours: 6, minutes: 10 }).toJSDate(),
+      },
+      {
+        id: `${step232HomeworkItemIds.tutorNoSubmission}-assignment-v1`,
+        tenantId: tenant.id,
+        homeworkItemId: step232HomeworkItemIds.tutorNoSubmission,
+        slot: "ASSIGNMENT",
+        version: 1,
+        filename: "step232-tutor-nosub-assignment-v1.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: homeworkBytes("TUTOR_NOSUB_ASSIGNMENT_V1").length,
+        bytes: homeworkBytes("TUTOR_NOSUB_ASSIGNMENT_V1"),
+        checksum: null,
+        uploadedByUserId: adminUser.id,
+        uploadedByRole: "ADMIN",
+        uploadedAt: homeworkSeedClock.plus({ hours: 7, minutes: 10 }).toJSDate(),
+      },
+      {
+        id: `${step232HomeworkItemIds.tutorOther}-assignment-v1`,
+        tenantId: tenant.id,
+        homeworkItemId: step232HomeworkItemIds.tutorOther,
+        slot: "ASSIGNMENT",
+        version: 1,
+        filename: "step232-tutor-other-assignment-v1.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: homeworkBytes("TUTOR_OTHER_ASSIGNMENT_V1").length,
+        bytes: homeworkBytes("TUTOR_OTHER_ASSIGNMENT_V1"),
+        checksum: null,
+        uploadedByUserId: adminUser.id,
+        uploadedByRole: "ADMIN",
+        uploadedAt: homeworkSeedClock.plus({ hours: 8, minutes: 10 }).toJSDate(),
+      },
+      {
+        id: `${step232HomeworkItemIds.tutorOther}-submission-v1`,
+        tenantId: tenant.id,
+        homeworkItemId: step232HomeworkItemIds.tutorOther,
+        slot: "SUBMISSION",
+        version: 1,
+        filename: "step232-tutor-other-submission-v1.docx",
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        sizeBytes: homeworkBytes("TUTOR_OTHER_SUBMISSION_V1").length,
+        bytes: homeworkBytes("TUTOR_OTHER_SUBMISSION_V1"),
+        checksum: null,
+        uploadedByUserId: null,
+        uploadedByRole: "PARENT",
+        uploadedAt: homeworkSeedClock.plus({ hours: 9, minutes: 10 }).toJSDate(),
+      },
+      {
+        id: `${step232HomeworkItemIds.tutorOther}-feedback-v1`,
+        tenantId: tenant.id,
+        homeworkItemId: step232HomeworkItemIds.tutorOther,
+        slot: "FEEDBACK",
+        version: 1,
+        filename: "step232-tutor-other-feedback-v1.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: homeworkBytes("TUTOR_OTHER_FEEDBACK_V1").length,
+        bytes: homeworkBytes("TUTOR_OTHER_FEEDBACK_V1"),
+        checksum: null,
+        uploadedByUserId: step224OtherTutorId,
+        uploadedByRole: "TUTOR",
+        uploadedAt: homeworkSeedClock.plus({ hours: 15, minutes: 10 }).toJSDate(),
+      },
+      {
+        id: `${step232HomeworkItemIds.bulkEligible}-assignment-v1`,
+        tenantId: tenant.id,
+        homeworkItemId: step232HomeworkItemIds.bulkEligible,
+        slot: "ASSIGNMENT",
+        version: 1,
+        filename: "step232-bulk-eligible-assignment-v1.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: homeworkBytes("BULK_ELIGIBLE_ASSIGNMENT_V1").length,
+        bytes: homeworkBytes("BULK_ELIGIBLE_ASSIGNMENT_V1"),
+        checksum: null,
+        uploadedByUserId: adminUser.id,
+        uploadedByRole: "ADMIN",
+        uploadedAt: homeworkSeedClock.plus({ hours: 10, minutes: 10 }).toJSDate(),
+      },
+      {
+        id: `${step232HomeworkItemIds.bulkEligible}-submission-v1`,
+        tenantId: tenant.id,
+        homeworkItemId: step232HomeworkItemIds.bulkEligible,
+        slot: "SUBMISSION",
+        version: 1,
+        filename: "step232-bulk-eligible-submission-v1.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: homeworkBytes("BULK_ELIGIBLE_SUBMISSION_V1").length,
+        bytes: homeworkBytes("BULK_ELIGIBLE_SUBMISSION_V1"),
+        checksum: null,
+        uploadedByUserId: null,
+        uploadedByRole: "PARENT",
+        uploadedAt: homeworkSeedClock.plus({ hours: 11, minutes: 10 }).toJSDate(),
+      },
+      {
+        id: `${step232HomeworkItemIds.bulkReviewed}-assignment-v1`,
+        tenantId: tenant.id,
+        homeworkItemId: step232HomeworkItemIds.bulkReviewed,
+        slot: "ASSIGNMENT",
+        version: 1,
+        filename: "step232-bulk-reviewed-assignment-v1.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: homeworkBytes("BULK_REVIEWED_ASSIGNMENT_V1").length,
+        bytes: homeworkBytes("BULK_REVIEWED_ASSIGNMENT_V1"),
+        checksum: null,
+        uploadedByUserId: adminUser.id,
+        uploadedByRole: "ADMIN",
+        uploadedAt: homeworkSeedClock.plus({ hours: 12, minutes: 10 }).toJSDate(),
+      },
+      {
+        id: `${step232HomeworkItemIds.bulkReviewed}-submission-v1`,
+        tenantId: tenant.id,
+        homeworkItemId: step232HomeworkItemIds.bulkReviewed,
+        slot: "SUBMISSION",
+        version: 1,
+        filename: "step232-bulk-reviewed-submission-v1.docx",
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        sizeBytes: homeworkBytes("BULK_REVIEWED_SUBMISSION_V1").length,
+        bytes: homeworkBytes("BULK_REVIEWED_SUBMISSION_V1"),
+        checksum: null,
+        uploadedByUserId: null,
+        uploadedByRole: "PARENT",
+        uploadedAt: homeworkSeedClock.plus({ hours: 13, minutes: 10 }).toJSDate(),
+      },
+      {
+        id: `${step232HomeworkItemIds.bulkReviewed}-feedback-v1`,
+        tenantId: tenant.id,
+        homeworkItemId: step232HomeworkItemIds.bulkReviewed,
+        slot: "FEEDBACK",
+        version: 1,
+        filename: "step232-bulk-reviewed-feedback-v1.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: homeworkBytes("BULK_REVIEWED_FEEDBACK_V1").length,
+        bytes: homeworkBytes("BULK_REVIEWED_FEEDBACK_V1"),
+        checksum: null,
+        uploadedByUserId: tutorLoginUser.id,
+        uploadedByRole: "TUTOR",
+        uploadedAt: homeworkSeedClock.plus({ hours: 19, minutes: 10 }).toJSDate(),
+      },
+      {
+        id: `${step232HomeworkItemIds.bulkAssigned}-assignment-v1`,
+        tenantId: tenant.id,
+        homeworkItemId: step232HomeworkItemIds.bulkAssigned,
+        slot: "ASSIGNMENT",
+        version: 1,
+        filename: "step232-bulk-assigned-assignment-v1.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: homeworkBytes("BULK_ASSIGNED_ASSIGNMENT_V1").length,
+        bytes: homeworkBytes("BULK_ASSIGNED_ASSIGNMENT_V1"),
+        checksum: null,
+        uploadedByUserId: adminUser.id,
+        uploadedByRole: "ADMIN",
+        uploadedAt: homeworkSeedClock.plus({ hours: 14, minutes: 10 }).toJSDate(),
+      },
+    ];
+
+    await tx.homeworkFile.createMany({
+      data: homeworkFileRows,
+      skipDuplicates: false,
+    });
+
+    if (secondaryTenant) {
+      // Seed one cross-tenant homework row with a file so tenant-boundary deny tests can probe a real foreign ID.
+      await tx.homeworkFile.deleteMany({
+        where: {
+          tenantId: secondaryTenant.id,
+          homeworkItemId: step232CrossTenantHomeworkItemId,
+        },
+      });
+      await tx.homeworkItem.upsert({
+        where: { id: step232CrossTenantHomeworkItemId },
+        update: {
+          tenantId: secondaryTenant.id,
+          sessionId: step224CrossTenantSessionId,
+          studentId: crossTenantStudentId,
+          status: "ASSIGNED",
+          assignedAt: homeworkSeedClock.plus({ days: 1 }).toJSDate(),
+          submittedAt: null,
+          reviewedAt: null,
+          createdByUserId: null,
+        },
+        create: {
+          id: step232CrossTenantHomeworkItemId,
+          tenantId: secondaryTenant.id,
+          sessionId: step224CrossTenantSessionId,
+          studentId: crossTenantStudentId,
+          status: "ASSIGNED",
+          assignedAt: homeworkSeedClock.plus({ days: 1 }).toJSDate(),
+          submittedAt: null,
+          reviewedAt: null,
+          createdByUserId: null,
+        },
+      });
+      await tx.homeworkFile.create({
+        data: {
+          id: `${step232CrossTenantHomeworkItemId}-assignment-v1`,
+          tenantId: secondaryTenant.id,
+          homeworkItemId: step232CrossTenantHomeworkItemId,
+          slot: "ASSIGNMENT",
+          version: 1,
+          filename: "step232-cross-tenant-assignment-v1.pdf",
+          mimeType: "application/pdf",
+          sizeBytes: homeworkBytes("CROSS_TENANT_ASSIGNMENT_V1").length,
+          bytes: homeworkBytes("CROSS_TENANT_ASSIGNMENT_V1"),
+          checksum: null,
+          uploadedByUserId: null,
+          uploadedByRole: "SYSTEM",
+          uploadedAt: homeworkSeedClock.plus({ days: 1, minutes: 10 }).toJSDate(),
+        },
+      });
+    }
+
     await tx.sessionStudent.upsert({
       where: {
         tenantId_sessionId_studentId: {
@@ -3067,6 +3492,9 @@ export async function cleanupE2ETenantData(prisma: DbClient) {
     await tx.announcement.deleteMany({ where: { tenantId: tenant.id } });
     // Parent requests must be cleared before sessions/students to satisfy FK constraints.
     await tx.parentRequest.deleteMany({ where: { tenantId: tenant.id } });
+    // Step 23.2 homework fixtures include versioned files; clear them explicitly for deterministic reruns.
+    await tx.homeworkFile.deleteMany({ where: { tenantId: tenant.id } });
+    await tx.homeworkItem.deleteMany({ where: { tenantId: tenant.id } });
     // Explicitly clear session resources to keep Step 22.9 fixtures deterministic across reruns.
     await tx.sessionResource.deleteMany({ where: { tenantId: tenant.id } });
     await tx.sessionNote.deleteMany({ where: { tenantId: tenant.id } });

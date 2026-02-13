@@ -113,8 +113,10 @@
         "tutorWorkload": "Tutor workload",
         "studentsDirectory": "Students directory",
         "announcementEngagement": "Announcement engagement",
-        "missingResources": "Missing resources report"
-      }
+        "missingResources": "Missing resources report",
+        "homeworkSla": "Homework SLA & Completion"
+      },
+      "homework": "Homework"
     },
     "shell": {
       "_comment": "Admin shell labels for sidebar/drawer accessibility.",
@@ -991,6 +993,11 @@
         "title": "Missing resources report",
         "helper": "Find upcoming sessions that still have no resources attached.",
         "defaultRange": "Next 14 days"
+      },
+      "homeworkSla": {
+        "title": "Homework SLA & Completion",
+        "helper": "Review homework workflow performance and review latency.",
+        "defaultRange": "Submitted date"
       }
     },
     "users": {
@@ -2428,5 +2435,229 @@
         }
       }
     }
+  },
+  "homework": {
+    "_comment": "Step 23.2 homework shared labels and statuses.",
+    "common": {
+      "homework": "Homework"
+    },
+    "status": {
+      "unassigned": "Unassigned",
+      "assigned": "Assigned",
+      "submitted": "Submitted",
+      "reviewed": "Reviewed"
+    }
+  },
+  "parentHomework": {
+    "_comment": "Step 23.2 parent homework inbox/detail labels.",
+    "nav": "Homework",
+    "inbox": {
+      "title": "Homework",
+      "subtitle": "Track assignments, submissions, and feedback for your child.",
+      "filters": {
+        "child": "Child",
+        "childAll": "All children",
+        "status": "Status",
+        "statusAll": "All statuses",
+        "dateFrom": "From",
+        "dateTo": "To"
+      },
+      "action": {
+        "downloadAssignment": "Download assignment",
+        "uploadSubmission": "Upload submission"
+      }
+    },
+    "loading": "Loading homework...",
+    "empty": {
+      "title": "No homework",
+      "body": "Homework items will appear here when assigned."
+    },
+    "error": {
+      "title": "Unable to load homework",
+      "body": "Please refresh the page and try again.",
+      "retry": "Try again"
+    },
+    "detail": {
+      "title": "Homework",
+      "summary": {
+        "student": "Student",
+        "tutor": "Tutor",
+        "program": "Program"
+      },
+      "fileSelected": "{filename} ({size})",
+      "clearSelected": "Cancel"
+    },
+    "submission": {
+      "assignmentRequired": "Submission is available after homework assignment is uploaded.",
+      "lockedAfterReviewed": "Submissions can't be changed after reviewed."
+    },
+    "pagination": {
+      "range": "{from}-{to} of {total}",
+      "prev": "Prev",
+      "next": "Next"
+    }
+  },
+  "homeworkFiles": {
+    "_comment": "Step 23.2 homework slot labels and upload/download copy.",
+    "assignment": {
+      "title": "Assignment"
+    },
+    "submission": {
+      "title": "Submission"
+    },
+    "feedback": {
+      "title": "Feedback"
+    },
+    "download": "Download",
+    "chooseFile": "Choose file",
+    "noFileSelected": "No file selected",
+    "upload": "Upload",
+    "replace": "Replace",
+    "notProvided": "Not provided yet",
+    "notAvailable": "Not available yet",
+    "validation": {
+      "invalidType": "Invalid file type. Upload a PDF or DOCX.",
+      "tooLarge": "File too large. Max size is 5 MB."
+    },
+    "uploading": "Uploading...",
+    "toast": {
+      "uploadSuccess": "Uploaded",
+      "uploadError": "Unable to upload. Please try again."
+    }
+  },
+  "staffHomework": {
+    "_comment": "Step 23.2 staff queue/detail labels for tutor/admin homework workflows.",
+    "queue": {
+      "title": "Homework review queue",
+      "subtitle": "Review submitted homework and track assignment/file coverage.",
+      "search": {
+        "placeholder": "Search student or session..."
+      },
+      "empty": {
+        "title": "No homework items",
+        "body": "No homework items match the current filters.",
+        "cta": "Reset filters"
+      },
+      "error": {
+        "title": "Unable to load queue",
+        "body": "Please refresh and try again."
+      }
+    },
+    "filters": {
+      "status": "Status",
+      "dateRange": "Date range",
+      "dateFrom": "From",
+      "dateTo": "To",
+      "tutor": "Tutor",
+      "tutorAll": "All tutors",
+      "center": "Center",
+      "centerAll": "All centers",
+      "statusAll": "All statuses"
+    },
+    "table": {
+      "select": "Select",
+      "selectRow": "Select row",
+      "submittedAt": "Submitted at",
+      "student": "Student",
+      "sessionTime": "Session time",
+      "tutor": "Tutor",
+      "status": "Status",
+      "hasFiles": "Files",
+      "filesCompact": "A:{assignment} / S:{submission} / F:{feedback}"
+    },
+    "bulk": {
+      "markReviewed": "Mark reviewed",
+      "confirm": {
+        "title": "Mark selected as reviewed?",
+        "body": "This will mark {count} items as reviewed.",
+        "cancel": "Cancel",
+        "confirm": "Confirm",
+        "processing": "Updating..."
+      },
+      "toast": {
+        "success": "Marked {count} as reviewed.",
+        "partial": "Marked {successCount}. Skipped {skippedCount}.",
+        "error": "Unable to update items. Please try again."
+      }
+    },
+    "detail": {
+      "title": "Review homework",
+      "subtitle": "Inspect file slots, upload assignment/feedback, and complete review.",
+      "markReviewed": "Mark reviewed",
+      "versionHistory": "Version history",
+      "parentLockNote": "Parents can't edit after reviewed.",
+      "summary": {
+        "student": "Student",
+        "sessionTime": "Session time",
+        "tutor": "Tutor"
+      },
+      "fileMeta": "v{version} - {size} - {uploadedAt}",
+      "fileSelected": "{filename} ({size})",
+      "clearSelected": "Clear",
+      "historyMeta": "v{version} - {uploadedByRole} - {uploadedAt}",
+      "noVersions": "No versions yet",
+      "uploaderRole": {
+        "admin": "Admin",
+        "tutor": "Tutor",
+        "parent": "Parent",
+        "system": "System"
+      },
+      "error": {
+        "title": "Unable to load homework detail",
+        "body": "Please refresh and try again.",
+        "retry": "Try again"
+      }
+    }
+  },
+  "homeworkReport": {
+    "_comment": "Step 23.2 admin homework SLA report labels.",
+    "page": {
+      "title": "Homework SLA & Completion",
+      "subtitle": "Track assignment/submission/review performance with aggregate-safe breakdowns."
+    },
+    "metrics": {
+      "assigned": "Assigned",
+      "submitted": "Submitted",
+      "reviewed": "Reviewed",
+      "avgReviewTime": "Avg review time",
+      "avgReviewHoursValue": "{value} h",
+      "reviewedCount": "{count} reviewed items included"
+    },
+    "table": {
+      "center": "Center",
+      "tutor": "Tutor"
+    },
+    "filters": {
+      "status": "Status",
+      "statusAll": "All statuses",
+      "dateFrom": "From",
+      "dateTo": "To",
+      "tutor": "Tutor",
+      "tutorAll": "All tutors",
+      "center": "Center",
+      "centerAll": "All centers"
+    },
+    "export": {
+      "csv": "Export CSV",
+      "exporting": "Exporting...",
+      "toast": {
+        "success": {
+          "title": "Export started"
+        },
+        "error": {
+          "title": "Unable to export"
+        }
+      }
+    },
+    "empty": {
+      "title": "No report rows",
+      "body": "No aggregates are available for the current filters.",
+      "cta": "Reset filters"
+    },
+    "error": {
+      "title": "Unable to load report",
+      "body": "Please refresh and try again."
+    },
+    "generatedAt": "Generated at {value}"
   }
 }
