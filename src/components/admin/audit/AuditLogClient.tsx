@@ -135,6 +135,11 @@ const ACTION_LABELS: Record<string, string> = {
   [AUDIT_ACTIONS.ANNOUNCEMENT_UPDATED]: "adminAudit.actions.announcementUpdated",
   [AUDIT_ACTIONS.ANNOUNCEMENT_PUBLISHED]: "adminAudit.actions.announcementPublished",
   [AUDIT_ACTIONS.ANNOUNCEMENT_ARCHIVED]: "adminAudit.actions.announcementArchived",
+  [AUDIT_ACTIONS.SESSION_RESOURCE_CREATED]: "adminAudit.actions.sessionResourceCreated",
+  [AUDIT_ACTIONS.SESSION_RESOURCE_UPDATED]: "adminAudit.actions.sessionResourceUpdated",
+  [AUDIT_ACTIONS.SESSION_RESOURCE_DELETED]: "adminAudit.actions.sessionResourceDeleted",
+  [AUDIT_ACTIONS.SESSION_RESOURCE_BULK_APPLIED]:
+    "adminAudit.actions.sessionResourceBulkApplied",
 };
 
 const FAILURE_REASON_KEY_BY_CODE: Record<string, string> = {

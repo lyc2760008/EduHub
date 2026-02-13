@@ -16,6 +16,7 @@ How to use: Paste this doc before PO planning.
 
 Change log:
 
+- 2026-02-13: Dev — Step 22.9 shipped Session Resources + Homework Links Pack v1: added `SessionResource` data model, admin CRUD + bulk-apply APIs, missing-resources report + CSV export, tutor session resources (create-only on owned sessions), and parent read-only session resource visibility.
 - 2026-02-13: Dev — Step 22.8 shipped Announcements + Read Receipts Pack v1: tenant-wide in-app announcements (admin create/edit/publish/archive), parent+tutor announcement feed/detail with idempotent read receipts, and admin engagement report with aggregate CSV export.
 - 2026-02-12: Dev — Step 22.7 shipped Scheduling Efficiency Pack v1 + Zoom link: session generation now runs Preview -> Commit with shared planner logic, admin bulk cancel (reason-code, audited), group detail roster-sync entry confirm flow, and nullable `Session.zoomLink` exposed as admin edit + tutor/parent read-only detail.
 - 2026-02-12: Dev — Step 22.6 shipped Admin Audit + Support Pack v1: redacted server-side audit query/read model, CSV export, expanded mutation audit coverage, and upgraded audit log UX (search/filter/sort/pagination + detail drill-in).
@@ -65,6 +66,8 @@ Change log:
 - Step 22.7 — Scheduling Efficiency Pack v1 + Zoom link shipped. Session generation now requires Preview -> Commit via shared planning logic (`/api/sessions/generate/preview`, `/api/sessions/generate`), admin sessions list supports bulk cancel with required reason-code + audit action `sessions.bulkCanceled`, group detail includes future-session roster sync confirm entry, and `Session.zoomLink` (nullable) is supported in admin create/edit plus tutor and parent session detail read-only views.
 <!-- Step 22.8: Announcements + Read Receipts Pack v1 -->
 - Step 22.8 — Announcements + Read Receipts Pack v1 shipped. Admin can manage announcements via `/[tenant]/admin/announcements` (`new`, `[id]`, `engagement`), parent+tutor consume announcements via `/[tenant]/portal/announcements` + `/[tenant]/tutor/announcements` (detail routes included), read receipts are idempotent via `/api/portal/announcements/[id]/read`, and engagement reporting supports aggregate CSV export (`/api/admin/announcements/engagement.csv`) without per-user rows.
+<!-- Step 22.9: Session Resources + Homework Links Pack v1 -->
+- Step 22.9 — Session Resources + Homework Links Pack v1 shipped. Added `SessionResource` model + enums in Prisma, admin session resource CRUD (`/api/admin/sessions/[id]/resources`, `/api/admin/resources/[resourceId]`), admin bulk apply (`/api/admin/sessions/resources/bulk-apply`) with duplicate skipping, missing-resources report (`/[tenant]/admin/reports/sessions-missing-resources`) + CSV export (`/api/admin/reports/sessions-missing-resources.csv`), tutor scoped resource API (`/[tenant]/api/tutor/sessions/[id]/resources`), and parent session detail read-only resources via `/api/portal/sessions/[id]`. Tutor policy for v1 is PO-locked create-only on owned sessions (no tutor edit/delete).
 
 ## Route Inventory
 
@@ -228,6 +231,11 @@ Admin routes (app/[tenant]/(admin)/...):
   - Capabilities:
   - `view:list`
   - Access control summary: Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`).
+- Path: `/[tenant]/admin/reports/sessions-missing-resources`
+  - Description: Admin missing-resources report with filterable table + CSV export action.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Admin layout guard + Owner/Admin page gate (`src/app/[tenant]/(admin)/admin/reports/sessions-missing-resources/page.tsx`).
 - Path: `/[tenant]/admin/audit`
   - Description: Audit log list.
   - Capabilities:
@@ -301,6 +309,15 @@ Key API capabilities (explicit, code-verified):
 - Path: `/api/portal/announcements`, `/api/portal/announcements/[id]`, `/api/portal/announcements/[id]/read`
   - Capability: `view:list`, `view:detail`, `create:read_receipt`
   - Evidence: `src/app/api/portal/announcements/route.ts`, `src/app/api/portal/announcements/[id]/route.ts`, `src/app/api/portal/announcements/[id]/read/route.ts` (parent+tutor scoped access, tenant-safe visibility, idempotent read upsert).
+- Path: `/api/admin/sessions/[id]/resources`, `/api/admin/resources/[resourceId]`, `/api/admin/sessions/resources/bulk-apply`
+  - Capability: `view:list`, `create:session_resource`, `update:session_resource`, `delete:session_resource`, `update:bulk_apply_session_resources`
+  - Evidence: `src/app/api/admin/sessions/[id]/resources/route.ts`, `src/app/api/admin/resources/[resourceId]/route.ts`, `src/app/api/admin/sessions/resources/bulk-apply/route.ts` (owner/admin only, tenant-scoped resource mutations, duplicate-safe bulk apply).
+- Path: `/api/admin/reports/sessions-missing-resources`, `/api/admin/reports/sessions-missing-resources.csv`
+  - Capability: `view:list` (report + filtered CSV export)
+  - Evidence: `src/app/api/admin/reports/sessions-missing-resources/route.ts`, `src/app/api/admin/reports/sessions-missing-resources.csv/route.ts` (owner/admin only, tenant-scoped filters, capped CSV export with truncation header).
+- Path: `/[tenant]/api/tutor/sessions/[id]/resources`
+  - Capability: `view:detail`, `create:session_resource` (create-only policy)
+  - Evidence: `src/app/[tenant]/api/tutor/sessions/[id]/resources/route.ts` (tutor ownership-scoped reads/writes; tutors may add resources for owned sessions, but cannot edit/delete existing resources in v1).
 
 ## Navigation Map
 

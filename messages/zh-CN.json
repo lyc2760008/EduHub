@@ -112,7 +112,8 @@
         "absenceRequests": "请假申请",
         "tutorWorkload": "老师工作量",
         "studentsDirectory": "学生目录",
-        "announcementEngagement": "公告阅读统计"
+        "announcementEngagement": "公告阅读统计",
+        "missingResources": "缺少资料报表"
       }
     },
     "shell": {
@@ -766,7 +767,8 @@
         "allGroups": "????/??",
         "allStudents": "????",
         "allPrograms": "????/??",
-        "allLevels": "????/??"
+        "allLevels": "????/??",
+        "allSessionTypes": "全部课程类型"
       },
       "actions": {
         "apply": "应用"
@@ -972,6 +974,11 @@
         "defaultRange": "已发布",
         "title": "公告阅读统计",
         "helper": "按公告查看阅读汇总。"
+      },
+      "missingResources": {
+        "title": "缺少资料报表",
+        "helper": "查找即将开始但尚未添加资料链接的课程。",
+        "defaultRange": "未来14天"
       }
     },
     "users": {
@@ -1469,7 +1476,11 @@
       "announcementUpdated": "公告已更新",
       "announcementPublished": "公告已发布",
       "announcementArchived": "公告已归档",
-      "unknown": "未知操作"
+      "unknown": "未知操作",
+      "sessionResourceCreated": "课程资料链接已创建",
+      "sessionResourceUpdated": "课程资料链接已更新",
+      "sessionResourceDeleted": "课程资料链接已删除",
+      "sessionResourceBulkApplied": "课程资料链接已批量应用"
     },
     "failure": {
       "validation": "校验错误",
@@ -2288,6 +2299,120 @@
       "invalid": "?????????",
       "saveSuccess": "Zoom ??????",
       "saveError": "???? Zoom ???"
+    }
+  },
+  "sessionResources": {
+    "section": {
+      "title": "资料与作业链接"
+    },
+    "add": "添加资料",
+    "edit": "编辑",
+    "delete": "删除",
+    "type": {
+      "label": "类型",
+      "homework": "作业",
+      "worksheet": "练习题",
+      "video": "视频",
+      "other": "其他"
+    },
+    "title": {
+      "label": "标题"
+    },
+    "url": {
+      "label": "链接"
+    },
+    "openLink": "打开链接",
+    "validation": {
+      "titleRequired": "标题为必填项。",
+      "urlRequired": "链接为必填项。",
+      "invalidUrl": "请输入以 http:// 或 https:// 开头的有效链接。"
+    },
+    "loading": "正在加载资料…",
+    "empty": {
+      "admin": {
+        "title": "暂无资料链接",
+        "helper": "为本次课程添加作业与学习资料链接。"
+      },
+      "parent": {
+        "title": "暂未分享资料链接",
+        "helper": "当老师分享资料或作业链接后，会显示在这里。"
+      }
+    },
+    "error": {
+      "title": "无法加载资料链接",
+      "body": "请刷新页面后再试。"
+    },
+    "deleteConfirm": {
+      "title": "删除资料链接？",
+      "body": "该链接将从本次课程中移除。",
+      "confirm": "删除",
+      "cancel": "取消"
+    },
+    "tutor": {
+      "notOwner": "您只能为自己负责的课程添加资料链接。"
+    }
+  },
+  "adminBulkResources": {
+    "action": "批量添加资料",
+    "modal": {
+      "title": "批量添加资料",
+      "summary": "将应用于 {count} 个课程",
+      "duplicatesNote": "重复链接将被跳过。"
+    },
+    "apply": "应用",
+    "applying": "应用中…",
+    "toast": {
+      "success": "已为 {count} 个课程添加资料链接。",
+      "partial": {
+        "title": "批量添加完成，但存在问题",
+        "body": "已应用 {successCount} 个，跳过重复 {skippedCount} 个，失败 {failCount} 个。"
+      },
+      "error": "无法批量添加资料链接，请重试。"
+    }
+  },
+  "missingResourcesReport": {
+    "page": {
+      "title": "缺少资料报表"
+    },
+    "filters": {
+      "dateRange": "日期范围",
+      "center": "校区",
+      "tutor": "老师",
+      "sessionType": "课程类型"
+    },
+    "table": {
+      "sessionDateTime": "课程时间",
+      "context": "学生/班级",
+      "tutor": "老师",
+      "hasResources": "是否有资料",
+      "count": "数量"
+    },
+    "value": {
+      "yes": "是",
+      "no": "否"
+    },
+    "loading": "正在加载报表…",
+    "empty": {
+      "title": "暂无数据",
+      "body": "请尝试调整筛选条件。"
+    },
+    "error": {
+      "title": "无法加载报表",
+      "body": "请刷新页面后再试。"
+    },
+    "export": {
+      "csv": "导出 CSV",
+      "exporting": "正在导出…",
+      "toast": {
+        "success": {
+          "title": "已开始导出",
+          "body": "CSV 下载将很快开始。"
+        },
+        "error": {
+          "title": "无法导出",
+          "body": "请重试。如问题持续，请联系支持人员。"
+        }
+      }
     }
   }
 }

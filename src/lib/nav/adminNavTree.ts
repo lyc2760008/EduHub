@@ -210,6 +210,15 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         roles: ADMIN_ONLY,
       },
       {
+        id: "reports-missing-resources",
+        href: "/admin/reports/sessions-missing-resources",
+        labelKey: "admin.nav.report.missingResources",
+        titleKey: "missingResourcesReport.page.title",
+        iconKey: "reports",
+        match: "exact",
+        roles: ADMIN_ONLY,
+      },
+      {
         id: "reports-attendance",
         href: "/admin/reports/attendance-summary",
         labelKey: "admin.nav.report.attendanceSummary",

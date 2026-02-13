@@ -24,6 +24,7 @@ type ReportsPageProps = {
 type ReportCardConfig = {
   id:
     | "upcoming"
+    | "missingResources"
     | "attendance"
     | "requests"
     | "workload"
@@ -34,6 +35,7 @@ type ReportCardConfig = {
 
 const REPORT_CARDS: ReportCardConfig[] = [
   { id: "upcoming", href: "upcoming-sessions" },
+  { id: "missingResources", href: "sessions-missing-resources" },
   { id: "attendance", href: "attendance-summary" },
   { id: "requests", href: "absence-requests" },
   { id: "workload", href: "tutor-workload" },

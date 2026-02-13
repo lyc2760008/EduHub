@@ -112,7 +112,8 @@
         "absenceRequests": "Absence requests",
         "tutorWorkload": "Tutor workload",
         "studentsDirectory": "Students directory",
-        "announcementEngagement": "Announcement engagement"
+        "announcementEngagement": "Announcement engagement",
+        "missingResources": "Missing resources report"
       }
     },
     "shell": {
@@ -778,7 +779,8 @@
         "allGroups": "All groups/classes",
         "allStudents": "All students",
         "allPrograms": "All programs/subjects",
-        "allLevels": "All levels/grades"
+        "allLevels": "All levels/grades",
+        "allSessionTypes": "All session types"
       },
       "actions": {
         "apply": "Apply"
@@ -984,6 +986,11 @@
         "defaultRange": "Published",
         "title": "Announcement engagement",
         "helper": "Read counts by announcement."
+      },
+      "missingResources": {
+        "title": "Missing resources report",
+        "helper": "Find upcoming sessions that still have no resources attached.",
+        "defaultRange": "Next 14 days"
       }
     },
     "users": {
@@ -1931,7 +1938,11 @@
       "announcementUpdated": "Announcement updated",
       "announcementPublished": "Announcement published",
       "announcementArchived": "Announcement archived",
-      "unknown": "Unknown action"
+      "unknown": "Unknown action",
+      "sessionResourceCreated": "Session resource created",
+      "sessionResourceUpdated": "Session resource updated",
+      "sessionResourceDeleted": "Session resource deleted",
+      "sessionResourceBulkApplied": "Session resources bulk applied"
     },
     "failure": {
       "validation": "Validation error",
@@ -2302,6 +2313,120 @@
       "invalid": "Enter a valid URL.",
       "saveSuccess": "Zoom link saved.",
       "saveError": "Unable to save zoom link."
+    }
+  },
+  "sessionResources": {
+    "section": {
+      "title": "Resources"
+    },
+    "add": "Add resource",
+    "edit": "Edit",
+    "delete": "Delete",
+    "type": {
+      "label": "Type",
+      "homework": "Homework",
+      "worksheet": "Worksheet",
+      "video": "Video",
+      "other": "Other"
+    },
+    "title": {
+      "label": "Title"
+    },
+    "url": {
+      "label": "URL"
+    },
+    "openLink": "Open link",
+    "validation": {
+      "titleRequired": "Title is required.",
+      "urlRequired": "URL is required.",
+      "invalidUrl": "Enter a valid URL starting with http:// or https://"
+    },
+    "loading": "Loading resources...",
+    "empty": {
+      "admin": {
+        "title": "No resources yet",
+        "helper": "Add links to homework and learning materials for this session."
+      },
+      "parent": {
+        "title": "No resources shared yet",
+        "helper": "Resources and homework links will appear here when available."
+      }
+    },
+    "error": {
+      "title": "Unable to load resources",
+      "body": "Please refresh the page and try again."
+    },
+    "deleteConfirm": {
+      "title": "Delete resource?",
+      "body": "This link will be removed from the session.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    },
+    "tutor": {
+      "notOwner": "You can only add resources to your own sessions."
+    }
+  },
+  "adminBulkResources": {
+    "action": "Bulk apply resources",
+    "modal": {
+      "title": "Bulk apply resources",
+      "summary": "Applying to {count} sessions",
+      "duplicatesNote": "Duplicates will be skipped."
+    },
+    "apply": "Apply",
+    "applying": "Applying...",
+    "toast": {
+      "success": "Applied resources to {count} sessions.",
+      "partial": {
+        "title": "Bulk apply completed with issues",
+        "body": "Applied to {successCount}. Skipped duplicates on {skippedCount}. Failed {failCount}."
+      },
+      "error": "Unable to apply resources. Please try again."
+    }
+  },
+  "missingResourcesReport": {
+    "page": {
+      "title": "Missing resources report"
+    },
+    "filters": {
+      "dateRange": "Date range",
+      "center": "Center",
+      "tutor": "Tutor",
+      "sessionType": "Session type"
+    },
+    "table": {
+      "sessionDateTime": "Session time",
+      "context": "Student / Group",
+      "tutor": "Tutor",
+      "hasResources": "Has resources",
+      "count": "Count"
+    },
+    "value": {
+      "yes": "Yes",
+      "no": "No"
+    },
+    "loading": "Loading report...",
+    "empty": {
+      "title": "No data",
+      "body": "Try adjusting your filters."
+    },
+    "error": {
+      "title": "Unable to load report",
+      "body": "Please refresh the page and try again."
+    },
+    "export": {
+      "csv": "Export CSV",
+      "exporting": "Exporting...",
+      "toast": {
+        "success": {
+          "title": "Export started",
+          "body": "Your CSV download will begin shortly."
+        },
+        "error": {
+          "title": "Unable to export",
+          "body": "Please try again. If the problem continues, contact support."
+        }
+      }
     }
   }
 }

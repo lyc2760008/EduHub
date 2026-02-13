@@ -52,6 +52,8 @@ model Tenant {
   groupStudents   GroupStudent[]
   // Scheduled sessions scoped to this tenant.
   sessions        Session[]
+  // Session resources/homework links scoped to this tenant.
+  sessionResources SessionResource[]
   // Session roster snapshots for attendance-ready workflows.
   sessionStudents SessionStudent[]
   // Attendance markings scoped to this tenant.
@@ -83,6 +85,8 @@ model User {
   staffCenters        StaffCenter[]
   groupTutors         GroupTutor[]
   sessions            Session[]
+  // Session resources created by staff users.
+  createdSessionResources SessionResource[] @relation("SessionResourceCreatedByUser")
   // Attendance marks applied by this staff user.
   markedAttendances   Attendance[]       @relation("AttendanceMarkedBy")
   // Session notes last updated by this staff user.
@@ -133,6 +137,21 @@ enum SessionType {
   ONE_ON_ONE
   GROUP
   CLASS
+}
+
+// SessionResourceType defines the visible resource category label.
+enum SessionResourceType {
+  HOMEWORK
+  WORKSHEET
+  VIDEO
+  OTHER
+}
+
+// SessionResourceCreatedByRole tracks actor role at creation for auditability.
+enum SessionResourceCreatedByRole {
+  ADMIN
+  TUTOR
+  SYSTEM
 }
 
 // AttendanceStatus captures per-session attendance markings.
@@ -574,6 +593,8 @@ model Session {
   attendances     Attendance[]
   // Staff-authored session notes for this session (one per session enforced by unique constraint).
   sessionNotes    SessionNote[]
+  // URL-only learning resources and homework links attached to this session.
+  resources       SessionResource[]
   // Parent-initiated requests tied to this session.
   parentRequests  ParentRequest[]
 
@@ -581,6 +602,27 @@ model Session {
   @@index([tenantId, startAt])
   @@index([tenantId, centerId, startAt])
   @@index([tenantId, tutorId, startAt])
+}
+
+// SessionResource stores URL-only resource links shared with tutors/parents for a session.
+model SessionResource {
+  id              String                       @id @default(cuid())
+  tenantId        String
+  sessionId       String
+  title           String
+  url             String
+  type            SessionResourceType
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
+  createdByUserId String?
+  createdByRole   SessionResourceCreatedByRole
+
+  tenant        Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session       Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  createdByUser User?   @relation("SessionResourceCreatedByUser", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  // Duplicate prevention is handled in server logic (URL+type checks) to keep migrations low-risk.
+  @@index([tenantId, sessionId])
 }
 
 // SessionStudent captures the roster snapshot at creation time.

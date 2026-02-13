@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 
 import { fetchJson } from "@/lib/api/fetchJson";
+import { secondaryButton } from "@/components/admin/shared/adminUiClasses";
 import { formatPortalDateTimeRange, getSessionTypeLabelKey } from "@/lib/portal/format";
 
 type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
@@ -30,6 +31,24 @@ type TutorRunSessionResponse = {
   requestId?: string;
 };
 
+type SessionResourceType = "HOMEWORK" | "WORKSHEET" | "VIDEO" | "OTHER";
+
+type SessionResourceItem = {
+  id: string;
+  title: string;
+  url: string;
+  type: SessionResourceType;
+  updatedAt: string;
+};
+
+type SessionResourcesResponse = {
+  items: SessionResourceItem[];
+};
+
+type CreateResourceResponse = {
+  item: SessionResourceItem;
+};
+
 type SaveResponse = {
   ok: true;
   requestId?: string;
@@ -47,9 +66,13 @@ type TutorRunSessionPageClientProps = {
   sessionId: string;
 };
 
-// --- DESIGNER UI CONTRACT PLACEHOLDER ---
-// [PASTE DESIGNER UI CONTRACT HERE]
-// --- END DESIGNER UI CONTRACT PLACEHOLDER ---
+type ResourceFormState = {
+  title: string;
+  url: string;
+  type: SessionResourceType;
+};
+
+type ResourceFormErrors = Partial<Record<keyof ResourceFormState, string>>;
 
 const ATTENDANCE_OPTIONS: Array<{ value: AttendanceStatus; key: string }> = [
   { value: "PRESENT", key: "tutorRunSession.attendance.present" },
@@ -57,6 +80,37 @@ const ATTENDANCE_OPTIONS: Array<{ value: AttendanceStatus; key: string }> = [
   { value: "LATE", key: "tutorRunSession.attendance.late" },
   { value: "EXCUSED", key: "tutorRunSession.attendance.excused" },
 ];
+
+const RESOURCE_TYPE_OPTIONS: SessionResourceType[] = [
+  "HOMEWORK",
+  "WORKSHEET",
+  "VIDEO",
+  "OTHER",
+];
+
+const EMPTY_RESOURCE_FORM: ResourceFormState = {
+  title: "",
+  url: "",
+  type: "HOMEWORK",
+};
+
+function getResourceTypeLabelKey(type: SessionResourceType) {
+  if (type === "HOMEWORK") return "sessionResources.type.homework";
+  if (type === "WORKSHEET") return "sessionResources.type.worksheet";
+  if (type === "VIDEO") return "sessionResources.type.video";
+  return "sessionResources.type.other";
+}
+
+function isValidResourceUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
 
 export default function TutorRunSessionPageClient({
   tenant,
@@ -78,6 +132,17 @@ export default function TutorRunSessionPageClient({
     | "tutorRunSession.save.toast.error"
     | null
   >(null);
+  const [resources, setResources] = useState<SessionResourceItem[]>([]);
+  const [isResourcesLoading, setIsResourcesLoading] = useState(true);
+  const [hasResourcesLoadError, setHasResourcesLoadError] = useState(false);
+  const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
+  const [resourceForm, setResourceForm] = useState<ResourceFormState>(
+    EMPTY_RESOURCE_FORM,
+  );
+  const [resourceFormErrors, setResourceFormErrors] = useState<ResourceFormErrors>(
+    {},
+  );
+  const [isResourceSaving, setIsResourceSaving] = useState(false);
 
   const loadSession = useCallback(async () => {
     setIsLoading(true);
@@ -106,12 +171,38 @@ export default function TutorRunSessionPageClient({
     setIsLoading(false);
   }, [sessionId, tenant]);
 
+  const loadResources = useCallback(async () => {
+    setIsResourcesLoading(true);
+    setHasResourcesLoadError(false);
+
+    const result = await fetchJson<SessionResourcesResponse>(
+      `/${tenant}/api/tutor/sessions/${sessionId}/resources`,
+    );
+
+    if (!result.ok) {
+      setResources([]);
+      setHasResourcesLoadError(true);
+      setIsResourcesLoading(false);
+      return;
+    }
+
+    setResources(result.data.items ?? []);
+    setIsResourcesLoading(false);
+  }, [sessionId, tenant]);
+
   useEffect(() => {
     const handle = setTimeout(() => {
       void loadSession();
     }, 0);
     return () => clearTimeout(handle);
   }, [loadSession]);
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      void loadResources();
+    }, 0);
+    return () => clearTimeout(handle);
+  }, [loadResources]);
 
   useEffect(() => {
     if (!toastKey) return;
@@ -168,6 +259,65 @@ export default function TutorRunSessionPageClient({
     setToastKey("tutorRunSession.save.toast.success");
     setIsSaving(false);
   }, [rows, sessionId, tenant]);
+
+  const validateResourceForm = useCallback(
+    (value: ResourceFormState) => {
+      const errors: ResourceFormErrors = {};
+      if (!value.title.trim()) {
+        errors.title = t("sessionResources.validation.titleRequired");
+      }
+      if (!value.url.trim()) {
+        errors.url = t("sessionResources.validation.urlRequired");
+      } else if (!isValidResourceUrl(value.url)) {
+        errors.url = t("sessionResources.validation.invalidUrl");
+      }
+      if (!value.type) {
+        errors.type = t("sessionResources.type.label");
+      }
+      return errors;
+    },
+    [t],
+  );
+
+  const closeResourceModal = useCallback(() => {
+    if (isResourceSaving) return;
+    setIsResourceModalOpen(false);
+    setResourceForm(EMPTY_RESOURCE_FORM);
+    setResourceFormErrors({});
+  }, [isResourceSaving]);
+
+  const submitResource = useCallback(async () => {
+    const errors = validateResourceForm(resourceForm);
+    setResourceFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
+    setIsResourceSaving(true);
+
+    const result = await fetchJson<CreateResourceResponse>(
+      `/${tenant}/api/tutor/sessions/${sessionId}/resources`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: resourceForm.title.trim(),
+          url: resourceForm.url.trim(),
+          type: resourceForm.type,
+        }),
+      },
+    );
+
+    if (!result.ok) {
+      setIsResourceSaving(false);
+      setHasResourcesLoadError(true);
+      return;
+    }
+
+    setIsResourceSaving(false);
+    closeResourceModal();
+    await loadResources();
+  }, [closeResourceModal, loadResources, resourceForm, sessionId, tenant, validateResourceForm]);
 
   if (isLoading) {
     return (
@@ -230,6 +380,76 @@ export default function TutorRunSessionPageClient({
           </a>
         ) : null}
       </header>
+
+      <section
+        className="space-y-3 rounded-lg border border-slate-200 bg-white p-4"
+        data-testid="tutor-run-session-resources"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-slate-700">
+            {t("sessionResources.section.title")}
+          </h2>
+          <button
+            type="button"
+            className={`${secondaryButton} px-3 py-1 text-xs`}
+            onClick={() => setIsResourceModalOpen(true)}
+            disabled={isResourceSaving}
+          >
+            {t("sessionResources.add")}
+          </button>
+        </div>
+
+        {isResourcesLoading ? (
+          <p className="text-sm text-slate-500">{t("sessionResources.loading")}</p>
+        ) : hasResourcesLoadError ? (
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-red-700">
+              {t("sessionResources.error.title")}
+            </p>
+            <p className="text-sm text-slate-600">{t("sessionResources.error.body")}</p>
+            <button
+              type="button"
+              className={`${secondaryButton} px-3 py-1 text-xs`}
+              onClick={() => void loadResources()}
+            >
+              {t("common.retry")}
+            </button>
+          </div>
+        ) : resources.length === 0 ? (
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-slate-700">
+              {t("sessionResources.empty.admin.title")}
+            </p>
+            <p className="text-sm text-slate-500">
+              {t("sessionResources.empty.admin.helper")}
+            </p>
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {resources.map((item) => (
+              <li
+                key={item.id}
+                className="rounded border border-slate-200 p-3"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700">
+                    {t(getResourceTypeLabelKey(item.type))}
+                  </span>
+                  <p className="text-sm font-medium text-slate-900">{item.title}</p>
+                </div>
+                <a
+                  className="mt-1 inline-flex text-sm font-semibold text-slate-700 underline"
+                  href={item.url}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {t("sessionResources.openLink")}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {rows.length === 0 ? (
         <section
@@ -314,6 +534,102 @@ export default function TutorRunSessionPageClient({
           ))}
         </section>
       )}
+
+      {isResourceModalOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          data-testid="tutor-run-session-resource-modal"
+        >
+          <div className="w-full max-w-lg rounded border border-slate-200 bg-white p-5 shadow-xl">
+            <h3 className="text-base font-semibold text-slate-900">
+              {t("sessionResources.add")}
+            </h3>
+
+            <div className="mt-4 grid gap-3">
+              <label className="grid gap-1 text-sm text-slate-700">
+                <span>{t("sessionResources.type.label")}</span>
+                <select
+                  className="h-10 rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+                  value={resourceForm.type}
+                  disabled={isResourceSaving}
+                  onChange={(event) =>
+                    setResourceForm((current) => ({
+                      ...current,
+                      type: event.target.value as SessionResourceType,
+                    }))
+                  }
+                >
+                  {RESOURCE_TYPE_OPTIONS.map((type) => (
+                    <option key={type} value={type}>
+                      {t(getResourceTypeLabelKey(type))}
+                    </option>
+                  ))}
+                </select>
+                {resourceFormErrors.type ? (
+                  <p className="text-xs text-red-600">{resourceFormErrors.type}</p>
+                ) : null}
+              </label>
+
+              <label className="grid gap-1 text-sm text-slate-700">
+                <span>{t("sessionResources.title.label")}</span>
+                <input
+                  className="h-10 rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+                  value={resourceForm.title}
+                  disabled={isResourceSaving}
+                  onChange={(event) =>
+                    setResourceForm((current) => ({
+                      ...current,
+                      title: event.target.value,
+                    }))
+                  }
+                />
+                {resourceFormErrors.title ? (
+                  <p className="text-xs text-red-600">{resourceFormErrors.title}</p>
+                ) : null}
+              </label>
+
+              <label className="grid gap-1 text-sm text-slate-700">
+                <span>{t("sessionResources.url.label")}</span>
+                <input
+                  className="h-10 rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+                  value={resourceForm.url}
+                  disabled={isResourceSaving}
+                  onChange={(event) =>
+                    setResourceForm((current) => ({
+                      ...current,
+                      url: event.target.value,
+                    }))
+                  }
+                />
+                {resourceFormErrors.url ? (
+                  <p className="text-xs text-red-600">{resourceFormErrors.url}</p>
+                ) : null}
+              </label>
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
+              <button
+                type="button"
+                className={secondaryButton}
+                onClick={closeResourceModal}
+                disabled={isResourceSaving}
+              >
+                {t("sessionResources.deleteConfirm.cancel")}
+              </button>
+              <button
+                type="button"
+                className="inline-flex h-10 items-center rounded-md bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-60"
+                onClick={() => void submitResource()}
+                disabled={isResourceSaving}
+              >
+                {isResourceSaving ? t("common.loading") : t("common.actions.save")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {saveState === "error" ? (
         <div

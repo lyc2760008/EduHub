@@ -101,6 +101,29 @@ type BulkCancelReasonCode =
   | "LOW_ENROLLMENT"
   | "OTHER";
 
+type SessionResourceType = "HOMEWORK" | "WORKSHEET" | "VIDEO" | "OTHER";
+
+type BulkApplyResourceDraft = {
+  id: string;
+  title: string;
+  url: string;
+  type: SessionResourceType;
+};
+
+type BulkApplyResourceErrors = {
+  title?: string;
+  url?: string;
+  type?: string;
+};
+
+type BulkApplyResponse = {
+  sessionsProcessed: number;
+  sessionsUpdated: number;
+  resourcesAttempted: number;
+  resourcesCreated: number;
+  duplicatesSkipped: number;
+};
+
 type StudentsResponse = {
   rows: StudentOption[];
   totalCount: number;
@@ -124,6 +147,31 @@ const BULK_CANCEL_REASON_CODES: BulkCancelReasonCode[] = [
   "LOW_ENROLLMENT",
   "OTHER",
 ];
+
+const BULK_RESOURCE_TYPE_OPTIONS: SessionResourceType[] = [
+  "HOMEWORK",
+  "WORKSHEET",
+  "VIDEO",
+  "OTHER",
+];
+
+function getResourceTypeLabelKey(type: SessionResourceType) {
+  if (type === "HOMEWORK") return "sessionResources.type.homework";
+  if (type === "WORKSHEET") return "sessionResources.type.worksheet";
+  if (type === "VIDEO") return "sessionResources.type.video";
+  return "sessionResources.type.other";
+}
+
+function isValidResourceUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
 
 function sessionTypeLabelKey(type: SessionListItem["sessionType"]) {
   if (type === "ONE_ON_ONE") return "admin.sessions.types.oneOnOne";
@@ -171,6 +219,20 @@ export default function SessionsClient({
   const [bulkCancelReasonCode, setBulkCancelReasonCode] = useState("");
   const [bulkCancelError, setBulkCancelError] = useState<string | null>(null);
   const [isBulkCanceling, setIsBulkCanceling] = useState(false);
+  const [isBulkApplyOpen, setIsBulkApplyOpen] = useState(false);
+  const [bulkApplyResources, setBulkApplyResources] = useState<BulkApplyResourceDraft[]>([
+    {
+      id: "resource-initial",
+      title: "",
+      url: "",
+      type: "HOMEWORK",
+    },
+  ]);
+  const [bulkApplyErrors, setBulkApplyErrors] = useState<
+    Record<string, BulkApplyResourceErrors>
+  >({});
+  const [bulkApplyError, setBulkApplyError] = useState<string | null>(null);
+  const [isBulkApplying, setIsBulkApplying] = useState(false);
 
   const { state, setSearch, setFilter, clearFilters, setSort, setPage, setPageSize } =
     useAdminTableQueryState({
@@ -437,6 +499,108 @@ export default function SessionsClient({
     setReloadNonce((current) => current + 1);
   }
 
+  const resetBulkApplyState = useCallback(() => {
+    setBulkApplyResources([
+      {
+        id: `resource-${Date.now()}`,
+        title: "",
+        url: "",
+        type: "HOMEWORK",
+      },
+    ]);
+    setBulkApplyErrors({});
+    setBulkApplyError(null);
+    setIsBulkApplying(false);
+  }, []);
+
+  const validateBulkApplyRows = useCallback(
+    (rows: BulkApplyResourceDraft[]) => {
+      const nextErrors: Record<string, BulkApplyResourceErrors> = {};
+      for (const row of rows) {
+        const rowErrors: BulkApplyResourceErrors = {};
+        if (!row.title.trim()) {
+          rowErrors.title = t("sessionResources.validation.titleRequired");
+        }
+        if (!row.url.trim()) {
+          rowErrors.url = t("sessionResources.validation.urlRequired");
+        } else if (!isValidResourceUrl(row.url)) {
+          rowErrors.url = t("sessionResources.validation.invalidUrl");
+        }
+        if (!row.type) {
+          rowErrors.type = t("sessionResources.type.label");
+        }
+        if (Object.keys(rowErrors).length > 0) {
+          nextErrors[row.id] = rowErrors;
+        }
+      }
+      return nextErrors;
+    },
+    [t],
+  );
+
+  async function submitBulkApply() {
+    setBulkApplyError(null);
+    const validationErrors = validateBulkApplyRows(bulkApplyResources);
+    setBulkApplyErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) {
+      return;
+    }
+    if (!selectedSessionIds.length) {
+      setBulkApplyError(t("adminBulkResources.toast.error"));
+      return;
+    }
+
+    setIsBulkApplying(true);
+    const result = await fetchJson<BulkApplyResponse>(
+      buildTenantApiUrl(tenant, "/admin/sessions/resources/bulk-apply"),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionIds: selectedSessionIds,
+          resources: bulkApplyResources.map((resource) => ({
+            title: resource.title.trim(),
+            url: resource.url.trim(),
+            type: resource.type,
+          })),
+        }),
+      },
+    );
+    setIsBulkApplying(false);
+
+    if (!result.ok) {
+      setBulkApplyError(t("adminBulkResources.toast.error"));
+      return;
+    }
+
+    const summary = result.data;
+    const failCount = Math.max(0, summary.sessionsProcessed - summary.sessionsUpdated);
+
+    if (failCount > 0 || summary.duplicatesSkipped > 0) {
+      setMessage(
+        `${t("adminBulkResources.toast.partial.title")}: ${t(
+          "adminBulkResources.toast.partial.body",
+          {
+            successCount: summary.sessionsUpdated,
+            skippedCount: summary.duplicatesSkipped,
+            failCount,
+          },
+        )}`,
+      );
+    } else {
+      setMessage(
+        t("adminBulkResources.toast.success", {
+          count: summary.sessionsUpdated,
+        }),
+      );
+    }
+
+    setSelectedSessionIds([]);
+    setIsBulkApplyOpen(false);
+    resetBulkApplyState();
+    setReloadNonce((current) => current + 1);
+  }
+
   const clearAll = () => {
     clearFilters();
     setSearch("");
@@ -668,17 +832,31 @@ export default function SessionsClient({
               count: selectedCount,
             })}
           </p>
-          <button
-            className={secondaryButton}
-            type="button"
-            onClick={() => {
-              setBulkCancelError(null);
-              setIsBulkCancelOpen(true);
-            }}
-            data-testid="sessions-bulk-cancel-action"
-          >
-            {t("admin.sessions.bulkCancel.action")}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              className={secondaryButton}
+              type="button"
+              onClick={() => {
+                setBulkApplyError(null);
+                setBulkApplyErrors({});
+                setIsBulkApplyOpen(true);
+              }}
+              data-testid="sessions-bulk-apply-action"
+            >
+              {t("adminBulkResources.action")}
+            </button>
+            <button
+              className={secondaryButton}
+              type="button"
+              onClick={() => {
+                setBulkCancelError(null);
+                setIsBulkCancelOpen(true);
+              }}
+              data-testid="sessions-bulk-cancel-action"
+            >
+              {t("admin.sessions.bulkCancel.action")}
+            </button>
+          </div>
         </section>
       ) : null}
 
@@ -811,6 +989,177 @@ export default function SessionsClient({
           tenant={tenant}
           timezoneOptions={timezoneOptions}
         />
+      ) : null}
+
+      {isAdmin && isBulkApplyOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-3xl rounded border border-slate-200 bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-semibold text-slate-900">
+              {t("adminBulkResources.modal.title")}
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              {t("adminBulkResources.modal.summary", { count: selectedCount })}
+            </p>
+            <p className="mt-1 text-xs text-amber-700">
+              {t("adminBulkResources.modal.duplicatesNote")}
+            </p>
+
+            <div className="mt-4 space-y-3">
+              {bulkApplyResources.map((resource) => (
+                <div
+                  key={resource.id}
+                  className="rounded border border-slate-200 bg-slate-50 p-3"
+                >
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <label className="grid gap-1 text-sm text-slate-700">
+                      <span>{t("sessionResources.type.label")}</span>
+                      <select
+                        className={inputBase}
+                        value={resource.type}
+                        disabled={isBulkApplying}
+                        onChange={(event) =>
+                          setBulkApplyResources((current) =>
+                            current.map((entry) =>
+                              entry.id === resource.id
+                                ? {
+                                    ...entry,
+                                    type: event.target.value as SessionResourceType,
+                                  }
+                                : entry,
+                            ),
+                          )
+                        }
+                      >
+                        {BULK_RESOURCE_TYPE_OPTIONS.map((type) => (
+                          <option key={type} value={type}>
+                            {t(getResourceTypeLabelKey(type))}
+                          </option>
+                        ))}
+                      </select>
+                      {bulkApplyErrors[resource.id]?.type ? (
+                        <p className="text-xs text-red-600">
+                          {bulkApplyErrors[resource.id]?.type}
+                        </p>
+                      ) : null}
+                    </label>
+
+                    <label className="grid gap-1 text-sm text-slate-700">
+                      <span>{t("sessionResources.title.label")}</span>
+                      <input
+                        className={inputBase}
+                        value={resource.title}
+                        disabled={isBulkApplying}
+                        onChange={(event) =>
+                          setBulkApplyResources((current) =>
+                            current.map((entry) =>
+                              entry.id === resource.id
+                                ? { ...entry, title: event.target.value }
+                                : entry,
+                            ),
+                          )
+                        }
+                      />
+                      {bulkApplyErrors[resource.id]?.title ? (
+                        <p className="text-xs text-red-600">
+                          {bulkApplyErrors[resource.id]?.title}
+                        </p>
+                      ) : null}
+                    </label>
+
+                    <label className="grid gap-1 text-sm text-slate-700">
+                      <span>{t("sessionResources.url.label")}</span>
+                      <input
+                        className={inputBase}
+                        value={resource.url}
+                        disabled={isBulkApplying}
+                        onChange={(event) =>
+                          setBulkApplyResources((current) =>
+                            current.map((entry) =>
+                              entry.id === resource.id
+                                ? { ...entry, url: event.target.value }
+                                : entry,
+                            ),
+                          )
+                        }
+                      />
+                      {bulkApplyErrors[resource.id]?.url ? (
+                        <p className="text-xs text-red-600">
+                          {bulkApplyErrors[resource.id]?.url}
+                        </p>
+                      ) : null}
+                    </label>
+                  </div>
+
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      type="button"
+                      className={`${secondaryButton} px-3 py-1 text-xs`}
+                      disabled={isBulkApplying || bulkApplyResources.length === 1}
+                      onClick={() =>
+                        setBulkApplyResources((current) =>
+                          current.filter((entry) => entry.id !== resource.id),
+                        )
+                      }
+                    >
+                      {t("sessionResources.delete")}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3">
+              <button
+                type="button"
+                className={secondaryButton}
+                disabled={isBulkApplying}
+                onClick={() =>
+                  setBulkApplyResources((current) => [
+                    ...current,
+                    {
+                      id: `resource-${Date.now()}-${current.length}`,
+                      title: "",
+                      url: "",
+                      type: "HOMEWORK",
+                    },
+                  ])
+                }
+              >
+                {t("sessionResources.add")}
+              </button>
+            </div>
+
+            {bulkApplyError ? (
+              <p className="mt-3 text-sm text-red-600">{bulkApplyError}</p>
+            ) : null}
+
+            <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
+              <button
+                className={secondaryButton}
+                type="button"
+                onClick={() => {
+                  if (isBulkApplying) return;
+                  setIsBulkApplyOpen(false);
+                  resetBulkApplyState();
+                }}
+                disabled={isBulkApplying}
+              >
+                {t("common.actions.cancel")}
+              </button>
+              <button
+                className={primaryButton}
+                type="button"
+                onClick={() => void submitBulkApply()}
+                disabled={isBulkApplying}
+                data-testid="sessions-bulk-apply-confirm"
+              >
+                {isBulkApplying
+                  ? t("adminBulkResources.applying")
+                  : t("adminBulkResources.apply")}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {isAdmin && isBulkCancelOpen ? (
