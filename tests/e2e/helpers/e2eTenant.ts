@@ -33,6 +33,11 @@ import {
   STEP228_TITLES,
   buildStep228AnnouncementIds,
 } from "./step228";
+import {
+  STEP229_RESOURCE_URLS,
+  STEP229_RESOURCE_TITLES,
+  buildStep229ResourceIds,
+} from "./step229";
 
 // DbClient allows helpers to run with either the full Prisma client or a transaction client.
 type DbClient = PrismaClient | Prisma.TransactionClient;
@@ -598,6 +603,12 @@ export async function upsertE2EFixtures(prisma: DbClient) {
   const step224TutorBSessionId = `e2e-${tenant.slug}-${runId}-session-step224-tutor-b-1`;
   const step224CrossTenantSessionId =
     `e2e-${secondaryTenantSlug}-${runId}-session-step224-cross-tenant-1`;
+  // Step 22.9 deterministic resource IDs keep CRUD/bulk/report assertions repeatable across runs.
+  const step229ResourceIds = buildStep229ResourceIds(
+    tenant.slug,
+    secondaryTenantSlug,
+    runId,
+  );
   // Step 22.7 fixtures cover generation preview/commit, bulk-cancel, roster sync, and zoom-link visibility.
   const step227GroupId = `e2e-${tenant.slug}-${runId}-group-step227-g1`;
   const step227GroupSessionIds = [
@@ -1390,6 +1401,30 @@ export async function upsertE2EFixtures(prisma: DbClient) {
           tenantId: secondaryTenant.id,
           sessionId: step224CrossTenantSession.id,
           studentId: crossTenantStudent.id,
+        },
+      });
+
+      // Seed one resource in the secondary tenant so cross-tenant deny checks hit real data.
+      await tx.sessionResource.upsert({
+        where: { id: step229ResourceIds.secondaryTenantResource },
+        update: {
+          tenantId: secondaryTenant.id,
+          sessionId: step224CrossTenantSession.id,
+          title: STEP229_RESOURCE_TITLES.crossTenant,
+          url: STEP229_RESOURCE_URLS.crossTenant,
+          type: "WORKSHEET",
+          createdByUserId: secondaryTutor.id,
+          createdByRole: "TUTOR",
+        },
+        create: {
+          id: step229ResourceIds.secondaryTenantResource,
+          tenantId: secondaryTenant.id,
+          sessionId: step224CrossTenantSession.id,
+          title: STEP229_RESOURCE_TITLES.crossTenant,
+          url: STEP229_RESOURCE_URLS.crossTenant,
+          type: "WORKSHEET",
+          createdByUserId: secondaryTutor.id,
+          createdByRole: "TUTOR",
         },
       });
     }
@@ -2273,6 +2308,62 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       },
     });
 
+    // Step 22.9 baseline fixtures:
+    // - S1 has one normal resource and one duplicate-target resource.
+    // - S2 starts empty for missing-report + bulk-apply assertions.
+    await tx.sessionResource.upsert({
+      where: { id: step229ResourceIds.primaryExisting },
+      update: {
+        tenantId: tenant.id,
+        sessionId: step224TutorASession1.id,
+        title: STEP229_RESOURCE_TITLES.existing,
+        url: STEP229_RESOURCE_URLS.existing,
+        type: "VIDEO",
+        createdByUserId: adminUser.id,
+        createdByRole: "ADMIN",
+      },
+      create: {
+        id: step229ResourceIds.primaryExisting,
+        tenantId: tenant.id,
+        sessionId: step224TutorASession1.id,
+        title: STEP229_RESOURCE_TITLES.existing,
+        url: STEP229_RESOURCE_URLS.existing,
+        type: "VIDEO",
+        createdByUserId: adminUser.id,
+        createdByRole: "ADMIN",
+      },
+    });
+
+    await tx.sessionResource.upsert({
+      where: { id: step229ResourceIds.primaryDuplicateSeed },
+      update: {
+        tenantId: tenant.id,
+        sessionId: step224TutorASession1.id,
+        title: STEP229_RESOURCE_TITLES.duplicateSeed,
+        url: STEP229_RESOURCE_URLS.duplicateSeed,
+        type: "HOMEWORK",
+        createdByUserId: adminUser.id,
+        createdByRole: "ADMIN",
+      },
+      create: {
+        id: step229ResourceIds.primaryDuplicateSeed,
+        tenantId: tenant.id,
+        sessionId: step224TutorASession1.id,
+        title: STEP229_RESOURCE_TITLES.duplicateSeed,
+        url: STEP229_RESOURCE_URLS.duplicateSeed,
+        type: "HOMEWORK",
+        createdByUserId: adminUser.id,
+        createdByRole: "ADMIN",
+      },
+    });
+
+    await tx.sessionResource.deleteMany({
+      where: {
+        tenantId: tenant.id,
+        sessionId: step224TutorASession2.id,
+      },
+    });
+
     await tx.sessionStudent.upsert({
       where: {
         tenantId_sessionId_studentId: {
@@ -2976,6 +3067,8 @@ export async function cleanupE2ETenantData(prisma: DbClient) {
     await tx.announcement.deleteMany({ where: { tenantId: tenant.id } });
     // Parent requests must be cleared before sessions/students to satisfy FK constraints.
     await tx.parentRequest.deleteMany({ where: { tenantId: tenant.id } });
+    // Explicitly clear session resources to keep Step 22.9 fixtures deterministic across reruns.
+    await tx.sessionResource.deleteMany({ where: { tenantId: tenant.id } });
     await tx.sessionNote.deleteMany({ where: { tenantId: tenant.id } });
     await tx.attendance.deleteMany({ where: { tenantId: tenant.id } });
     await tx.sessionStudent.deleteMany({ where: { tenantId: tenant.id } });
