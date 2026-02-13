@@ -93,13 +93,16 @@ test.describe("[regression] Step 22.4 Tutor session execution", () => {
   }) => {
     const fixtures = resolveStep224Fixtures();
     const detailResponsePromise = page.waitForResponse(
-      (response) =>
-        response.request().method() === "GET" &&
-        response
-          .url()
-          .includes(
+      (response) => {
+        if (response.request().method() !== "GET") return false;
+        const url = new URL(response.url());
+        // Match the session-detail endpoint exactly so `/resources` fetches don't satisfy this waiter.
+        return (
+          url.pathname.endsWith(
             `/api/tutor/sessions/${fixtures.tutorSessionIds.tutorAFirst}`,
-          ),
+          ) && !url.pathname.endsWith("/resources")
+        );
+      },
     );
 
     await page.goto(
