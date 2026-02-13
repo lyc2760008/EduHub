@@ -23,6 +23,10 @@ import {
   buildStep226AuditEventId,
   buildStep226MarkerEntityId,
 } from "./step226";
+import {
+  STEP227_INTERNAL_ONLY_SENTINEL,
+  STEP227_ZOOM_LINK,
+} from "./step227";
 
 // DbClient allows helpers to run with either the full Prisma client or a transaction client.
 type DbClient = PrismaClient | Prisma.TransactionClient;
@@ -412,6 +416,19 @@ export async function upsertE2EFixtures(prisma: DbClient) {
   const step224TutorBSessionId = `e2e-${tenant.slug}-${runId}-session-step224-tutor-b-1`;
   const step224CrossTenantSessionId =
     `e2e-${secondaryTenantSlug}-${runId}-session-step224-cross-tenant-1`;
+  // Step 22.7 fixtures cover generation preview/commit, bulk-cancel, roster sync, and zoom-link visibility.
+  const step227GroupId = `e2e-${tenant.slug}-${runId}-group-step227-g1`;
+  const step227GroupSessionIds = [
+    `e2e-${tenant.slug}-${runId}-session-step227-group-1`,
+    `e2e-${tenant.slug}-${runId}-session-step227-group-2`,
+    `e2e-${tenant.slug}-${runId}-session-step227-group-3`,
+  ] as const;
+  const step227ZoomSessionId = `e2e-${tenant.slug}-${runId}-session-step227-zoom`;
+  const step227BulkCancelSessionIds = [
+    `e2e-${tenant.slug}-${runId}-session-step227-bulk-cancel-1`,
+    `e2e-${tenant.slug}-${runId}-session-step227-bulk-cancel-2`,
+    `e2e-${tenant.slug}-${runId}-session-step227-bulk-cancel-3`,
+  ] as const;
   const progressSessionIds = Array.from(
     { length: STEP223_PROGRESS_NOTE_COUNT },
     (_, index) =>
@@ -451,6 +468,10 @@ export async function upsertE2EFixtures(prisma: DbClient) {
 
   const centerName = "E2E Center";
   const secondaryCenterName = "E2E Secondary Center";
+  const step227SubjectName = "E2E Step 22.7 Subject";
+  const step227LevelName = "E2E Step 22.7 Level";
+  const step227ProgramName = "E2E Step 22.7 Program";
+  const step227GroupName = "E2E Step 22.7 Group G1";
   const tutorName = "E2E Tutor";
   const tutorBName = "E2E Tutor B";
   const secondaryTutorName = "E2E Secondary Tutor";
@@ -502,6 +523,31 @@ export async function upsertE2EFixtures(prisma: DbClient) {
   const step224CrossTenantStart = withUniqueSessionSeconds(
     nowLocal.plus({ days: 3 }).set({ hour: 10, minute: 10 }),
   );
+  const step227GroupStarts = [
+    withUniqueSessionSeconds(
+      nowLocal.plus({ days: 15 }).set({ hour: 10, minute: 0 }),
+    ),
+    withUniqueSessionSeconds(
+      nowLocal.plus({ days: 16 }).set({ hour: 10, minute: 0 }),
+    ),
+    withUniqueSessionSeconds(
+      nowLocal.plus({ days: 17 }).set({ hour: 10, minute: 0 }),
+    ),
+  ] as const;
+  const step227ZoomStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 12 }).set({ hour: 13, minute: 15 }),
+  );
+  const step227BulkCancelStarts = [
+    withUniqueSessionSeconds(
+      nowLocal.plus({ days: 18 }).set({ hour: 9, minute: 0 }),
+    ),
+    withUniqueSessionSeconds(
+      nowLocal.plus({ days: 19 }).set({ hour: 9, minute: 0 }),
+    ),
+    withUniqueSessionSeconds(
+      nowLocal.plus({ days: 20 }).set({ hour: 9, minute: 0 }),
+    ),
+  ] as const;
   const absenceHappyStart = withUniqueSessionSeconds(
     nowLocal.plus({ days: 3 }).set({ hour: 12, minute: 0 }),
   );
@@ -914,6 +960,129 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       select: { id: true },
     });
 
+    // Step 22.7 group fixtures use deterministic catalog entities so roster sync tests never depend on ad-hoc data.
+    const step227Subject = await tx.subject.upsert({
+      where: {
+        tenantId_name: {
+          tenantId: tenant.id,
+          name: step227SubjectName,
+        },
+      },
+      update: {
+        isActive: true,
+      },
+      create: {
+        tenantId: tenant.id,
+        name: step227SubjectName,
+        isActive: true,
+      },
+      select: { id: true },
+    });
+
+    const step227Level = await tx.level.upsert({
+      where: {
+        tenantId_name: {
+          tenantId: tenant.id,
+          name: step227LevelName,
+        },
+      },
+      update: {
+        sortOrder: 227,
+      },
+      create: {
+        tenantId: tenant.id,
+        name: step227LevelName,
+        sortOrder: 227,
+      },
+      select: { id: true },
+    });
+
+    const step227Program = await tx.program.upsert({
+      where: {
+        tenantId_name: {
+          tenantId: tenant.id,
+          name: step227ProgramName,
+        },
+      },
+      update: {
+        subjectId: step227Subject.id,
+        levelId: step227Level.id,
+        isActive: true,
+      },
+      create: {
+        tenantId: tenant.id,
+        name: step227ProgramName,
+        subjectId: step227Subject.id,
+        levelId: step227Level.id,
+        isActive: true,
+      },
+      select: { id: true },
+    });
+
+    const step227Group = await tx.group.upsert({
+      where: { id: step227GroupId },
+      update: {
+        tenantId: tenant.id,
+        name: step227GroupName,
+        type: "GROUP",
+        centerId: center.id,
+        programId: step227Program.id,
+        levelId: step227Level.id,
+        isActive: true,
+      },
+      create: {
+        id: step227GroupId,
+        tenantId: tenant.id,
+        name: step227GroupName,
+        type: "GROUP",
+        centerId: center.id,
+        programId: step227Program.id,
+        levelId: step227Level.id,
+        isActive: true,
+      },
+      select: { id: true },
+    });
+
+    // Replace-set fixture links guarantee deterministic roster sync expectations across repeated seed runs.
+    await tx.groupTutor.deleteMany({
+      where: {
+        tenantId: tenant.id,
+        groupId: step227Group.id,
+      },
+    });
+    await tx.groupTutor.createMany({
+      data: [
+        {
+          tenantId: tenant.id,
+          groupId: step227Group.id,
+          userId: tutorLoginUser.id,
+        },
+      ],
+      skipDuplicates: true,
+    });
+
+    await tx.groupStudent.deleteMany({
+      where: {
+        tenantId: tenant.id,
+        groupId: step227Group.id,
+      },
+    });
+    await tx.groupStudent.createMany({
+      data: [
+        {
+          tenantId: tenant.id,
+          groupId: step227Group.id,
+          studentId: student.id,
+        },
+        {
+          tenantId: tenant.id,
+          groupId: step227Group.id,
+          studentId: missingEmailStudent.id,
+        },
+      ],
+      skipDuplicates: true,
+    });
+
     if (secondaryTenant) {
       // Seed a deterministic cross-tenant student so portal RBAC tests can probe with a real foreign ID.
       const crossTenantStudent = await tx.student.upsert({
@@ -1287,6 +1456,100 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       },
       select: { id: true },
     });
+
+    const step227GroupSessions = await Promise.all(
+      step227GroupSessionIds.map((sessionId, index) =>
+        tx.session.upsert({
+          where: { id: sessionId },
+          update: {
+            tenantId: tenant.id,
+            centerId: center.id,
+            tutorId: tutorLoginUser.id,
+            sessionType: "GROUP",
+            groupId: step227GroupId,
+            // Reset cancel metadata so bulk-cancel tests always start from active sessions.
+            canceledAt: null,
+            cancelReasonCode: null,
+            startAt: step227GroupStarts[index].toJSDate(),
+            endAt: step227GroupStarts[index].plus({ hours: 1 }).toJSDate(),
+            timezone,
+          },
+          create: {
+            id: sessionId,
+            tenantId: tenant.id,
+            centerId: center.id,
+            tutorId: tutorLoginUser.id,
+            sessionType: "GROUP",
+            groupId: step227GroupId,
+            startAt: step227GroupStarts[index].toJSDate(),
+            endAt: step227GroupStarts[index].plus({ hours: 1 }).toJSDate(),
+            timezone,
+          },
+          select: { id: true },
+        }),
+      ),
+    );
+
+    const step227ZoomSession = await tx.session.upsert({
+      where: { id: step227ZoomSessionId },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorLoginUser.id,
+        sessionType: "ONE_ON_ONE",
+        groupId: null,
+        // Keep a deterministic default zoom link so tutor/parent visibility tests remain order-independent.
+        zoomLink: STEP227_ZOOM_LINK,
+        canceledAt: null,
+        cancelReasonCode: null,
+        startAt: step227ZoomStart.toJSDate(),
+        endAt: step227ZoomStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: step227ZoomSessionId,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorLoginUser.id,
+        sessionType: "ONE_ON_ONE",
+        zoomLink: STEP227_ZOOM_LINK,
+        startAt: step227ZoomStart.toJSDate(),
+        endAt: step227ZoomStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
+    const step227BulkCancelSessions = await Promise.all(
+      step227BulkCancelSessionIds.map((sessionId, index) =>
+        tx.session.upsert({
+          where: { id: sessionId },
+          update: {
+            tenantId: tenant.id,
+            centerId: center.id,
+            tutorId: tutorLoginUser.id,
+            sessionType: "ONE_ON_ONE",
+            groupId: null,
+            canceledAt: null,
+            cancelReasonCode: null,
+            startAt: step227BulkCancelStarts[index].toJSDate(),
+            endAt: step227BulkCancelStarts[index].plus({ hours: 1 }).toJSDate(),
+            timezone,
+          },
+          create: {
+            id: sessionId,
+            tenantId: tenant.id,
+            centerId: center.id,
+            tutorId: tutorLoginUser.id,
+            sessionType: "ONE_ON_ONE",
+            startAt: step227BulkCancelStarts[index].toJSDate(),
+            endAt: step227BulkCancelStarts[index].plus({ hours: 1 }).toJSDate(),
+            timezone,
+          },
+          select: { id: true },
+        }),
+      ),
+    );
 
     // Absence-request sessions keep write-lite tests isolated from core fixtures.
     const absenceHappySession = await tx.session.upsert({
@@ -1694,6 +1957,75 @@ export async function upsertE2EFixtures(prisma: DbClient) {
         studentId: student.id,
       },
     });
+
+    for (const groupSession of step227GroupSessions) {
+      await tx.sessionStudent.upsert({
+        where: {
+          tenantId_sessionId_studentId: {
+            tenantId: tenant.id,
+            sessionId: groupSession.id,
+            studentId: student.id,
+          },
+        },
+        update: {},
+        create: {
+          tenantId: tenant.id,
+          sessionId: groupSession.id,
+          studentId: student.id,
+        },
+      });
+
+      await tx.sessionStudent.upsert({
+        where: {
+          tenantId_sessionId_studentId: {
+            tenantId: tenant.id,
+            sessionId: groupSession.id,
+            studentId: missingEmailStudent.id,
+          },
+        },
+        update: {},
+        create: {
+          tenantId: tenant.id,
+          sessionId: groupSession.id,
+          studentId: missingEmailStudent.id,
+        },
+      });
+    }
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: step227ZoomSession.id,
+          studentId: student.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: step227ZoomSession.id,
+        studentId: student.id,
+      },
+    });
+
+    for (const bulkCancelSession of step227BulkCancelSessions) {
+      await tx.sessionStudent.upsert({
+        where: {
+          tenantId_sessionId_studentId: {
+            tenantId: tenant.id,
+            sessionId: bulkCancelSession.id,
+            // Keep bulk-cancel fixtures unlinked from Parent A1 so parent access-control checks remain strict.
+            studentId: unlinkedStudent.id,
+          },
+        },
+        update: {},
+        create: {
+          tenantId: tenant.id,
+          sessionId: bulkCancelSession.id,
+          studentId: unlinkedStudent.id,
+        },
+      });
+    }
 
     await tx.sessionStudent.upsert({
       where: {
@@ -2146,6 +2478,36 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       },
     });
 
+    // Step 22.7 seeds an internal-only sentinel note so leak-scanning assertions have a deterministic marker.
+    await tx.attendance.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: step227ZoomSession.id,
+          studentId: student.id,
+        },
+      },
+      update: {
+        status: "PRESENT",
+        note: STEP227_INTERNAL_ONLY_SENTINEL,
+        parentVisibleNote: "STEP227_PARENT_VISIBLE_NOTE",
+        parentVisibleNoteUpdatedAt: now,
+        markedByUserId: tutorLoginUser.id,
+        markedAt: now,
+      },
+      create: {
+        tenantId: tenant.id,
+        sessionId: step227ZoomSession.id,
+        studentId: student.id,
+        status: "PRESENT",
+        note: STEP227_INTERNAL_ONLY_SENTINEL,
+        parentVisibleNote: "STEP227_PARENT_VISIBLE_NOTE",
+        parentVisibleNoteUpdatedAt: now,
+        markedByUserId: tutorLoginUser.id,
+        markedAt: now,
+      },
+    });
+
     // Step 22.4 preloads tutor-session attendance rows (including one internal-note sentinel).
     await tx.attendance.upsert({
       where: {
@@ -2326,6 +2688,27 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       },
     });
 
+    await tx.sessionNote.upsert({
+      where: {
+        tenantId_sessionId: {
+          tenantId: tenant.id,
+          sessionId: step227ZoomSession.id,
+        },
+      },
+      update: {
+        internalNote: STEP227_INTERNAL_ONLY_SENTINEL,
+        parentVisibleNote: "STEP227_PARENT_VISIBLE_NOTE",
+        updatedByUserId: tutorLoginUser.id,
+      },
+      create: {
+        tenantId: tenant.id,
+        sessionId: step227ZoomSession.id,
+        internalNote: STEP227_INTERNAL_ONLY_SENTINEL,
+        parentVisibleNote: "STEP227_PARENT_VISIBLE_NOTE",
+        updatedByUserId: tutorLoginUser.id,
+      },
+    });
+
     await seedStep226AuditEvents({
       tx,
       tenantId: tenant.id,
@@ -2367,6 +2750,11 @@ export async function upsertE2EFixtures(prisma: DbClient) {
     step224TutorASession2Id,
     step224TutorBSessionId,
     step224CrossTenantSessionId,
+    step227GroupId,
+    step227GroupSessionIds: [...step227GroupSessionIds],
+    step227ZoomSessionId,
+    step227BulkCancelSessionIds: [...step227BulkCancelSessionIds],
+    step227InternalOnlySentinel: STEP227_INTERNAL_ONLY_SENTINEL,
     unlinkedSessionId,
     absenceHappySessionId,
     absenceDuplicateSessionId,

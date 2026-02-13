@@ -481,6 +481,7 @@ test.describe("[regression] [step22.6] Admin audit log + CSV export", () => {
       buildTenantApiPath(tenantSlug, "/api/sessions/generate"),
       {
         data: {
+          // Step 22.7 removed legacy dry-run flags from commit payloads.
           centerId: setupSession.centerId,
           tutorId: setupSession.tutorId,
           sessionType: "ONE_ON_ONE",
@@ -491,7 +492,6 @@ test.describe("[regression] [step22.6] Admin audit log + CSV export", () => {
           startTime: "10:00",
           endTime: "11:00",
           timezone: "America/Edmonton",
-          dryRun: false,
         },
       },
     );

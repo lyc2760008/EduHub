@@ -596,29 +596,40 @@ export async function generateRecurringSessions(
   });
   const modal = modalHeading.locator("..").locator("..");
 
-  // TODO(e2e): add generator modal data-testid hooks to avoid label selectors.
-  await modal.getByLabel(/center/i).selectOption(input.centerId);
-  await modal.getByLabel(/tutor/i).selectOption(input.tutorId);
-  await modal.getByLabel(/type/i).selectOption("ONE_ON_ONE");
-  await modal.getByLabel(/student/i).selectOption(input.studentId);
-  await modal.getByLabel(/start date/i).fill(input.startDate);
-  await modal.getByLabel(/end date/i).fill(input.endDate);
+  // Prefer stable control ids so this helper remains locale-independent.
+  await modal.locator("#sessions-generator-center").selectOption(input.centerId);
+  await modal.locator("#sessions-generator-tutor").selectOption(input.tutorId);
+  await modal.locator("#sessions-generator-type").selectOption("ONE_ON_ONE");
+  await modal.locator("#sessions-generator-student").selectOption(input.studentId);
+  await modal.locator("#sessions-generator-start-date").fill(input.startDate);
+  await modal.locator("#sessions-generator-end-date").fill(input.endDate);
 
   const weekdayCheckboxes = modal.getByRole("checkbox");
   await weekdayCheckboxes.nth(input.weekday - 1).check();
   const startTime = input.startTime ?? "09:00";
   const endTime = input.endTime ?? "10:00";
-  await modal.getByLabel(/start time/i).fill(startTime);
-  await modal.getByLabel(/end time/i).fill(endTime);
+  await modal.locator("#sessions-generator-start-time").fill(startTime);
+  await modal.locator("#sessions-generator-end-time").fill(endTime);
 
   const previewButton = modal.getByTestId("generator-preview-button");
   await previewButton.scrollIntoViewIfNeeded();
+  const previewResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/sessions/generate/preview") &&
+      response.request().method() === "POST",
+  );
   // Force the click to avoid transient overlays blocking the generator modal.
   await previewButton.click({ force: true });
-  const previewCountText = await page
-    .getByTestId("generator-preview-count")
-    .innerText();
-  if (Number(previewCountText) <= 0) {
+  const previewResponse = await previewResponsePromise;
+  if (!previewResponse.ok()) {
+    throw new Error(
+      `Recurring session preview failed with ${previewResponse.status()}.`,
+    );
+  }
+  const previewPayload = (await previewResponse.json()) as {
+    wouldCreateCount?: number;
+  };
+  if ((previewPayload.wouldCreateCount ?? 0) <= 0) {
     throw new Error("Expected recurring session preview count to be > 0.");
   }
 
@@ -628,6 +639,8 @@ export async function generateRecurringSessions(
       response.request().method() === "POST",
   );
 
+  // Commit remains disabled until preview succeeds with an unchanged payload signature.
+  await expect(page.getByTestId("generator-confirm-button")).toBeEnabled();
   await page.getByTestId("generator-confirm-button").click();
   const commitResponse = await commitResponsePromise;
   if (!commitResponse.ok()) {

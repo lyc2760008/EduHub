@@ -215,6 +215,10 @@ test.describe("[regression] Groups - CRUD", () => {
         );
 
         await page.getByTestId("sync-group-future-sessions-button").click();
+        // Step 22.7 sync action now requires an explicit confirmation click in the modal.
+        const syncDialog = page.locator("div.fixed.inset-0");
+        await expect(syncDialog).toBeVisible();
+        await syncDialog.getByRole("button", { name: /sync/i }).click();
         const syncResponse = await syncResponsePromise;
         expect(syncResponse.ok()).toBeTruthy();
         const syncPayload = (await syncResponse.json()) as {

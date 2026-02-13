@@ -87,9 +87,23 @@ export async function resolveGoLiveParentAccess(
     process.env.E2E_PARENT_ACCESS_EMAIL || process.env.E2E_PARENT_EMAIL;
 
   if (explicitEmail) {
-    // When an explicit parent email is configured (common for STAGING runs), use it.
-    // The `accessCode` value is a placeholder; login helpers ignore it for magic-link auth.
-    return { email: explicitEmail, accessCode: "MAGIC_LINK" };
+    // When an explicit parent email is configured (common for STAGING runs), ensure it exists
+    // and is linked to a student so magic-link auth can succeed deterministically.
+    await loginAsAdmin(page, tenantSlug);
+    const ensured = await createStudentAndLinkParentForEmail(
+      page,
+      tenantSlug,
+      explicitEmail,
+      { firstName: "GoLive", lastName: uniqueString("ParentSeed") },
+    );
+    await page.context().clearCookies();
+    // The `accessCode` value is legacy metadata; parent login now uses magic-link tokens.
+    return {
+      email: explicitEmail,
+      accessCode: "MAGIC_LINK",
+      parentId: ensured.parentId,
+      studentId: ensured.studentId,
+    };
   }
 
   await loginAsAdmin(page, tenantSlug);

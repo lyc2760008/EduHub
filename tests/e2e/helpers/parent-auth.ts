@@ -332,7 +332,8 @@ export async function loginAsParentWithAccessCode(
   // Reuse an existing parent session when it already matches the expected user.
   if (await assertParentSession()) {
     const portalPath = buildTenantPath(tenantSlug, "/portal");
-    await page.goto(portalPath);
+    // Staging can keep long-polling resources open; domcontentloaded is enough for auth reuse checks.
+    await page.goto(portalPath, { waitUntil: "domcontentloaded" });
     // Prefer shell visibility over strict URL waits to avoid rare callback redirect hangs.
     await Promise.race([
       page.waitForURL((url) => url.pathname.startsWith(portalPath), {

@@ -225,9 +225,10 @@ test.describe("[slow] [regression] Sessions - admin UI", () => {
       .locator("..")
       .locator("..");
 
-    await modal.getByLabel(/center/i).selectOption(center.id);
-    await modal.getByLabel(/tutor/i).selectOption(tutor.id);
-    await modal.getByLabel(/type/i).selectOption("ONE_ON_ONE");
+    // One-off modal uses dedicated control ids distinct from the recurring generator modal.
+    await modal.locator("#sessions-one-off-center").selectOption(center.id);
+    await modal.locator("#sessions-one-off-tutor").selectOption(tutor.id);
+    await modal.locator("#sessions-one-off-type").selectOption("ONE_ON_ONE");
     // Wait for students to load before selecting any available student.
     const studentSelect = modal.getByTestId("one-to-one-student-select");
     await expect.poll(async () => studentSelect.locator("option").count()).toBeGreaterThan(1);
@@ -376,20 +377,28 @@ test.describe("[slow] [regression] Sessions - admin UI", () => {
 
     const timezone = center.timezone || "America/Edmonton";
     const range = nextWeekRange(timezone);
-    await modal.getByLabel(/start date/i).fill(range.startDate);
-    await modal.getByLabel(/end date/i).fill(range.endDate);
+    await modal.locator("#sessions-generator-start-date").fill(range.startDate);
+    await modal.locator("#sessions-generator-end-date").fill(range.endDate);
 
     const startTime = "09:00";
     const endTime = "10:00";
     await modal.getByRole("checkbox").first().check();
-    await modal.getByLabel(/start time/i).fill(startTime);
-    await modal.getByLabel(/end time/i).fill(endTime);
+    await modal.locator("#sessions-generator-start-time").fill(startTime);
+    await modal.locator("#sessions-generator-end-time").fill(endTime);
 
-    await page.getByTestId("generator-preview-button").click();
-    const countText = await page
-      .getByTestId("generator-preview-count")
-      .innerText();
-    expect(Number(countText)).toBeGreaterThan(0);
+    const previewResponsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/sessions/generate/preview") &&
+        response.request().method() === "POST",
+    );
+    await modal.getByTestId("generator-preview-button").click();
+    const previewResponse = await previewResponsePromise;
+    expect(previewResponse.ok()).toBeTruthy();
+    const previewBody = (await previewResponse.json()) as {
+      wouldCreateCount?: number;
+    };
+    expect(previewBody.wouldCreateCount ?? 0).toBeGreaterThan(0);
+    await expect(modal.getByTestId("generator-confirm-button")).toBeEnabled();
 
     const commitResponsePromise = page.waitForResponse(
       (response) =>
