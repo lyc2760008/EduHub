@@ -4,7 +4,7 @@ Planning Inputs (must read): duplication-risk.md + capability-matrix.md
 
 # EduHub Current State Snapshot
 
-Last updated: 2026-02-12
+Last updated: 2026-02-13
 
 Owners:
 
@@ -16,6 +16,7 @@ How to use: Paste this doc before PO planning.
 
 Change log:
 
+- 2026-02-13: Dev — Step 22.8 shipped Announcements + Read Receipts Pack v1: tenant-wide in-app announcements (admin create/edit/publish/archive), parent+tutor announcement feed/detail with idempotent read receipts, and admin engagement report with aggregate CSV export.
 - 2026-02-12: Dev — Step 22.7 shipped Scheduling Efficiency Pack v1 + Zoom link: session generation now runs Preview -> Commit with shared planner logic, admin bulk cancel (reason-code, audited), group detail roster-sync entry confirm flow, and nullable `Session.zoomLink` exposed as admin edit + tutor/parent read-only detail.
 - 2026-02-12: Dev — Step 22.6 shipped Admin Audit + Support Pack v1: redacted server-side audit query/read model, CSV export, expanded mutation audit coverage, and upgraded audit log UX (search/filter/sort/pagination + detail drill-in).
 - 2026-02-11: Dev — Step 22.5 canonicalized parent home: /[tenant]/portal; /[tenant]/parent is redirect-only.
@@ -62,6 +63,8 @@ Change log:
 - Step 22.6 — Admin Audit + Support Pack v1 shipped. Audit Log now supports server-side URL-backed search/filter/sort/pagination, redacted detail drill-in, and tenant-scoped CSV export (`/api/admin/audit/export`, capped + truncation header). Expanded audited mutation actions: `request.resolved`, `sessions.generated`, `group.futureSessions.synced`, `attendance.updated`, `notes.updated`, `parent.invite.sent`.
 <!-- Step 22.7: Scheduling Efficiency Pack v1 + Zoom link -->
 - Step 22.7 — Scheduling Efficiency Pack v1 + Zoom link shipped. Session generation now requires Preview -> Commit via shared planning logic (`/api/sessions/generate/preview`, `/api/sessions/generate`), admin sessions list supports bulk cancel with required reason-code + audit action `sessions.bulkCanceled`, group detail includes future-session roster sync confirm entry, and `Session.zoomLink` (nullable) is supported in admin create/edit plus tutor and parent session detail read-only views.
+<!-- Step 22.8: Announcements + Read Receipts Pack v1 -->
+- Step 22.8 — Announcements + Read Receipts Pack v1 shipped. Admin can manage announcements via `/[tenant]/admin/announcements` (`new`, `[id]`, `engagement`), parent+tutor consume announcements via `/[tenant]/portal/announcements` + `/[tenant]/tutor/announcements` (detail routes included), read receipts are idempotent via `/api/portal/announcements/[id]/read`, and engagement reporting supports aggregate CSV export (`/api/admin/announcements/engagement.csv`) without per-user rows.
 
 ## Route Inventory
 
@@ -99,6 +102,16 @@ Parent routes (app/[tenant]/(parent)/...):
   - `report_absence:create_request`
   - `request:withdraw`
   - Access control summary: Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`).
+- Path: `/[tenant]/portal/announcements`
+  - Description: Parent announcements feed.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`).
+- Path: `/[tenant]/portal/announcements/[id]`
+  - Description: Parent announcement detail (auto mark-read).
+  - Capabilities:
+  - `view:detail`
+  - Access control summary: Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`).
 - Path: `/[tenant]/portal/students`
   - Description: Parent students overview.
   - Capabilities:
@@ -133,6 +146,16 @@ Tutor routes (app/[tenant]/tutor/...):
   - `view:detail`
   - `update:attendance`
   - Access control summary: Tutor layout guard + tutor-scoped APIs (`src/app/[tenant]/api/tutor/sessions/[id]/route.ts`, `src/app/[tenant]/api/tutor/sessions/[id]/save/route.ts`).
+- Path: `/[tenant]/tutor/announcements`
+  - Description: Tutor announcements feed.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Tutor layout guard (`src/app/[tenant]/tutor/layout.tsx`) + shared portal announcements APIs.
+- Path: `/[tenant]/tutor/announcements/[id]`
+  - Description: Tutor announcement detail (auto mark-read).
+  - Capabilities:
+  - `view:detail`
+  - Access control summary: Tutor layout guard (`src/app/[tenant]/tutor/layout.tsx`) + shared portal announcements APIs.
 
 Admin routes (app/[tenant]/(admin)/...):
 
@@ -177,6 +200,29 @@ Admin routes (app/[tenant]/(admin)/...):
   - Capabilities:
   - `view:list`
   - Access control summary: Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`).
+- Path: `/[tenant]/admin/announcements`
+  - Description: Announcements list + lifecycle actions.
+  - Capabilities:
+  - `view:list`
+  - `create:announcement`
+  - `update:announcement`
+  - Access control summary: Admin layout guard + page-level Owner/Admin gate.
+- Path: `/[tenant]/admin/announcements/new`
+  - Description: Create announcement form.
+  - Capabilities:
+  - `create:announcement`
+  - Access control summary: Admin layout guard + page-level Owner/Admin gate.
+- Path: `/[tenant]/admin/announcements/[id]`
+  - Description: Announcement detail/edit form.
+  - Capabilities:
+  - `view:detail`
+  - `update:announcement`
+  - Access control summary: Admin layout guard + page-level Owner/Admin gate.
+- Path: `/[tenant]/admin/announcements/engagement`
+  - Description: Announcement engagement report + CSV export entrypoint.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Admin layout guard + page-level Owner/Admin gate.
 - Path: `/[tenant]/admin/reports`
   - Description: Reports hub.
   - Capabilities:
@@ -237,6 +283,24 @@ Key API capabilities (explicit, code-verified):
 - Path: `/api/admin/audit/export`
   - Capability: `view:list` (tenant-scoped CSV export with redaction + filter parity).
   - Evidence: `src/app/api/admin/audit/export/route.ts` (`GET`, owner/admin RBAC, shared query parser + redaction transform).
+- Path: `/api/admin/announcements`
+  - Capability: `view:list`, `create:announcement`
+  - Evidence: `src/app/api/admin/announcements/route.ts` (`GET` list query contract + `POST` draft create with audit).
+- Path: `/api/admin/announcements/[id]`
+  - Capability: `view:detail`, `update:announcement`
+  - Evidence: `src/app/api/admin/announcements/[id]/route.ts` (`GET` detail + `PATCH` draft-safe updates with audit).
+- Path: `/api/admin/announcements/[id]/publish`
+  - Capability: `update:announcement_publish`
+  - Evidence: `src/app/api/admin/announcements/[id]/publish/route.ts` (`POST`, draft->published transition, idempotent for already-published).
+- Path: `/api/admin/announcements/[id]/archive`
+  - Capability: `update:announcement_archive`
+  - Evidence: `src/app/api/admin/announcements/[id]/archive/route.ts` (`POST`, draft/published->archived transition, idempotent for already-archived).
+- Path: `/api/admin/announcements/engagement` and `/api/admin/announcements/engagement.csv`
+  - Capability: `view:list` (aggregate engagement only; no per-user rows).
+  - Evidence: `src/app/api/admin/announcements/engagement/route.ts`, `src/app/api/admin/announcements/engagement.csv/route.ts` (`GET`, owner/admin RBAC, filter parity, CSV capped with truncation header).
+- Path: `/api/portal/announcements`, `/api/portal/announcements/[id]`, `/api/portal/announcements/[id]/read`
+  - Capability: `view:list`, `view:detail`, `create:read_receipt`
+  - Evidence: `src/app/api/portal/announcements/route.ts`, `src/app/api/portal/announcements/[id]/route.ts`, `src/app/api/portal/announcements/[id]/read/route.ts` (parent+tutor scoped access, tenant-safe visibility, idempotent read upsert).
 
 ## Navigation Map
 
@@ -251,8 +315,8 @@ Admin nav items (from `src/lib/nav/adminNavTree.ts`):
 - Dashboard ? `/admin`.
 - People group ? `/admin/students`, `/admin/parents`, `/admin/users`.
 - Setup group ? `/admin/centers`, `/admin/groups`, `/admin/programs`, `/admin/subjects`, `/admin/levels`.
-- Operations group ? `/admin/sessions`, `/admin/requests`, `/admin/audit`, `/admin/help`.
-- Reports group ? `/admin/reports` + report subroutes.
+- Operations group ? `/admin/sessions`, `/admin/requests`, `/admin/announcements`, `/admin/audit`, `/admin/help`.
+- Reports group ? `/admin/reports` + report subroutes + `/admin/announcements/engagement`.
 
 Parent shell/nav sources:
 
@@ -264,6 +328,7 @@ Parent nav items (from `src/components/parent/PortalTopNav.tsx`):
 - Dashboard ? `/[tenant]/portal`.
 - Students ? `/[tenant]/portal/students`.
 - Sessions ? `/[tenant]/portal/sessions`.
+- Announcements ? `/[tenant]/portal/announcements`.
 - Requests ? `/[tenant]/portal/requests`.
 
 Tutor shell/nav sources:
@@ -274,6 +339,7 @@ Tutor shell/nav sources:
 Tutor nav items:
 
 - My Sessions ? `/[tenant]/tutor/sessions`.
+- Announcements ? `/[tenant]/tutor/announcements`.
 
 Duplicate/ambiguous nav labels to confirm:
 

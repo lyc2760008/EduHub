@@ -22,6 +22,11 @@ export const AUDIT_ACTIONS = {
   ABSENCE_REQUEST_RESOLVED: "ABSENCE_REQUEST_RESOLVED",
   ATTENDANCE_PARENT_VISIBLE_NOTE_UPDATED:
     "ATTENDANCE_PARENT_VISIBLE_NOTE_UPDATED",
+  // Step 22.8 admin announcement lifecycle actions.
+  ANNOUNCEMENT_CREATED: "announcement.created",
+  ANNOUNCEMENT_UPDATED: "announcement.updated",
+  ANNOUNCEMENT_PUBLISHED: "announcement.published",
+  ANNOUNCEMENT_ARCHIVED: "announcement.archived",
   // Reporting export action for admin CSV downloads.
   REPORT_EXPORTED: "REPORT_EXPORTED",
 } as const;
@@ -35,6 +40,7 @@ export const AUDIT_ENTITY_TYPES = {
   ATTENDANCE: "ATTENDANCE",
   SESSION: "SESSION",
   STUDENT: "STUDENT",
+  ANNOUNCEMENT: "ANNOUNCEMENT",
   // REPORT entity type scopes audit entries to reporting exports.
   REPORT: "REPORT",
 } as const;

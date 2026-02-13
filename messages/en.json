@@ -102,6 +102,7 @@
       "sessions": "Sessions",
       "tutorMySessions": "My sessions",
       "requests": "Requests",
+      "announcements": "Announcements",
       "audit": "Audit log",
       "help": "Help",
       "reportsHome": "Reports home",
@@ -110,7 +111,8 @@
         "attendanceSummary": "Attendance summary",
         "absenceRequests": "Absence requests",
         "tutorWorkload": "Tutor workload",
-        "studentsDirectory": "Students directory"
+        "studentsDirectory": "Students directory",
+        "announcementEngagement": "Announcement engagement"
       }
     },
     "shell": {
@@ -821,7 +823,8 @@
         "attendance": "Attendance Summary",
         "requests": "Absence Requests Queue",
         "workload": "Tutor Workload",
-        "students": "Students Directory"
+        "students": "Students Directory",
+        "announcementEngagement": "Announcement engagement"
       },
       "index": {
         "title": "Reports",
@@ -976,6 +979,11 @@
             "unlinked": "Unlinked"
           }
         }
+      },
+      "announcementEngagement": {
+        "defaultRange": "Published",
+        "title": "Announcement engagement",
+        "helper": "Read counts by announcement."
       }
     },
     "users": {
@@ -1896,6 +1904,7 @@
       "group": "Group/Class",
       "student": "Student",
       "parent": "Parent",
+      "announcement": "Announcement",
       "report": "Report",
       "accessCode": "Access code",
       "system": "System",
@@ -1918,12 +1927,180 @@
       "absenceRequestWithdrawn": "Absence request withdrawn",
       "absenceRequestResubmitted": "Absence request resubmitted",
       "absenceRequestResolved": "Absence request resolved",
+      "announcementCreated": "Announcement created",
+      "announcementUpdated": "Announcement updated",
+      "announcementPublished": "Announcement published",
+      "announcementArchived": "Announcement archived",
       "unknown": "Unknown action"
     },
     "failure": {
       "validation": "Validation error",
       "rateLimited": "Rate limit exceeded",
       "generic": "Operation failed"
+    }
+  },
+  "adminAnnouncements": {
+    "page": {
+      "title": "Announcements",
+      "subtitle": "Create and manage in-app announcements."
+    },
+    "create": "Create announcement",
+    "editTitle": "Edit announcement",
+    "backToList": "Back to announcements",
+    "table": {
+      "createdAt": "Created at",
+      "title": "Title",
+      "scope": "Scope",
+      "status": "Status",
+      "publishedAt": "Published at",
+      "author": "Author",
+      "actions": "Actions"
+    },
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived"
+    },
+    "scope": {
+      "tenantWide": "Tenant-wide"
+    },
+    "author": {
+      "system": "System"
+    },
+    "search": {
+      "placeholder": "Search title or content..."
+    },
+    "filters": {
+      "label": "Filters",
+      "status": "Status",
+      "statusAll": "All",
+      "dateRange": "Date range",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "author": "Author",
+      "authorPlaceholder": "Name or email contains..."
+    },
+    "loading": "Loading announcements...",
+    "empty": {
+      "title": "No announcements found",
+      "body": "Try adjusting your search or filters."
+    },
+    "error": {
+      "title": "Unable to load announcements",
+      "body": "Please refresh the page and try again."
+    },
+    "form": {
+      "title": {
+        "label": "Title",
+        "required": "Title is required.",
+        "helper": "Recommended max {max} characters.",
+        "maxError": "Title must be {max} characters or fewer."
+      },
+      "body": {
+        "label": "Body",
+        "required": "Body is required.",
+        "helper": "Plain text. Recommended max {max} characters.",
+        "maxError": "Body must be {max} characters or fewer."
+      },
+      "scope": {
+        "label": "Scope"
+      }
+    },
+    "action": {
+      "saveDraft": "Save draft",
+      "publish": "Publish",
+      "unpublish": "Unpublish",
+      "archive": "Archive",
+      "saving": "Saving...",
+      "publishing": "Publishing...",
+      "edit": "Edit"
+    },
+    "confirm": {
+      "publish": {
+        "title": "Publish announcement?",
+        "body": "This will be visible to parents and tutors."
+      },
+      "archive": {
+        "title": "Archive announcement?",
+        "body": "Archived announcements are no longer shown in feeds."
+      },
+      "unpublish": {
+        "title": "Unpublish announcement?",
+        "body": "This will remove it from feeds."
+      },
+      "ctaConfirm": "Confirm",
+      "ctaCancel": "Cancel"
+    },
+    "toast": {
+      "saved": "Saved",
+      "published": "Published",
+      "archived": "Archived",
+      "error": "Something went wrong. Please try again."
+    }
+  },
+  "portalAnnouncements": {
+    "nav": "Announcements",
+    "feed": {
+      "title": "Announcements"
+    },
+    "unread": "Unread",
+    "loadMore": "Load more",
+    "loadingMore": "Loading...",
+    "loading": "Loading announcements...",
+    "empty": {
+      "title": "No announcements",
+      "body": "When announcements are published, they'll appear here."
+    },
+    "error": {
+      "title": "Unable to load announcements",
+      "body": "Please refresh the page and try again."
+    },
+    "detail": {
+      "publishedAt": "Published {date}"
+    },
+    "backToFeed": "Back to announcements"
+  },
+  "announcementsReport": {
+    "page": {
+      "title": "Announcement engagement"
+    },
+    "filters": {
+      "dateRange": "Date range",
+      "status": "Status"
+    },
+    "table": {
+      "announcement": "Announcement",
+      "publishedAt": "Published at",
+      "audienceSize": "Audience size",
+      "readCount": "Read count",
+      "readRate": "Read rate"
+    },
+    "value": {
+      "na": "N/A",
+      "dash": "—"
+    },
+    "export": {
+      "csv": "Export CSV",
+      "exporting": "Exporting...",
+      "toast": {
+        "success": {
+          "title": "Export started",
+          "body": "Your CSV download will begin shortly."
+        },
+        "error": {
+          "title": "Unable to export",
+          "body": "Please try again. If the problem continues, contact support."
+        }
+      }
+    },
+    "loading": "Loading report...",
+    "empty": {
+      "title": "No data",
+      "body": "Try adjusting your filters."
+    },
+    "error": {
+      "title": "Unable to load report",
+      "body": "Please refresh the page and try again."
     }
   },
   "parent": {

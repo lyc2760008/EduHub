@@ -20,8 +20,14 @@ export default function TutorShell({
   const t = useTranslations();
   const pathname = usePathname();
   const sessionsHref = `/${tenant}/tutor/sessions`;
+  const announcementsHref = `/${tenant}/tutor/announcements`;
   const isSessionsRoute =
     pathname === sessionsHref || pathname.startsWith(`${sessionsHref}/`);
+  const isAnnouncementsRoute =
+    pathname === announcementsHref || pathname.startsWith(`${announcementsHref}/`);
+  const title = isAnnouncementsRoute
+    ? t("portalAnnouncements.feed.title")
+    : t("tutorSessions.page.title");
 
   return (
     <div className="min-h-screen bg-slate-50" data-testid="tutor-shell">
@@ -32,10 +38,10 @@ export default function TutorShell({
               {tenantLabel ?? tenant}
             </p>
             <p className="text-sm font-semibold text-slate-900">
-              {t("tutorSessions.page.title")}
+              {title}
             </p>
           </div>
-          {/* Tutor nav remains intentionally small for Step 22.4 scope. */}
+          {/* Tutor nav includes sessions plus announcements while staying concise on small screens. */}
           <nav className="flex items-center gap-2" aria-label={t("admin.shell.nav.title")}>
             <Link
               href={sessionsHref}
@@ -48,6 +54,18 @@ export default function TutorShell({
               data-testid="tutor-nav-my-sessions"
             >
               {t("tutorSessions.page.title")}
+            </Link>
+            <Link
+              href={announcementsHref}
+              className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
+                isAnnouncementsRoute
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-700 hover:bg-slate-100"
+              }`}
+              aria-current={isAnnouncementsRoute ? "page" : undefined}
+              data-testid="tutor-nav-announcements"
+            >
+              {t("portalAnnouncements.nav")}
             </Link>
           </nav>
         </div>

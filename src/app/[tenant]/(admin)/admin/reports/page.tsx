@@ -27,7 +27,8 @@ type ReportCardConfig = {
     | "attendance"
     | "requests"
     | "workload"
-    | "students";
+    | "students"
+    | "announcementEngagement";
   href: string;
 };
 
@@ -37,6 +38,8 @@ const REPORT_CARDS: ReportCardConfig[] = [
   { id: "requests", href: "absence-requests" },
   { id: "workload", href: "tutor-workload" },
   { id: "students", href: "students-directory" },
+  // Step 22.8 engagement report lives in the announcements route namespace.
+  { id: "announcementEngagement", href: "/admin/announcements/engagement" },
 ];
 
 export default async function ReportsIndexPage({ params }: ReportsPageProps) {
@@ -72,7 +75,11 @@ export default async function ReportsIndexPage({ params }: ReportsPageProps) {
                 </p>
                 <div className="mt-auto">
                   <Link
-                    href={`/${tenant}/admin/reports/${card.href}`}
+                    href={
+                      card.href.startsWith("/")
+                        ? `/${tenant}${card.href}`
+                        : `/${tenant}/admin/reports/${card.href}`
+                    }
                     className="inline-flex items-center rounded border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
                   >
                     {t("admin.reports.index.openReport")}
