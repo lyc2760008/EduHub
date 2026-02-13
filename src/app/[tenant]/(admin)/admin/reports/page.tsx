@@ -29,7 +29,8 @@ type ReportCardConfig = {
     | "requests"
     | "workload"
     | "students"
-    | "announcementEngagement";
+    | "announcementEngagement"
+    | "homeworkSla";
   href: string;
 };
 
@@ -40,6 +41,7 @@ const REPORT_CARDS: ReportCardConfig[] = [
   { id: "requests", href: "absence-requests" },
   { id: "workload", href: "tutor-workload" },
   { id: "students", href: "students-directory" },
+  { id: "homeworkSla", href: "homework-sla" },
   // Step 22.8 engagement report lives in the announcements route namespace.
   { id: "announcementEngagement", href: "/admin/announcements/engagement" },
 ];

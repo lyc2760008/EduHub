@@ -143,6 +143,12 @@ function normalizeTimeInput(raw: string) {
   return `${String(normalizedHour).padStart(2, "0")}:${minute}`;
 }
 
+function readNonEmptyInputValue(input: HTMLInputElement | null, fallback: string) {
+  // Safari can transiently expose empty control values during picker interactions.
+  const value = input?.value?.trim() ?? "";
+  return value || fallback;
+}
+
 export default function SessionGeneratorModal({
   centers,
   tutors,
@@ -256,13 +262,13 @@ export default function SessionGeneratorModal({
 
   function getNormalizedFormSnapshot(): FormState {
     // Safari/Chrome on macOS can keep native date/time control values ahead of React state.
-    const startDate = startDateInputRef.current?.value?.trim() ?? form.startDate;
-    const endDate = endDateInputRef.current?.value?.trim() ?? form.endDate;
+    const startDate = readNonEmptyInputValue(startDateInputRef.current, form.startDate);
+    const endDate = readNonEmptyInputValue(endDateInputRef.current, form.endDate);
     const startTime = normalizeTimeInput(
-      startTimeInputRef.current?.value ?? form.startTime,
+      readNonEmptyInputValue(startTimeInputRef.current, form.startTime),
     );
     const endTime = normalizeTimeInput(
-      endTimeInputRef.current?.value ?? form.endTime,
+      readNonEmptyInputValue(endTimeInputRef.current, form.endTime),
     );
 
     return {

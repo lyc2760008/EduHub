@@ -32,6 +32,10 @@ export const AUDIT_ACTIONS = {
   SESSION_RESOURCE_UPDATED: "sessionResource.updated",
   SESSION_RESOURCE_DELETED: "sessionResource.deleted",
   SESSION_RESOURCE_BULK_APPLIED: "sessionResource.bulkApplied",
+  // Step 23.2 homework workflow + file lifecycle actions.
+  HOMEWORK_STATUS_CHANGED: "homework.status.changed",
+  HOMEWORK_FILE_UPLOADED: "homework.file.uploaded",
+  HOMEWORK_BULK_REVIEWED: "homework.bulk.reviewed",
   // Reporting export action for admin CSV downloads.
   REPORT_EXPORTED: "REPORT_EXPORTED",
 } as const;
@@ -46,6 +50,7 @@ export const AUDIT_ENTITY_TYPES = {
   SESSION: "SESSION",
   STUDENT: "STUDENT",
   ANNOUNCEMENT: "ANNOUNCEMENT",
+  HOMEWORK: "HOMEWORK",
   // REPORT entity type scopes audit entries to reporting exports.
   REPORT: "REPORT",
 } as const;

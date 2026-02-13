@@ -1,6 +1,6 @@
 ﻿<!-- Curated snapshot for PO planning. Keep secrets out; update via scripts/generate-current-state.mjs. -->
 
-Planning Inputs (must read): duplication-risk.md + capability-matrix.md
+Planning Inputs (must read): `docs/po/repo-intel/duplication-risk.md` + `docs/po/repo-intel/capability-matrix.md`
 
 # EduHub Current State Snapshot
 
@@ -16,6 +16,8 @@ How to use: Paste this doc before PO planning.
 
 Change log:
 
+- 2026-02-13: Dev — Step 23.2 post-ship UX/guardrail update: homework rows with no assignment file now render as `Unassigned` (UI display state only; DB status unchanged), and parent submission upload now requires an assignment file to exist (UI + API enforcement).
+- 2026-02-13: Dev — Step 23.2 shipped Homework Review Queue + Parent Homework Inbox Pack v1: added tenant-scoped homework workflow (`ASSIGNED -> SUBMITTED -> REVIEWED`), versioned slot files (`ASSIGNMENT`/`SUBMISSION`/`FEEDBACK`) with authenticated downloads, admin+tutor bulk mark-reviewed, admin Homework SLA JSON+CSV report, and parent+tutor+admin homework UI routes.
 - 2026-02-13: Dev — Step 22.9 shipped Session Resources + Homework Links Pack v1: added `SessionResource` data model, admin CRUD + bulk-apply APIs, missing-resources report + CSV export, tutor session resources (create-only on owned sessions), and parent read-only session resource visibility.
 - 2026-02-13: Dev — Step 22.8 shipped Announcements + Read Receipts Pack v1: tenant-wide in-app announcements (admin create/edit/publish/archive), parent+tutor announcement feed/detail with idempotent read receipts, and admin engagement report with aggregate CSV export.
 - 2026-02-12: Dev — Step 22.7 shipped Scheduling Efficiency Pack v1 + Zoom link: session generation now runs Preview -> Commit with shared planner logic, admin bulk cancel (reason-code, audited), group detail roster-sync entry confirm flow, and nullable `Session.zoomLink` exposed as admin edit + tutor/parent read-only detail.
@@ -68,6 +70,8 @@ Change log:
 - Step 22.8 — Announcements + Read Receipts Pack v1 shipped. Admin can manage announcements via `/[tenant]/admin/announcements` (`new`, `[id]`, `engagement`), parent+tutor consume announcements via `/[tenant]/portal/announcements` + `/[tenant]/tutor/announcements` (detail routes included), read receipts are idempotent via `/api/portal/announcements/[id]/read`, and engagement reporting supports aggregate CSV export (`/api/admin/announcements/engagement.csv`) without per-user rows.
 <!-- Step 22.9: Session Resources + Homework Links Pack v1 -->
 - Step 22.9 — Session Resources + Homework Links Pack v1 shipped. Added `SessionResource` model + enums in Prisma, admin session resource CRUD (`/api/admin/sessions/[id]/resources`, `/api/admin/resources/[resourceId]`), admin bulk apply (`/api/admin/sessions/resources/bulk-apply`) with duplicate skipping, missing-resources report (`/[tenant]/admin/reports/sessions-missing-resources`) + CSV export (`/api/admin/reports/sessions-missing-resources.csv`), tutor scoped resource API (`/[tenant]/api/tutor/sessions/[id]/resources`), and parent session detail read-only resources via `/api/portal/sessions/[id]`. Tutor policy for v1 is PO-locked create-only on owned sessions (no tutor edit/delete).
+<!-- Step 23.2: Homework Review Queue + Parent Homework Inbox Pack v1 -->
+- Step 23.2 — Homework Review Queue + Parent Homework Inbox Pack v1 shipped. Added homework lifecycle models (`HomeworkItem`, `HomeworkFile`) with tenant+session+student scoping and workflow `ASSIGNED -> SUBMITTED -> REVIEWED`; files are restricted to PDF/DOCX (`<= 5MB`) and stored in Postgres bytes for MVP behind `src/lib/homework/storage` seam for future object storage. Added APIs: admin queue/detail/upload/bulk/download (`/api/admin/homework*`), tutor queue/detail/upload/bulk/download (`/[tenant]/api/tutor/homework*`), parent inbox/detail/upload/download (`/api/portal/homework*`), and admin Homework SLA report JSON/CSV (`/api/admin/reports/homework-sla`, `/api/admin/reports/homework-sla.csv`). Default policy: tutor upload is feedback-only in v1 (`ASSIGNMENT` upload disabled unless PO approval flag is enabled), bulk mark-reviewed does not require feedback file unless PO flag is enabled, and parent submission is allowed only after an assignment file exists (enforced in parent UI + upload API).
 
 ## Route Inventory
 
@@ -110,6 +114,17 @@ Parent routes (app/[tenant]/(parent)/...):
   - Capabilities:
   - `view:list`
   - Access control summary: Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`).
+- Path: `/[tenant]/portal/homework`
+  - Description: Parent homework inbox with child/status/date filters.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Parent portal layout guard + linked-student scoped APIs (`src/app/api/portal/homework/route.ts`).
+- Path: `/[tenant]/portal/homework/[id]`
+  - Description: Parent homework detail with slot downloads and submission upload/replace (locked after reviewed; submission upload appears only after assignment file exists).
+  - Capabilities:
+  - `view:detail`
+  - `create:homework_file`
+  - Access control summary: Parent portal layout guard + linked-student scoped detail/upload/download APIs (`src/app/api/portal/homework/[id]/route.ts`, `src/app/api/portal/homework/[id]/files/route.ts`, `src/app/api/portal/homework/files/[fileId]/download/route.ts`).
 - Path: `/[tenant]/portal/announcements/[id]`
   - Description: Parent announcement detail (auto mark-read).
   - Capabilities:
@@ -159,6 +174,18 @@ Tutor routes (app/[tenant]/tutor/...):
   - Capabilities:
   - `view:detail`
   - Access control summary: Tutor layout guard (`src/app/[tenant]/tutor/layout.tsx`) + shared portal announcements APIs.
+- Path: `/[tenant]/tutor/homework`
+  - Description: Tutor homework review queue with bulk mark-reviewed.
+  - Capabilities:
+  - `view:list`
+  - `update:bulk_mark_reviewed`
+  - Access control summary: Tutor layout guard + tutor-owned homework APIs (`src/app/[tenant]/api/tutor/homework/route.ts`, `src/app/[tenant]/api/tutor/homework/bulk/mark-reviewed/route.ts`).
+- Path: `/[tenant]/tutor/homework/[id]`
+  - Description: Tutor homework review detail with feedback upload and version history.
+  - Capabilities:
+  - `view:detail`
+  - `create:homework_file`
+  - Access control summary: Tutor layout guard + tutor-owned detail/upload/download APIs (`src/app/[tenant]/api/tutor/homework/[id]/route.ts`, `src/app/[tenant]/api/tutor/homework/[id]/files/route.ts`, `src/app/[tenant]/api/tutor/homework/files/[fileId]/download/route.ts`).
 
 Admin routes (app/[tenant]/(admin)/...):
 
@@ -226,11 +253,28 @@ Admin routes (app/[tenant]/(admin)/...):
   - Capabilities:
   - `view:list`
   - Access control summary: Admin layout guard + page-level Owner/Admin gate.
+- Path: `/[tenant]/admin/homework`
+  - Description: Admin homework review queue with filters, file indicators, and bulk mark-reviewed.
+  - Capabilities:
+  - `view:list`
+  - `update:bulk_mark_reviewed`
+  - Access control summary: Admin layout guard + Owner/Admin page gate.
+- Path: `/[tenant]/admin/homework/[id]`
+  - Description: Admin homework review detail with assignment/feedback upload and slot version history.
+  - Capabilities:
+  - `view:detail`
+  - `create:homework_file`
+  - Access control summary: Admin layout guard + Owner/Admin page gate.
 - Path: `/[tenant]/admin/reports`
   - Description: Reports hub.
   - Capabilities:
   - `view:list`
   - Access control summary: Admin layout guard (`src/app/[tenant]/(admin)/layout.tsx`).
+- Path: `/[tenant]/admin/reports/homework-sla`
+  - Description: Homework SLA & Completion report with filter-aware CSV export.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Admin layout guard + Owner/Admin page gate.
 - Path: `/[tenant]/admin/reports/sessions-missing-resources`
   - Description: Admin missing-resources report with filterable table + CSV export action.
   - Capabilities:
@@ -318,6 +362,18 @@ Key API capabilities (explicit, code-verified):
 - Path: `/[tenant]/api/tutor/sessions/[id]/resources`
   - Capability: `view:detail`, `create:session_resource` (create-only policy)
   - Evidence: `src/app/[tenant]/api/tutor/sessions/[id]/resources/route.ts` (tutor ownership-scoped reads/writes; tutors may add resources for owned sessions, but cannot edit/delete existing resources in v1).
+- Path: `/api/admin/homework*`
+  - Capability: `view:list`, `view:detail`, `create:homework_file`, `update:bulk_mark_reviewed`, `view:download`
+  - Evidence: `src/app/api/admin/homework/route.ts`, `src/app/api/admin/homework/[id]/route.ts`, `src/app/api/admin/homework/[id]/files/route.ts`, `src/app/api/admin/homework/bulk/mark-reviewed/route.ts`, `src/app/api/admin/homework/files/[fileId]/download/route.ts`.
+- Path: `/[tenant]/api/tutor/homework*`
+  - Capability: `view:list`, `view:detail`, `create:homework_file`, `update:bulk_mark_reviewed`, `view:download`
+  - Evidence: `src/app/[tenant]/api/tutor/homework/route.ts`, `src/app/[tenant]/api/tutor/homework/[id]/route.ts`, `src/app/[tenant]/api/tutor/homework/[id]/files/route.ts`, `src/app/[tenant]/api/tutor/homework/bulk/mark-reviewed/route.ts`, `src/app/[tenant]/api/tutor/homework/files/[fileId]/download/route.ts`.
+- Path: `/api/portal/homework*`
+  - Capability: `view:list`, `view:detail`, `create:homework_file`, `view:download` (submission upload requires existing assignment file)
+  - Evidence: `src/app/api/portal/homework/route.ts`, `src/app/api/portal/homework/[id]/route.ts`, `src/app/api/portal/homework/[id]/files/route.ts`, `src/app/api/portal/homework/files/[fileId]/download/route.ts`.
+- Path: `/api/admin/reports/homework-sla` and `/api/admin/reports/homework-sla.csv`
+  - Capability: `view:list` (aggregate-only SLA metrics + CSV export with filter parity)
+  - Evidence: `src/app/api/admin/reports/homework-sla/route.ts`, `src/app/api/admin/reports/homework-sla.csv/route.ts`.
 
 ## Navigation Map
 
@@ -333,7 +389,8 @@ Admin nav items (from `src/lib/nav/adminNavTree.ts`):
 - People group ? `/admin/students`, `/admin/parents`, `/admin/users`.
 - Setup group ? `/admin/centers`, `/admin/groups`, `/admin/programs`, `/admin/subjects`, `/admin/levels`.
 - Operations group ? `/admin/sessions`, `/admin/requests`, `/admin/announcements`, `/admin/audit`, `/admin/help`.
-- Reports group ? `/admin/reports` + report subroutes + `/admin/announcements/engagement`.
+- Operations group ? `/admin/sessions`, `/admin/requests`, `/admin/announcements`, `/admin/homework`, `/admin/audit`, `/admin/help`.
+- Reports group ? `/admin/reports` + report subroutes + `/admin/reports/homework-sla` + `/admin/announcements/engagement`.
 
 Parent shell/nav sources:
 
@@ -345,6 +402,7 @@ Parent nav items (from `src/components/parent/PortalTopNav.tsx`):
 - Dashboard ? `/[tenant]/portal`.
 - Students ? `/[tenant]/portal/students`.
 - Sessions ? `/[tenant]/portal/sessions`.
+- Homework ? `/[tenant]/portal/homework`.
 - Announcements ? `/[tenant]/portal/announcements`.
 - Requests ? `/[tenant]/portal/requests`.
 
@@ -356,6 +414,7 @@ Tutor shell/nav sources:
 Tutor nav items:
 
 - My Sessions ? `/[tenant]/tutor/sessions`.
+- Homework ? `/[tenant]/tutor/homework`.
 - Announcements ? `/[tenant]/tutor/announcements`.
 
 Duplicate/ambiguous nav labels to confirm:

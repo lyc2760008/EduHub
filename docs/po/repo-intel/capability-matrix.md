@@ -2,6 +2,11 @@
 
 Generated from `docs/po/repo-intel/.scan.json` with deterministic ordering.
 
+## 0) Manual Delta Notes (2026-02-13)
+
+- Homework now has a UI-only display state `UNASSIGNED` when persisted status is `ASSIGNED` and assignment file count is `0` (no Prisma enum change yet).
+- Parent homework submission upload is now conditionally gated: `/api/portal/homework/[id]/files` rejects submission when no assignment file exists (`409`, rule `ASSIGNMENT_REQUIRED`).
+
 ## 1) Routes (sorted lexicographically)
 
 | Route | Area | Capabilities | Evidence |

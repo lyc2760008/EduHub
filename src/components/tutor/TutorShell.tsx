@@ -20,13 +20,18 @@ export default function TutorShell({
   const t = useTranslations();
   const pathname = usePathname();
   const sessionsHref = `/${tenant}/tutor/sessions`;
+  const homeworkHref = `/${tenant}/tutor/homework`;
   const announcementsHref = `/${tenant}/tutor/announcements`;
   const isSessionsRoute =
     pathname === sessionsHref || pathname.startsWith(`${sessionsHref}/`);
+  const isHomeworkRoute =
+    pathname === homeworkHref || pathname.startsWith(`${homeworkHref}/`);
   const isAnnouncementsRoute =
     pathname === announcementsHref || pathname.startsWith(`${announcementsHref}/`);
   const title = isAnnouncementsRoute
     ? t("portalAnnouncements.feed.title")
+    : isHomeworkRoute
+      ? t("staffHomework.queue.title")
     : t("tutorSessions.page.title");
 
   return (
@@ -66,6 +71,18 @@ export default function TutorShell({
               data-testid="tutor-nav-announcements"
             >
               {t("portalAnnouncements.nav")}
+            </Link>
+            <Link
+              href={homeworkHref}
+              className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
+                isHomeworkRoute
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-700 hover:bg-slate-100"
+              }`}
+              aria-current={isHomeworkRoute ? "page" : undefined}
+              data-testid="tutor-nav-homework"
+            >
+              {t("homework.common.homework")}
             </Link>
           </nav>
         </div>
