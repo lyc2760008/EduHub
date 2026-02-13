@@ -79,6 +79,14 @@ type PortalRequestDetail = {
   resolvedAt?: string | null;
 };
 
+type PortalSessionResource = {
+  id: string;
+  title: string;
+  url: string;
+  type: "HOMEWORK" | "WORKSHEET" | "VIDEO" | "OTHER";
+  updatedAt: string;
+};
+
 type PortalSessionDetailResponse = {
   session: PortalSessionDetail;
   students: Array<{
@@ -86,6 +94,7 @@ type PortalSessionDetailResponse = {
     attendance: PortalAttendance;
     request: PortalRequestSummary;
   }>;
+  resources: PortalSessionResource[];
 };
 
 type PortalRequestsResponse = {
@@ -182,6 +191,21 @@ function getSessionCancelReasonLabelKey(reasonCode: string | null | undefined) {
       return "portal.sessions.cancelReason.OTHER";
     default:
       return null;
+  }
+}
+
+function getResourceTypeLabelKey(
+  type: PortalSessionResource["type"],
+) {
+  switch (type) {
+    case "HOMEWORK":
+      return "sessionResources.type.homework";
+    case "WORKSHEET":
+      return "sessionResources.type.worksheet";
+    case "VIDEO":
+      return "sessionResources.type.video";
+    default:
+      return "sessionResources.type.other";
   }
 }
 
@@ -495,6 +519,7 @@ export default function PortalSessionDetailPage() {
   }, [activeStudentId, sessionDetail]);
 
   const session = sessionDetail?.session ?? null;
+  const resources = sessionDetail?.resources ?? [];
   const isSessionCanceled = Boolean(session?.canceledAt);
   // Prefer the session timezone so parent times align with admin display.
   const sessionTimeZone = session?.timezone ?? tenantTimeZone;
@@ -766,6 +791,51 @@ export default function PortalSessionDetailPage() {
               ) : null}
             </div>
           </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="space-y-4" data-testid="portal-session-resources">
+          <h2 className="text-base font-semibold text-[var(--text)]">
+            {t("sessionResources.section.title")}
+          </h2>
+
+          {resources.length === 0 ? (
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-[var(--text)]">
+                {t("sessionResources.empty.parent.title")}
+              </p>
+              <p className="text-sm text-[var(--muted)]">
+                {t("sessionResources.empty.parent.helper")}
+              </p>
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {resources.map((resource) => (
+                <li
+                  key={resource.id}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center rounded-full border border-[var(--border)] px-2 py-0.5 text-xs text-[var(--muted)]">
+                      {t(getResourceTypeLabelKey(resource.type))}
+                    </span>
+                    <p className="text-sm font-medium text-[var(--text)]">
+                      {resource.title}
+                    </p>
+                  </div>
+                  <a
+                    className="mt-1 inline-flex text-sm font-semibold text-[var(--primary)] underline"
+                    href={resource.url}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    {t("sessionResources.openLink")}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </Card>
 

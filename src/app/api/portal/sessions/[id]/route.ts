@@ -141,6 +141,21 @@ export async function GET(req: NextRequest, context: Params) {
     }
 
     const session = rosterRows[0].session;
+    // Parent payload exposes only minimal resource fields for linked session detail views.
+    const resources = await prisma.sessionResource.findMany({
+      where: {
+        tenantId,
+        sessionId: session.id,
+      },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+      select: {
+        id: true,
+        title: true,
+        url: true,
+        type: true,
+        updatedAt: true,
+      },
+    });
 
     return NextResponse.json({
       session: {
@@ -188,6 +203,13 @@ export async function GET(req: NextRequest, context: Params) {
             : null,
         };
       }),
+      resources: resources.map((resource) => ({
+        id: resource.id,
+        title: resource.title,
+        url: resource.url,
+        type: resource.type,
+        updatedAt: resource.updatedAt.toISOString(),
+      })),
     });
   } catch (error) {
     console.error("GET /api/portal/sessions/[id] failed", error);

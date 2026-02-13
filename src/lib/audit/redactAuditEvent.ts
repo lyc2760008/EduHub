@@ -69,6 +69,13 @@ const SAFE_METADATA_KEYS = new Set<string>([
   "exportTruncated",
   "searchProvided",
   "filterKeys",
+  "sessionId",
+  "resourceId",
+  "type",
+  "sessionCount",
+  "resourcesAttempted",
+  "resourcesCreated",
+  "duplicatesSkipped",
 ]);
 
 const STATUS_COUNT_KEYS = new Set([

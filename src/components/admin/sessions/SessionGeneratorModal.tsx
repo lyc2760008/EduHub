@@ -1,7 +1,7 @@
 ﻿// Recurring session generator modal with dry-run preview and commit support.
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import AdminFormField from "@/components/admin/shared/AdminFormField";
@@ -118,11 +118,29 @@ const WEEKDAY_VALUES = [1, 2, 3, 4, 5, 6, 7] as const;
 // Checkbox focus-visible styles keep keyboard navigation clear.
 const weekdayCheckboxBase =
   "h-4 w-4 rounded border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
+const TIME_24H_REGEX = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+const TIME_12H_REGEX = /^(1[0-2]|0?[1-9]):([0-5]\d)\s*([AaPp][Mm])$/;
 
 function formatStudentName(student: StudentOption) {
   return student.preferredName?.trim().length
     ? `${student.preferredName} ${student.lastName}`
     : `${student.firstName} ${student.lastName}`;
+}
+
+function normalizeTimeInput(raw: string) {
+  const value = raw.trim();
+  if (!value) return "";
+  if (TIME_24H_REGEX.test(value)) return value;
+
+  const match = value.match(TIME_12H_REGEX);
+  if (!match) return value;
+
+  const hour = Number(match[1]);
+  const minute = match[2];
+  const meridiem = match[3].toUpperCase();
+  const normalizedHour =
+    meridiem === "PM" ? (hour % 12) + 12 : hour % 12;
+  return `${String(normalizedHour).padStart(2, "0")}:${minute}`;
 }
 
 export default function SessionGeneratorModal({
@@ -154,6 +172,10 @@ export default function SessionGeneratorModal({
   const [preview, setPreview] = useState<GeneratorPreviewResponse | null>(null);
   const [previewPayloadSignature, setPreviewPayloadSignature] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const startDateInputRef = useRef<HTMLInputElement>(null);
+  const endDateInputRef = useRef<HTMLInputElement>(null);
+  const startTimeInputRef = useRef<HTMLInputElement>(null);
+  const endTimeInputRef = useRef<HTMLInputElement>(null);
 
   const filteredTutors = useMemo(() => {
     if (!form.centerId) return tutors;
@@ -232,56 +254,78 @@ export default function SessionGeneratorModal({
     }
   }
 
-  function validateForm() {
+  function getNormalizedFormSnapshot(): FormState {
+    // Safari/Chrome on macOS can keep native date/time control values ahead of React state.
+    const startDate = startDateInputRef.current?.value?.trim() ?? form.startDate;
+    const endDate = endDateInputRef.current?.value?.trim() ?? form.endDate;
+    const startTime = normalizeTimeInput(
+      startTimeInputRef.current?.value ?? form.startTime,
+    );
+    const endTime = normalizeTimeInput(
+      endTimeInputRef.current?.value ?? form.endTime,
+    );
+
+    return {
+      ...form,
+      startDate,
+      endDate,
+      startTime,
+      endTime,
+      zoomLink: form.zoomLink.trim(),
+    };
+  }
+
+  function validateForm(snapshot: FormState) {
     if (
-      !form.centerId ||
-      !form.tutorId ||
-      !form.startDate ||
-      !form.endDate ||
-      !form.startTime ||
-      !form.endTime
+      !snapshot.centerId ||
+      !snapshot.tutorId ||
+      !snapshot.startDate ||
+      !snapshot.endDate ||
+      !snapshot.startTime ||
+      !snapshot.endTime
     ) {
       return requiredFieldsMessage;
     }
 
-    if (!form.weekdays.length) {
+    if (!snapshot.weekdays.length) {
       return weekdayRequiredMessage;
     }
 
-    if (form.sessionType === "ONE_ON_ONE" && !form.studentId) {
+    if (snapshot.sessionType === "ONE_ON_ONE" && !snapshot.studentId) {
       return studentRequiredMessage;
     }
 
-    if (form.sessionType !== "ONE_ON_ONE" && !form.groupId) {
+    if (snapshot.sessionType !== "ONE_ON_ONE" && !snapshot.groupId) {
       return groupRequiredMessage;
     }
 
-    if (!isValidZoomLinkInput(form.zoomLink)) {
+    if (!isValidZoomLinkInput(snapshot.zoomLink)) {
       return invalidZoomLinkMessage;
     }
 
     return null;
   }
 
-  function buildPayload() {
+  function buildPayload(snapshot: FormState) {
     return {
-      centerId: form.centerId,
-      tutorId: form.tutorId,
-      sessionType: form.sessionType,
-      studentId: form.sessionType === "ONE_ON_ONE" ? form.studentId : undefined,
-      groupId: form.sessionType === "ONE_ON_ONE" ? undefined : form.groupId,
-      startDate: form.startDate,
-      endDate: form.endDate,
-      weekdays: form.weekdays,
-      startTime: form.startTime,
-      endTime: form.endTime,
-      timezone: form.timezone || defaultTimezone,
-      zoomLink: form.zoomLink.trim() || null,
+      centerId: snapshot.centerId,
+      tutorId: snapshot.tutorId,
+      sessionType: snapshot.sessionType,
+      studentId:
+        snapshot.sessionType === "ONE_ON_ONE" ? snapshot.studentId : undefined,
+      groupId: snapshot.sessionType === "ONE_ON_ONE" ? undefined : snapshot.groupId,
+      startDate: snapshot.startDate,
+      endDate: snapshot.endDate,
+      weekdays: snapshot.weekdays,
+      startTime: snapshot.startTime,
+      endTime: snapshot.endTime,
+      timezone: snapshot.timezone || defaultTimezone,
+      zoomLink: snapshot.zoomLink || null,
     };
   }
 
-  function buildPayloadSignature() {
-    return JSON.stringify(buildPayload());
+  function buildPayloadSignature(snapshot: FormState) {
+    return JSON.stringify(buildPayload(snapshot));
   }
 
   function previewReasonLabelKey(reason: PreviewReasonCode) {
@@ -296,21 +340,23 @@ export default function SessionGeneratorModal({
 
   const isActionBusy = isPreviewLoading || isCommitLoading;
   const canCommit =
-    Boolean(preview) && previewPayloadSignature === buildPayloadSignature();
+    Boolean(preview) && previewPayloadSignature === buildPayloadSignature(form);
 
   async function runPreview() {
     setIsPreviewLoading(true);
     setError(null);
     setPreview(null);
 
-    const validationError = validateForm();
+    const snapshot = getNormalizedFormSnapshot();
+    setForm(snapshot);
+    const validationError = validateForm(snapshot);
     if (validationError) {
       setError(validationError);
       setIsPreviewLoading(false);
       return;
     }
 
-    const payload = buildPayload();
+    const payload = buildPayload(snapshot);
     const signature = JSON.stringify(payload);
     const result = await fetchJson<GeneratorPreviewResponse>(
       buildTenantApiUrl(tenant, "/sessions/generate/preview"),
@@ -338,7 +384,9 @@ export default function SessionGeneratorModal({
     setIsCommitLoading(true);
     setError(null);
 
-    const validationError = validateForm();
+    const snapshot = getNormalizedFormSnapshot();
+    setForm(snapshot);
+    const validationError = validateForm(snapshot);
     if (validationError) {
       setError(validationError);
       setIsCommitLoading(false);
@@ -350,7 +398,7 @@ export default function SessionGeneratorModal({
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildPayload()),
+        body: JSON.stringify(buildPayload(snapshot)),
       },
     );
 
@@ -549,10 +597,17 @@ export default function SessionGeneratorModal({
                 <input
                   className={inputBase}
                   id="sessions-generator-start-date"
+                  ref={startDateInputRef}
                   type="date"
                   value={form.startDate}
                   onChange={(event) =>
                     updateField("startDate", event.target.value)
+                  }
+                  onInput={(event) =>
+                    updateField(
+                      "startDate",
+                      (event.currentTarget as HTMLInputElement).value,
+                    )
                   }
                 />
               </AdminFormField>
@@ -564,9 +619,16 @@ export default function SessionGeneratorModal({
                 <input
                   className={inputBase}
                   id="sessions-generator-end-date"
+                  ref={endDateInputRef}
                   type="date"
                   value={form.endDate}
                   onChange={(event) => updateField("endDate", event.target.value)}
+                  onInput={(event) =>
+                    updateField(
+                      "endDate",
+                      (event.currentTarget as HTMLInputElement).value,
+                    )
+                  }
                 />
               </AdminFormField>
             </div>
@@ -602,9 +664,18 @@ export default function SessionGeneratorModal({
                   className={inputBase}
                   id="sessions-generator-start-time"
                   type="time"
+                  ref={startTimeInputRef}
                   value={form.startTime}
                   onChange={(event) =>
                     updateField("startTime", event.target.value)
+                  }
+                  onInput={(event) =>
+                    updateField(
+                      "startTime",
+                      normalizeTimeInput(
+                        (event.currentTarget as HTMLInputElement).value,
+                      ),
+                    )
                   }
                 />
               </AdminFormField>
@@ -617,8 +688,17 @@ export default function SessionGeneratorModal({
                   className={inputBase}
                   id="sessions-generator-end-time"
                   type="time"
+                  ref={endTimeInputRef}
                   value={form.endTime}
                   onChange={(event) => updateField("endTime", event.target.value)}
+                  onInput={(event) =>
+                    updateField(
+                      "endTime",
+                      normalizeTimeInput(
+                        (event.currentTarget as HTMLInputElement).value,
+                      ),
+                    )
+                  }
                 />
               </AdminFormField>
             </div>

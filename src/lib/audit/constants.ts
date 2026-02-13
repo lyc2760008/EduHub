@@ -27,6 +27,11 @@ export const AUDIT_ACTIONS = {
   ANNOUNCEMENT_UPDATED: "announcement.updated",
   ANNOUNCEMENT_PUBLISHED: "announcement.published",
   ANNOUNCEMENT_ARCHIVED: "announcement.archived",
+  // Step 22.9 session resources lifecycle + bulk apply actions.
+  SESSION_RESOURCE_CREATED: "sessionResource.created",
+  SESSION_RESOURCE_UPDATED: "sessionResource.updated",
+  SESSION_RESOURCE_DELETED: "sessionResource.deleted",
+  SESSION_RESOURCE_BULK_APPLIED: "sessionResource.bulkApplied",
   // Reporting export action for admin CSV downloads.
   REPORT_EXPORTED: "REPORT_EXPORTED",
 } as const;
