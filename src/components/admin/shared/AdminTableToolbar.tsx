@@ -24,10 +24,17 @@ type AdminTableToolbarProps = {
   onOpenFilters: () => void;
   filterChips: AdminFilterChip[];
   onClearAllFilters: () => void;
+  searchLabel?: string;
+  searchPlaceholder?: string;
+  filtersLabel?: string;
+  clearAllLabel?: string;
   showExportButton?: boolean;
   onExportCsv?: () => void;
   isExporting?: boolean;
   exportDisabled?: boolean;
+  exportLabel?: string;
+  exportingLabel?: string;
+  exportHint?: string | null;
   rightSlot?: ReactNode;
 };
 
@@ -38,13 +45,31 @@ export default function AdminTableToolbar({
   onOpenFilters,
   filterChips,
   onClearAllFilters,
+  searchLabel,
+  searchPlaceholder,
+  filtersLabel,
+  clearAllLabel,
   showExportButton = false,
   onExportCsv,
   isExporting = false,
   exportDisabled = false,
+  exportLabel,
+  exportingLabel,
+  exportHint,
   rightSlot,
 }: AdminTableToolbarProps) {
   const t = useTranslations();
+  // Optional override props let module-specific contracts supply copy while preserving toolkit layout.
+  const resolvedSearchLabel = searchLabel ?? t("admin.table.search.label");
+  const resolvedSearchPlaceholder =
+    searchPlaceholder ?? t("admin.table.search.placeholder");
+  const resolvedFiltersLabel = filtersLabel ?? t("admin.table.filters.label");
+  const resolvedClearAllLabel = clearAllLabel ?? t("admin.table.filters.clearAll");
+  const resolvedExportLabel = exportLabel ?? t("admin.table.exportCsv");
+  const resolvedExportingLabel =
+    exportingLabel ?? t("admin.table.export.preparing");
+  const resolvedExportHint =
+    exportHint === undefined ? t("admin.table.export.warning") : exportHint;
 
   return (
     <section
@@ -54,14 +79,14 @@ export default function AdminTableToolbar({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-[220px] flex-1 flex-wrap items-center gap-2">
           <label className="sr-only" htmlFor={searchId}>
-            {t("admin.table.search.label")}
+            {resolvedSearchLabel}
           </label>
           <input
             id={searchId}
             className={`${inputBase} min-w-[220px] flex-1`}
             value={searchValue}
             onChange={(event) => onSearchChange(event.target.value)}
-            placeholder={t("admin.table.search.placeholder")}
+            placeholder={resolvedSearchPlaceholder}
             data-testid={`${searchId}-input`}
           />
           <button
@@ -70,7 +95,7 @@ export default function AdminTableToolbar({
             onClick={onOpenFilters}
             data-testid={`${searchId}-filters-button`}
           >
-            {t("admin.table.filters.label")}
+            {resolvedFiltersLabel}
           </button>
         </div>
 
@@ -83,14 +108,12 @@ export default function AdminTableToolbar({
               disabled={exportDisabled || isExporting}
               data-testid={`${searchId}-export-csv`}
             >
-              {isExporting
-                ? t("admin.table.export.preparing")
-                : t("admin.table.exportCsv")}
+              {isExporting ? resolvedExportingLabel : resolvedExportLabel}
             </button>
           ) : null}
-          {showExportButton ? (
+          {showExportButton && resolvedExportHint ? (
             <p className="max-w-[320px] text-right text-xs text-slate-500">
-              {t("admin.table.export.warning")}
+              {resolvedExportHint}
             </p>
           ) : null}
           {rightSlot}
@@ -118,7 +141,7 @@ export default function AdminTableToolbar({
               onClick={onClearAllFilters}
               data-testid={`${searchId}-filters-clear-all`}
             >
-              {t("admin.table.filters.clearAll")}
+              {resolvedClearAllLabel}
             </button>
           ) : null}
         </div>

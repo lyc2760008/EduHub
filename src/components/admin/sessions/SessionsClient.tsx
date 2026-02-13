@@ -94,6 +94,13 @@ type SessionsResponse = {
   appliedFilters: Record<string, unknown>;
 };
 
+type BulkCancelReasonCode =
+  | "WEATHER"
+  | "TUTOR_UNAVAILABLE"
+  | "HOLIDAY"
+  | "LOW_ENROLLMENT"
+  | "OTHER";
+
 type StudentsResponse = {
   rows: StudentOption[];
   totalCount: number;
@@ -110,6 +117,13 @@ type TutorsResponse = {
 };
 
 const DEFAULT_TIMEZONE = "America/Edmonton";
+const BULK_CANCEL_REASON_CODES: BulkCancelReasonCode[] = [
+  "WEATHER",
+  "TUTOR_UNAVAILABLE",
+  "HOLIDAY",
+  "LOW_ENROLLMENT",
+  "OTHER",
+];
 
 function sessionTypeLabelKey(type: SessionListItem["sessionType"]) {
   if (type === "ONE_ON_ONE") return "admin.sessions.types.oneOnOne";
@@ -152,6 +166,11 @@ export default function SessionsClient({
 
   const [isOneOffOpen, setIsOneOffOpen] = useState(false);
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
+  const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
+  const [isBulkCancelOpen, setIsBulkCancelOpen] = useState(false);
+  const [bulkCancelReasonCode, setBulkCancelReasonCode] = useState("");
+  const [bulkCancelError, setBulkCancelError] = useState<string | null>(null);
+  const [isBulkCanceling, setIsBulkCanceling] = useState(false);
 
   const { state, setSearch, setFilter, clearFilters, setSort, setPage, setPageSize } =
     useAdminTableQueryState({
@@ -202,6 +221,10 @@ export default function SessionsClient({
     }
 
     setSessions(result.data.rows ?? []);
+    const visibleIds = new Set((result.data.rows ?? []).map((session) => session.id));
+    setSelectedSessionIds((current) =>
+      current.filter((sessionId) => visibleIds.has(sessionId)),
+    );
     setTotalCount(result.data.totalCount ?? 0);
     setIsLoading(false);
   }, [state, t, tenant]);
@@ -340,6 +363,80 @@ export default function SessionsClient({
     setMessage(null);
   };
 
+  const selectedIdSet = useMemo(
+    () => new Set(selectedSessionIds),
+    [selectedSessionIds],
+  );
+
+  const selectedCount = selectedSessionIds.length;
+  const isAllVisibleSelected =
+    sessions.length > 0 && sessions.every((session) => selectedIdSet.has(session.id));
+
+  const toggleSessionSelection = useCallback((sessionId: string, checked: boolean) => {
+    setSelectedSessionIds((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(sessionId);
+      } else {
+        next.delete(sessionId);
+      }
+      return Array.from(next);
+    });
+  }, []);
+
+  const toggleSelectAllVisible = useCallback(
+    (checked: boolean) => {
+      if (checked) {
+        setSelectedSessionIds(sessions.map((session) => session.id));
+        return;
+      }
+      setSelectedSessionIds([]);
+    },
+    [sessions],
+  );
+
+  async function submitBulkCancel() {
+    setBulkCancelError(null);
+    if (!bulkCancelReasonCode) {
+      setBulkCancelError(t("admin.sessions.bulkCancel.reasonRequired"));
+      return;
+    }
+    if (!selectedSessionIds.length) {
+      setBulkCancelError(t("admin.sessions.bulkCancel.failure"));
+      return;
+    }
+
+    setIsBulkCanceling(true);
+    const result = await fetchJson<{ ok: true; canceledCount: number }>(
+      buildTenantApiUrl(tenant, "/sessions/bulk-cancel"),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionIds: selectedSessionIds,
+          reasonCode: bulkCancelReasonCode,
+        }),
+      },
+    );
+    setIsBulkCanceling(false);
+
+    if (!result.ok) {
+      setBulkCancelError(t("admin.sessions.bulkCancel.failure"));
+      return;
+    }
+
+    setMessage(
+      t("admin.sessions.bulkCancel.success", {
+        count: result.data.canceledCount,
+      }),
+    );
+    setSelectedSessionIds([]);
+    setBulkCancelReasonCode("");
+    setBulkCancelError(null);
+    setIsBulkCancelOpen(false);
+    setReloadNonce((current) => current + 1);
+  }
+
   const clearAll = () => {
     clearFilters();
     setSearch("");
@@ -402,9 +499,37 @@ export default function SessionsClient({
   }, [derivedCenters, isAdmin, setFilter, setSearch, state.filters, state.search, t, tutors]);
 
   const columns: AdminDataTableColumn<SessionListItem>[] = useMemo(
-    () => [
-      {
-        key: "centerName",
+    () => {
+      const baseColumns: AdminDataTableColumn<SessionListItem>[] = [
+        ...(isAdmin
+          ? [
+              {
+                key: "select",
+                label: (
+                  <input
+                    type="checkbox"
+                    checked={isAllVisibleSelected}
+                    onChange={(event) =>
+                      toggleSelectAllVisible(event.target.checked)
+                    }
+                    aria-label={t("admin.sessions.bulkCancel.selectAll")}
+                  />
+                ),
+                renderCell: (session) => (
+                  <input
+                    type="checkbox"
+                    checked={selectedIdSet.has(session.id)}
+                    onChange={(event) =>
+                      toggleSessionSelection(session.id, event.target.checked)
+                    }
+                    aria-label={t("admin.sessions.bulkCancel.selectRow")}
+                  />
+                ),
+              } satisfies AdminDataTableColumn<SessionListItem>,
+            ]
+          : []),
+        {
+          key: "centerName",
         label: t("admin.sessions.fields.center"),
         sortable: true,
         sortField: "centerName",
@@ -465,21 +590,32 @@ export default function SessionsClient({
         renderCell: (session) =>
           formatSessionDateTime(session.endAt, session.timezone, locale),
       },
-      {
-        key: "actions",
-        label: t("admin.sessions.fields.actions"),
-        renderCell: (session) => (
-          <Link
-            className={`${secondaryButton} px-3 py-1 text-xs`}
-            href={`/${tenant}/admin/sessions/${session.id}`}
-            data-testid="sessions-open-detail"
-          >
-            {t("admin.sessions.actions.view")}
-          </Link>
-        ),
-      },
+        {
+          key: "actions",
+          label: t("admin.sessions.fields.actions"),
+          renderCell: (session) => (
+            <Link
+              className={`${secondaryButton} px-3 py-1 text-xs`}
+              href={`/${tenant}/admin/sessions/${session.id}`}
+              data-testid="sessions-open-detail"
+            >
+              {t("admin.sessions.actions.view")}
+            </Link>
+          ),
+        },
+      ];
+      return baseColumns;
+    },
+    [
+      isAdmin,
+      isAllVisibleSelected,
+      locale,
+      selectedIdSet,
+      t,
+      tenant,
+      toggleSelectAllVisible,
+      toggleSessionSelection,
     ],
-    [locale, t, tenant],
   );
 
   const emptyState: AdminEmptyState = useMemo(
@@ -524,6 +660,27 @@ export default function SessionsClient({
         onClearAllFilters={clearAll}
         rightSlot={rightSlot}
       />
+
+      {isAdmin && selectedCount > 0 ? (
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded border border-slate-200 bg-white p-3">
+          <p className="text-sm text-slate-700">
+            {t("admin.sessions.bulkCancel.selectedCount", {
+              count: selectedCount,
+            })}
+          </p>
+          <button
+            className={secondaryButton}
+            type="button"
+            onClick={() => {
+              setBulkCancelError(null);
+              setIsBulkCancelOpen(true);
+            }}
+            data-testid="sessions-bulk-cancel-action"
+          >
+            {t("admin.sessions.bulkCancel.action")}
+          </button>
+        </section>
+      ) : null}
 
       {error ? <AdminErrorPanel onRetry={() => setReloadNonce((current) => current + 1)} /> : null}
       {message ? <p className="text-sm text-green-600">{message}</p> : null}
@@ -654,6 +811,69 @@ export default function SessionsClient({
           tenant={tenant}
           timezoneOptions={timezoneOptions}
         />
+      ) : null}
+
+      {isAdmin && isBulkCancelOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-md rounded border border-slate-200 bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-semibold text-slate-900">
+              {t("admin.sessions.bulkCancel.dialogTitle")}
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              {t("admin.sessions.bulkCancel.dialogBody", { count: selectedCount })}
+            </p>
+            <div className="mt-4 grid gap-2">
+              <label
+                className="text-sm font-medium text-slate-700"
+                htmlFor="sessions-bulk-cancel-reason"
+              >
+                {t("admin.sessions.bulkCancel.reasonLabel")}
+              </label>
+              <select
+                id="sessions-bulk-cancel-reason"
+                className={inputBase}
+                value={bulkCancelReasonCode}
+                onChange={(event) => setBulkCancelReasonCode(event.target.value)}
+                disabled={isBulkCanceling}
+              >
+                <option value="">{t("admin.sessions.bulkCancel.reasonPlaceholder")}</option>
+                {BULK_CANCEL_REASON_CODES.map((reasonCode) => (
+                  <option key={reasonCode} value={reasonCode}>
+                    {t(`admin.sessions.bulkCancel.reason.${reasonCode}`)}
+                  </option>
+                ))}
+              </select>
+              {bulkCancelError ? (
+                <p className="text-sm text-red-600">{bulkCancelError}</p>
+              ) : null}
+            </div>
+            <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
+              <button
+                className={secondaryButton}
+                type="button"
+                onClick={() => {
+                  if (isBulkCanceling) return;
+                  setIsBulkCancelOpen(false);
+                  setBulkCancelError(null);
+                }}
+                disabled={isBulkCanceling}
+              >
+                {t("common.actions.cancel")}
+              </button>
+              <button
+                className={primaryButton}
+                type="button"
+                onClick={() => void submitBulkCancel()}
+                disabled={isBulkCanceling}
+                data-testid="sessions-bulk-cancel-confirm"
+              >
+                {isBulkCanceling
+                  ? t("admin.sessions.bulkCancel.confirmLoading")
+                  : t("admin.sessions.bulkCancel.confirm")}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );

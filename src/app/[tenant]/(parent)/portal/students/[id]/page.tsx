@@ -40,6 +40,8 @@ type PortalSession = {
   endAt?: string | null;
   timezone?: string | null;
   sessionType: string;
+  canceledAt?: string | null;
+  cancelReasonCode?: string | null;
   groupName?: string | null;
 };
 
@@ -379,6 +381,12 @@ export default function PortalStudentDetailPage() {
                   <SessionRow
                     key={session.id}
                     session={session}
+                    // Wire each row to session detail so "Open" and the full card are clickable.
+                    href={
+                      tenant
+                        ? `/${tenant}/portal/sessions/${session.id}`
+                        : `/portal/sessions/${session.id}`
+                    }
                     showStudentName={false}
                   />
                 ))}

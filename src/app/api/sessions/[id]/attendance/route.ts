@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from "@/lib/audit/constants";
+import { toAuditErrorCode } from "@/lib/audit/errorCode";
 import { writeAuditEvent } from "@/lib/audit/writeAuditEvent";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
@@ -277,13 +278,21 @@ export async function GET(req: NextRequest, context: Params) {
 }
 
 export async function PUT(req: NextRequest, context: Params) {
+  let tenantId: string | null = null;
+  let actorId: string | null = null;
+  let actorDisplay: string | null = null;
+  let sessionId: string | null = null;
   try {
     const { id } = await context.params;
+    sessionId = id;
 
     // RBAC guard runs first to avoid leaking tenant data to unauthorized users.
     const ctx = await requireRole(req, READ_ROLES);
     if (ctx instanceof Response) return await normalizeAuthResponse(ctx);
-    const tenantId = ctx.tenant.tenantId;
+    const scopedTenantId = ctx.tenant.tenantId;
+    tenantId = scopedTenantId;
+    actorId = ctx.user.id;
+    actorDisplay = ctx.user.name ?? null;
 
     let body: unknown;
     try {
@@ -302,7 +311,7 @@ export async function PUT(req: NextRequest, context: Params) {
     }
 
     const session = await prisma.session.findFirst({
-      where: { id, tenantId },
+      where: { id, tenantId: scopedTenantId },
       select: { id: true, tutorId: true, groupId: true },
     });
 
@@ -340,7 +349,7 @@ export async function PUT(req: NextRequest, context: Params) {
     }
 
     const rosterEntries = await prisma.sessionStudent.findMany({
-      where: { tenantId, sessionId: session.id },
+      where: { tenantId: scopedTenantId, sessionId: session.id },
       select: { studentId: true },
     });
     let rosterStudentIds = new Set(
@@ -351,7 +360,7 @@ export async function PUT(req: NextRequest, context: Params) {
     if (rosterStudentIds.size === 0 && session.groupId) {
       // If session roster is empty, fall back to the current group roster.
       const groupStudents = await prisma.groupStudent.findMany({
-        where: { tenantId, groupId: session.groupId },
+        where: { tenantId: scopedTenantId, groupId: session.groupId },
         select: { studentId: true },
       });
       rosterStudentIds = new Set(
@@ -372,28 +381,6 @@ export async function PUT(req: NextRequest, context: Params) {
       );
     }
 
-    const noteCandidates = normalizedItems.filter(
-      (item) => item.parentVisibleNoteProvided && item.status !== null,
-    );
-    const noteCandidateIds = noteCandidates.map((item) => item.studentId);
-    const existingNotes = noteCandidateIds.length
-      ? await prisma.attendance.findMany({
-          where: {
-            tenantId,
-            sessionId: session.id,
-            studentId: { in: noteCandidateIds },
-          },
-          select: {
-            id: true,
-            studentId: true,
-            parentVisibleNote: true,
-          },
-        })
-      : [];
-    const existingNotesByStudentId = new Map(
-      existingNotes.map((row) => [row.studentId, row]),
-    );
-
     const now = new Date();
     const upsertItems = normalizedItems
       .filter((item) => item.status !== null)
@@ -408,12 +395,25 @@ export async function PUT(req: NextRequest, context: Params) {
       .filter((item) => item.status === null)
       .map((item) => item.studentId);
 
+    const statusCounts = {
+      presentCount: 0,
+      absentCount: 0,
+      lateCount: 0,
+      excusedCount: 0,
+    };
+    for (const item of upsertItems) {
+      if (item.status === AttendanceStatus.PRESENT) statusCounts.presentCount += 1;
+      if (item.status === AttendanceStatus.ABSENT) statusCounts.absentCount += 1;
+      if (item.status === AttendanceStatus.LATE) statusCounts.lateCount += 1;
+      if (item.status === AttendanceStatus.EXCUSED) statusCounts.excusedCount += 1;
+    }
+
     await prisma.$transaction(async (tx) => {
       if (shouldBackfillRoster) {
         // Backfill missing session roster so future reads stay consistent.
         await tx.sessionStudent.createMany({
           data: Array.from(rosterStudentIds).map((studentId) => ({
-            tenantId,
+            tenantId: scopedTenantId,
             sessionId: session.id,
             studentId,
           })),
@@ -427,13 +427,13 @@ export async function PUT(req: NextRequest, context: Params) {
             tx.attendance.upsert({
               where: {
                 tenantId_sessionId_studentId: {
-                  tenantId,
+                  tenantId: scopedTenantId,
                   sessionId: session.id,
                   studentId: item.studentId,
                 },
               },
               create: {
-                tenantId,
+                tenantId: scopedTenantId,
                 sessionId: session.id,
                 studentId: item.studentId,
                 status: item.status,
@@ -464,63 +464,33 @@ export async function PUT(req: NextRequest, context: Params) {
         );
       }
 
-    if (deleteStudentIds.length) {
-      await tx.attendance.deleteMany({
-        where: {
-          tenantId,
-          sessionId: session.id,
-          studentId: { in: deleteStudentIds },
-        },
-      });
-    }
+      if (deleteStudentIds.length) {
+        await tx.attendance.deleteMany({
+          where: {
+            tenantId: scopedTenantId,
+            sessionId: session.id,
+            studentId: { in: deleteStudentIds },
+          },
+        });
+      }
     });
 
-    const updatedNotes = noteCandidateIds.length
-      ? await prisma.attendance.findMany({
-          where: {
-            tenantId,
-            sessionId: session.id,
-            studentId: { in: noteCandidateIds },
-          },
-          select: {
-            id: true,
-            studentId: true,
-            parentVisibleNote: true,
-          },
-        })
-      : [];
-    const updatedNotesByStudentId = new Map(
-      updatedNotes.map((row) => [row.studentId, row]),
-    );
-
-    // Audit parent-visible note updates separately so attendance writes stay atomic.
-    await Promise.all(
-      noteCandidates.map(async (item) => {
-        const before = existingNotesByStudentId.get(item.studentId);
-        const after = updatedNotesByStudentId.get(item.studentId);
-        const previousNote = before?.parentVisibleNote ?? null;
-        const nextNote = after?.parentVisibleNote ?? null;
-        if (previousNote === nextNote || !after) return;
-
-        await writeAuditEvent({
-          tenantId,
-          actorType: AuditActorType.USER,
-          actorId: ctx.user.id,
-          actorDisplay: ctx.user.email ?? ctx.user.name ?? null,
-          action: AUDIT_ACTIONS.ATTENDANCE_PARENT_VISIBLE_NOTE_UPDATED,
-          entityType: AUDIT_ENTITY_TYPES.ATTENDANCE,
-          entityId: after.id,
-          metadata: {
-            sessionId: session.id,
-            studentId: item.studentId,
-            hadNote: Boolean(previousNote),
-            hasNote: Boolean(nextNote),
-            noteLength: nextNote ? nextNote.length : 0,
-          },
-          request: req,
-        });
-      }),
-    );
+    await writeAuditEvent({
+      tenantId: scopedTenantId,
+      actorType: AuditActorType.USER,
+      actorId,
+      actorDisplay,
+      action: AUDIT_ACTIONS.ATTENDANCE_UPDATED,
+      entityType: AUDIT_ENTITY_TYPES.SESSION,
+      entityId: session.id,
+      result: "SUCCESS",
+      metadata: {
+        // Counts only: no roster payloads, names, IDs, or note content.
+        rowsUpdatedCount: upsertItems.length + deleteStudentIds.length,
+        ...statusCounts,
+      },
+      request: req,
+    });
 
     // Response shape: counts for upserted and cleared attendance rows.
     return NextResponse.json({
@@ -528,6 +498,22 @@ export async function PUT(req: NextRequest, context: Params) {
       clearedCount: deleteStudentIds.length,
     });
   } catch (error) {
+    if (tenantId) {
+      await writeAuditEvent({
+        tenantId,
+        actorType: AuditActorType.USER,
+        actorId,
+        actorDisplay,
+        action: AUDIT_ACTIONS.ATTENDANCE_UPDATED,
+        entityType: AUDIT_ENTITY_TYPES.SESSION,
+        entityId: sessionId,
+        result: "FAILURE",
+        metadata: {
+          errorCode: toAuditErrorCode(error),
+        },
+        request: req,
+      });
+    }
     console.error("PUT /api/sessions/[id]/attendance failed", error);
     return buildErrorResponse(500, "InternalError", "Internal server error");
   }

@@ -86,20 +86,10 @@ test.describe("[regression] Parent onboarding invite flow", () => {
 
     await page.goto(buildTenantPath(tenantSlug, "/admin/audit"));
     await expect(page.getByTestId("audit-log-page")).toBeVisible();
-
-    // Audit filters now live inside the shared filter sheet (Step 21.3 table toolkit).
-    await page.getByTestId("audit-log-search-filters-button").click();
-    await expect(page.getByTestId("admin-filters-sheet")).toBeVisible();
-    await page.getByTestId("audit-range-filter").selectOption("today");
-    await page.getByTestId("audit-category-filter").selectOption("admin");
-    await page.getByTestId("admin-filters-sheet-close").click();
-
-    const inviteRowAction = page
-      .locator('[data-testid="audit-row-action"][data-action="PARENT_INVITE_COPIED"]')
-      .first();
-    await expect(inviteRowAction).toBeVisible();
-
-    const inviteRow = inviteRowAction.locator("xpath=ancestor::tr");
+    // Search by raw action code because list filtering/querying is server-side and deterministic.
+    await page.getByTestId("audit-log-search-input").fill("PARENT_INVITE_COPIED");
+    const inviteRow = page.locator('tr[data-testid^="audit-row-"]').first();
+    await expect(inviteRow).toBeVisible();
     await inviteRow.click();
     await expect(page.getByTestId("audit-detail-drawer")).toBeVisible();
 

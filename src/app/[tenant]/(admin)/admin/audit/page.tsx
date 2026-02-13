@@ -32,8 +32,9 @@ export default async function AuditLogPage({ params }: PageProps) {
     <AdminAccessGate tenant={tenant} roles={ADMIN_ROLES} maxWidth="max-w-6xl">
       {() => (
         <AdminPageShell
-          title={t("admin.audit.title")}
-          subtitle={t("admin.audit.helper")}
+          // Step 22.6 uses the dedicated adminAudit namespace for contract-owned copy.
+          title={t("adminAudit.page.title")}
+          subtitle={t("adminAudit.page.subtitle")}
           maxWidth="max-w-6xl"
           testId="audit-log-page"
         >

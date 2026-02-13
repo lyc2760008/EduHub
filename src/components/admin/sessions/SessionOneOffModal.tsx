@@ -66,6 +66,7 @@ type FormState = {
   startAt: string;
   endAt: string;
   timezone: string;
+  zoomLink: string;
 };
 
 const DEFAULT_FORM: FormState = {
@@ -77,6 +78,7 @@ const DEFAULT_FORM: FormState = {
   startAt: "",
   endAt: "",
   timezone: "",
+  zoomLink: "",
 };
 
 function formatStudentName(student: StudentOption) {
@@ -102,6 +104,7 @@ export default function SessionOneOffModal({
   const groupRequiredMessage = t("admin.sessions.messages.groupRequired");
   const invalidTimeMessage = t("admin.sessions.messages.invalidTime");
   const invalidRangeMessage = t("admin.sessions.messages.invalidRange");
+  const invalidZoomLinkMessage = t("session.zoomLink.invalid");
   const validationErrorMessage = t("admin.sessions.messages.validationError");
   const createErrorMessage = t("admin.sessions.messages.createError");
   const [form, setForm] = useState<FormState>(() => ({
@@ -157,6 +160,17 @@ export default function SessionOneOffModal({
     }));
   }
 
+  function isValidZoomLinkInput(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed) return true;
+    try {
+      const parsed = new URL(trimmed);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSaving(true);
@@ -197,6 +211,12 @@ export default function SessionOneOffModal({
       return;
     }
 
+    if (!isValidZoomLinkInput(form.zoomLink)) {
+      setError(invalidZoomLinkMessage);
+      setIsSaving(false);
+      return;
+    }
+
     const startAtIso = startLocal.toUTC().toISO();
     const endAtIso = endLocal.toUTC().toISO();
 
@@ -215,6 +235,7 @@ export default function SessionOneOffModal({
       startAt: startAtIso,
       endAt: endAtIso,
       timezone: form.timezone || defaultTimezone,
+      zoomLink: form.zoomLink.trim() || null,
     };
 
     const result = await fetchJson<{ session: { id: string } }>(
@@ -465,6 +486,25 @@ export default function SessionOneOffModal({
                     </option>
                   ))}
                 </select>
+              </AdminFormField>
+              <AdminFormField
+                label={t("session.zoomLink.label")}
+                htmlFor="sessions-one-off-zoom-link"
+              >
+                <div className="grid gap-2">
+                  <input
+                    className={inputBase}
+                    id="sessions-one-off-zoom-link"
+                    type="url"
+                    value={form.zoomLink}
+                    onChange={(event) =>
+                      updateField("zoomLink", event.target.value)
+                    }
+                  />
+                  <p className="text-xs text-slate-500">
+                    {t("session.zoomLink.helper")}
+                  </p>
+                </div>
               </AdminFormField>
             </div>
           </AdminModalShell>

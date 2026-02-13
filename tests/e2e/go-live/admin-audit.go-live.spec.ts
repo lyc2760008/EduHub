@@ -34,17 +34,17 @@ test.describe("[go-live][prod-safe] Admin audit access", () => {
     // Audit filters live inside the shared filter sheet (Step 21.3 admin table toolkit).
     await page.getByTestId("audit-log-search-filters-button").click();
     await expect(page.getByTestId("admin-filters-sheet")).toBeVisible();
-    // Keep go-live smoke focused on a stable, non-date filter (date presets can be flaky around midnight).
-    await page.getByTestId("audit-actor-filter").selectOption("parent");
+    // Keep go-live smoke focused on a stable non-date filter to avoid midnight boundary flakes.
+    await page.getByTestId("audit-filter-actor").fill("system");
     await page.getByTestId("admin-filters-sheet-close").click();
 
     // Assert via filter chips (toolkit output) instead of select values (URL-driven state can lag).
-    await expect(page.getByTestId("audit-log-search-filter-chip-actorType")).toBeVisible();
+    await expect(page.getByTestId("audit-log-search-filter-chip-actor")).toBeVisible();
 
     // Wait for rows or empty state to replace the loading placeholder.
     await expect
       .poll(async () => {
-        const rowCount = await page.getByTestId("audit-row-action").count();
+        const rowCount = await page.locator('tr[data-testid^="audit-row-"]').count();
         if (rowCount > 0) return "rows";
         // Scope to the desktop table container to avoid matching the hidden mobile empty panel.
         const emptyVisible = await page
@@ -56,7 +56,7 @@ test.describe("[go-live][prod-safe] Admin audit access", () => {
       })
       .toMatch(/rows|empty/);
 
-    const rowCount = await page.getByTestId("audit-row-action").count();
+    const rowCount = await page.locator('tr[data-testid^="audit-row-"]').count();
     const emptyVisible = await page
       .getByTestId("audit-table-container")
       .getByTestId("admin-table-empty")
@@ -72,8 +72,7 @@ test.describe("[go-live][prod-safe] Admin audit access", () => {
       return;
     }
 
-    // Click the row container (not the cell span) because the row handles navigation/drawer open.
-    // Scope to `tr[...]` so we don't accidentally match `audit-row-action` spans.
+    // Click the table row container because row click opens the detail drawer.
     const firstRow = page.locator('tr[data-testid^="audit-row-"]').first();
     await firstRow.click();
     await expect(page.getByTestId("audit-detail-drawer")).toBeVisible();

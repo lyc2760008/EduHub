@@ -654,8 +654,34 @@ export async function markAttendance(
 
 export async function saveNotes(
   page: Page,
-  input: { internalNote: string },
+  input: {
+    internalNote?: string;
+    parentVisibleNote?: string;
+    tenantSlug?: string;
+    sessionId?: string;
+  },
 ) {
+  if (input.parentVisibleNote !== undefined) {
+    if (!input.tenantSlug || !input.sessionId) {
+      throw new Error("tenantSlug and sessionId are required when saving parentVisibleNote.");
+    }
+    // Tutor-safe path: save parent-visible notes through the API contract without touching staff-only fields.
+    const response = await page.request.put(
+      buildTenantApiPath(input.tenantSlug, `/api/sessions/${input.sessionId}/notes`),
+      {
+        data: {
+          parentVisibleNote: input.parentVisibleNote,
+        },
+      },
+    );
+    expect(response.status()).toBe(200);
+    return;
+  }
+
+  if (input.internalNote === undefined) {
+    throw new Error("saveNotes requires either internalNote or parentVisibleNote input.");
+  }
+
   const saveResponsePromise = page.waitForResponse(
     (response) =>
       response.url().includes("/api/sessions/") &&

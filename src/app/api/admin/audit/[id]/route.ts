@@ -7,6 +7,12 @@
 // Admin audit detail endpoint with tenant scoping and RBAC.
 import { NextRequest, NextResponse } from "next/server";
 
+import { AUDIT_LIST_SELECT } from "@/lib/audit/queryAuditEvents";
+import { redactAuditEvent } from "@/lib/audit/redactAuditEvent";
+import {
+  getAuditEntityDisplay,
+  resolveAuditEntityDisplayLookup,
+} from "@/lib/audit/resolveAuditEntityDisplay";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
 import { requireRole } from "@/lib/rbac";
@@ -95,15 +101,22 @@ export async function GET(req: NextRequest, context: Params) {
 
     const audit = await prisma.auditEvent.findFirst({
       where: { id, tenantId },
+      select: AUDIT_LIST_SELECT,
     });
 
     if (!audit) {
       return buildErrorResponse(404, "NotFound", "Audit event not found");
     }
+    const entityDisplayLookup = await resolveAuditEntityDisplayLookup({
+      tenantId,
+      rows: [audit],
+    });
 
+    // Redaction is mandatory for detail reads to avoid accidental sensitive-field exposure.
     return NextResponse.json({
-      ...audit,
-      occurredAt: audit.occurredAt.toISOString(),
+      item: redactAuditEvent(audit, {
+        entityDisplay: getAuditEntityDisplay(audit, entityDisplayLookup),
+      }),
     });
   } catch (error) {
     console.error("GET /api/admin/audit/[id] failed", error);

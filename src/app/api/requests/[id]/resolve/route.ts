@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from "@/lib/audit/constants";
+import { toAuditErrorCode } from "@/lib/audit/errorCode";
 import { writeAuditEvent } from "@/lib/audit/writeAuditEvent";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
@@ -98,13 +99,20 @@ async function normalizeAuthResponse(response: Response) {
 }
 
 export async function POST(req: NextRequest, context: Params) {
+  let tenantId: string | null = null;
+  let actorId: string | null = null;
+  let actorDisplay: string | null = null;
+  let requestIdParam: string | null = null;
   try {
     const { id } = await context.params;
+    requestIdParam = id;
 
     // RBAC guard runs first to avoid leaking tenant data to unauthorized users.
     const ctx = await requireRole(req, ADMIN_ROLES);
     if (ctx instanceof Response) return await normalizeAuthResponse(ctx);
-    const tenantId = ctx.tenant.tenantId;
+    tenantId = ctx.tenant.tenantId;
+    actorId = ctx.user.id;
+    actorDisplay = ctx.user.name ?? null;
 
     let body: unknown;
     try {
@@ -177,25 +185,38 @@ export async function POST(req: NextRequest, context: Params) {
     await writeAuditEvent({
       tenantId,
       actorType: AuditActorType.USER,
-      actorId: ctx.user.id,
-      actorDisplay: ctx.user.email ?? ctx.user.name ?? null,
-      action: AUDIT_ACTIONS.ABSENCE_REQUEST_RESOLVED,
+      actorId,
+      actorDisplay,
+      action: AUDIT_ACTIONS.REQUEST_RESOLVED,
       entityType: AUDIT_ENTITY_TYPES.REQUEST,
       entityId: updated.id,
+      result: "SUCCESS",
       metadata: {
-        sessionId: updated.sessionId,
-        studentId: updated.studentId,
-        reasonCode: updated.reasonCode,
-        messageLength: updated.message ? updated.message.length : 0,
+        // Only status transition fields are retained to avoid request-content leakage.
         fromStatus: RequestStatus.PENDING,
         toStatus: updated.status,
-        resolvedStatus: updated.status,
       },
       request: req,
     });
 
     return NextResponse.json({ request: updated });
   } catch (error) {
+    if (tenantId) {
+      await writeAuditEvent({
+        tenantId,
+        actorType: AuditActorType.USER,
+        actorId,
+        actorDisplay,
+        action: AUDIT_ACTIONS.REQUEST_RESOLVED,
+        entityType: AUDIT_ENTITY_TYPES.REQUEST,
+        entityId: requestIdParam,
+        result: "FAILURE",
+        metadata: {
+          errorCode: toAuditErrorCode(error),
+        },
+        request: req,
+      });
+    }
     console.error("POST /api/requests/[id]/resolve failed", error);
     return buildErrorResponse(500, "InternalError", "Internal server error");
   }

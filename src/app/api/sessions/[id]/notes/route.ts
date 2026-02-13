@@ -8,10 +8,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from "@/lib/audit/constants";
+import { toAuditErrorCode } from "@/lib/audit/errorCode";
+import { writeAuditEvent } from "@/lib/audit/writeAuditEvent";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
 import { requireRole } from "@/lib/rbac";
-import type { Role } from "@/generated/prisma/client";
+import { AuditActorType, type Role } from "@/generated/prisma/client";
 
 export const runtime = "nodejs";
 
@@ -153,13 +156,20 @@ export async function GET(req: NextRequest, context: Params) {
 }
 
 export async function PUT(req: NextRequest, context: Params) {
+  let tenantId: string | null = null;
+  let actorId: string | null = null;
+  let actorDisplay: string | null = null;
+  let sessionId: string | null = null;
   try {
     const { id } = await context.params;
+    sessionId = id;
 
     // RBAC guard runs first to avoid leaking tenant data to unauthorized users.
     const ctx = await requireRole(req, READ_ROLES);
     if (ctx instanceof Response) return await normalizeAuthResponse(ctx);
-    const tenantId = ctx.tenant.tenantId;
+    tenantId = ctx.tenant.tenantId;
+    actorId = ctx.user.id;
+    actorDisplay = ctx.user.name ?? null;
 
     let body: unknown;
     try {
@@ -194,12 +204,43 @@ export async function PUT(req: NextRequest, context: Params) {
       );
     }
 
+    if (
+      ctx.membership.role === "Tutor" &&
+      (parsed.data.internalNote !== undefined ||
+        parsed.data.homework !== undefined ||
+        parsed.data.nextSteps !== undefined)
+    ) {
+      // Tutors can update only the parent-visible note on this endpoint.
+      return buildErrorResponse(
+        403,
+        "Forbidden",
+        "Tutor can only update parent-visible notes for this session",
+      );
+    }
+
+    const canEditStaffOnlyFields = ctx.membership.role !== "Tutor";
+
     const normalized = {
-      internalNote: normalizeOptionalText(parsed.data.internalNote),
+      internalNote: canEditStaffOnlyFields
+        ? normalizeOptionalText(parsed.data.internalNote)
+        : undefined,
       parentVisibleNote: normalizeOptionalText(parsed.data.parentVisibleNote),
-      homework: normalizeOptionalText(parsed.data.homework),
-      nextSteps: normalizeOptionalText(parsed.data.nextSteps),
+      homework: canEditStaffOnlyFields
+        ? normalizeOptionalText(parsed.data.homework)
+        : undefined,
+      nextSteps: canEditStaffOnlyFields
+        ? normalizeOptionalText(parsed.data.nextSteps)
+        : undefined,
     };
+
+    const hasUpdates = Object.values(normalized).some(
+      (value) => value !== undefined,
+    );
+    if (!hasUpdates) {
+      return buildErrorResponse(400, "ValidationError", "No fields provided", {
+        field: "body",
+      });
+    }
 
     const note = await prisma.sessionNote.upsert({
       where: { tenantId_sessionId: { tenantId, sessionId: session.id } },
@@ -216,11 +257,45 @@ export async function PUT(req: NextRequest, context: Params) {
       select: NOTES_SELECT,
     });
 
+    if (normalized.parentVisibleNote !== undefined) {
+      await writeAuditEvent({
+        tenantId,
+        actorType: AuditActorType.USER,
+        actorId,
+        actorDisplay,
+        action: AUDIT_ACTIONS.NOTES_UPDATED,
+        entityType: AUDIT_ENTITY_TYPES.SESSION,
+        entityId: session.id,
+        result: "SUCCESS",
+        metadata: {
+          // Never store note content; keep only coarse count metadata.
+          rowsUpdatedCount: 1,
+        },
+        request: req,
+      });
+    }
+
     return NextResponse.json({
       sessionId: session.id,
       notes: { ...note },
     });
   } catch (error) {
+    if (tenantId) {
+      await writeAuditEvent({
+        tenantId,
+        actorType: AuditActorType.USER,
+        actorId,
+        actorDisplay,
+        action: AUDIT_ACTIONS.NOTES_UPDATED,
+        entityType: AUDIT_ENTITY_TYPES.SESSION,
+        entityId: sessionId,
+        result: "FAILURE",
+        metadata: {
+          errorCode: toAuditErrorCode(error),
+        },
+        request: req,
+      });
+    }
     console.error("PUT /api/sessions/[id]/notes failed", error);
     return buildErrorResponse(500, "InternalError", "Internal server error");
   }

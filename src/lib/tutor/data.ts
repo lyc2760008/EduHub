@@ -47,6 +47,7 @@ export type TutorSessionListItem = {
   label: string;
   locationLabel: string | null;
   sessionType: SessionType;
+  zoomLink: string | null;
 };
 
 export type TutorRunSessionItem = {
@@ -65,6 +66,7 @@ export type TutorRunSessionData = {
     label: string;
     locationLabel: string | null;
     sessionType: SessionType;
+    zoomLink: string | null;
   };
   roster: TutorRunSessionItem[];
 };
@@ -75,6 +77,7 @@ type SessionSelectShape = {
   endAt: Date;
   timezone: string;
   sessionType: SessionType;
+  zoomLink: string | null;
   center: { name: string } | null;
   group: { name: string } | null;
   sessionStudents: Array<{
@@ -178,6 +181,7 @@ function buildListItem(session: SessionSelectShape): TutorSessionListItem {
     label: buildSessionLabel(session),
     locationLabel: session.center?.name ?? null,
     sessionType: session.sessionType,
+    zoomLink: session.zoomLink ?? null,
   };
 }
 
@@ -251,6 +255,7 @@ export async function listTutorSessions(input: {
     where: {
       tenantId: input.tenantId,
       tutorId: input.tutorUserId,
+      canceledAt: null,
       startAt: {
         gte: normalizedStart,
         lte: normalizedEnd,
@@ -272,6 +277,7 @@ export async function listTutorSessions(input: {
       endAt: true,
       timezone: true,
       sessionType: true,
+      zoomLink: true,
       center: { select: { name: true } },
       group: { select: { name: true } },
       // A tiny preview is enough to derive 1:1 labels without loading full rosters.
@@ -314,6 +320,7 @@ export async function getTutorSessionForRun(input: {
       id: input.sessionId,
       tenantId: input.tenantId,
       tutorId: input.tutorUserId,
+      canceledAt: null,
     },
     select: {
       id: true,
@@ -323,6 +330,7 @@ export async function getTutorSessionForRun(input: {
       endAt: true,
       timezone: true,
       sessionType: true,
+      zoomLink: true,
       center: { select: { name: true } },
       group: { select: { name: true } },
       sessionStudents: {
@@ -402,6 +410,7 @@ export async function getTutorSessionForRun(input: {
       label: buildSessionLabel(session),
       locationLabel: session.center?.name ?? null,
       sessionType: session.sessionType,
+      zoomLink: session.zoomLink ?? null,
     },
     roster: rosterStudents.map((student) => {
       const attendance = attendanceByStudentId.get(student.id);

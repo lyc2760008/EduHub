@@ -75,6 +75,7 @@ export default function GroupDetailClient({
   const [isSavingTutors, setIsSavingTutors] = useState(false);
   const [isSavingStudents, setIsSavingStudents] = useState(false);
   const [isSyncingStudents, setIsSyncingStudents] = useState(false);
+  const [isSyncConfirmOpen, setIsSyncConfirmOpen] = useState(false);
   const [tutorError, setTutorError] = useState<string | null>(null);
   const [studentError, setStudentError] = useState<string | null>(null);
   const [tutorMessage, setTutorMessage] = useState<string | null>(null);
@@ -219,19 +220,19 @@ export default function GroupDetailClient({
     }
 
     if (!result.ok) {
-      setStudentError(t("admin.groups.messages.loadError"));
+      setStudentError(t("admin.groups.syncFutureSessions.failure"));
       setIsSyncingStudents(false);
       return;
     }
 
     // Surface non-sensitive sync counts so admins can confirm action impact quickly.
     setStudentMessage(
-      t("admin.groups.messages.futureSessionsSynced", {
-        sessions: result.data.sessionsUpdated,
-        students: result.data.studentsAdded,
+      t("admin.groups.syncFutureSessions.success", {
+        count: result.data.sessionsUpdated,
       }),
     );
     setIsSyncingStudents(false);
+    setIsSyncConfirmOpen(false);
   }
 
   const tutorEmpty = tutors.length === 0;
@@ -349,12 +350,12 @@ export default function GroupDetailClient({
               className="rounded border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
               data-testid="sync-group-future-sessions-button"
               disabled={isSavingStudents || isSyncingStudents}
-              onClick={syncStudentsToFutureSessions}
+              onClick={() => setIsSyncConfirmOpen(true)}
               type="button"
             >
               {isSyncingStudents
-                ? t("admin.groups.actions.syncFutureSessionsLoading")
-                : t("admin.groups.actions.syncFutureSessions")}
+                ? t("common.loading")
+                : t("admin.groups.syncFutureSessions.action")}
             </button>
             <button
               className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
@@ -424,6 +425,39 @@ export default function GroupDetailClient({
           </div>
         </div>
       </section>
+
+      {isSyncConfirmOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-md rounded border border-slate-200 bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-slate-900">
+              {t("admin.groups.syncFutureSessions.dialogTitle")}
+            </h3>
+            <p className="mt-2 text-sm text-slate-600">
+              {t("admin.groups.syncFutureSessions.dialogBody")}
+            </p>
+            <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
+              <button
+                className="rounded border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
+                type="button"
+                onClick={() => setIsSyncConfirmOpen(false)}
+                disabled={isSyncingStudents}
+              >
+                {t("common.actions.cancel")}
+              </button>
+              <button
+                className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                type="button"
+                onClick={() => void syncStudentsToFutureSessions()}
+                disabled={isSyncingStudents}
+              >
+                {isSyncingStudents
+                  ? t("common.loading")
+                  : t("admin.groups.syncFutureSessions.confirm")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

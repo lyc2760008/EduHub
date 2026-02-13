@@ -8,11 +8,14 @@
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { normalizeEmail } from "@/lib/auth/magicLink";
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from "@/lib/audit/constants";
+import { toAuditErrorCode } from "@/lib/audit/errorCode";
+import { writeAuditEvent } from "@/lib/audit/writeAuditEvent";
 import { sendParentMagicLink } from "@/lib/auth/parentMagicLink";
 import { prisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/observability/logger";
 import { requireRole } from "@/lib/rbac";
-import type { Role } from "@/generated/prisma/client";
+import { AuditActorType, type Role } from "@/generated/prisma/client";
 
 export const runtime = "nodejs";
 
@@ -83,6 +86,8 @@ export async function POST(req: NextRequest, context: Params) {
   let parentId: string | null = null;
   let tenantId: string | null = null;
   let studentId: string | null = null;
+  let actorId: string | null = null;
+  let actorDisplay: string | null = null;
   try {
     const params = await context.params;
     const resolvedParentId = params.parentId;
@@ -92,6 +97,8 @@ export async function POST(req: NextRequest, context: Params) {
     if (ctx instanceof Response) return await normalizeAuthResponse(ctx);
     const resolvedTenantId = ctx.tenant.tenantId;
     tenantId = resolvedTenantId;
+    actorId = ctx.user.id;
+    actorDisplay = ctx.user.name ?? null;
 
     let body: unknown = {};
     try {
@@ -195,6 +202,26 @@ export async function POST(req: NextRequest, context: Params) {
     });
 
     if (!sendResult.ok) {
+      await writeAuditEvent({
+        tenantId: resolvedTenantId,
+        actorType: AuditActorType.USER,
+        actorId,
+        actorDisplay,
+        action: AUDIT_ACTIONS.PARENT_INVITE_SENT,
+        entityType: AUDIT_ENTITY_TYPES.PARENT,
+        entityId: parent.id,
+        result: "FAILURE",
+        metadata: {
+          method: "magic_link",
+          ...(studentId ? { studentContextId: studentId } : {}),
+          errorCode:
+            sendResult.reason === "RATE_LIMITED"
+              ? "rate_limited"
+              : "send_failed",
+        },
+        request: req,
+      });
+
       if (sendResult.reason === "RATE_LIMITED") {
         return buildErrorResponse(409, "Conflict", "Rate limit exceeded", {
           reason: "RATE_LIMITED",
@@ -206,8 +233,42 @@ export async function POST(req: NextRequest, context: Params) {
       });
     }
 
+    await writeAuditEvent({
+      tenantId: resolvedTenantId,
+      actorType: AuditActorType.USER,
+      actorId,
+      actorDisplay,
+      action: AUDIT_ACTIONS.PARENT_INVITE_SENT,
+      entityType: AUDIT_ENTITY_TYPES.PARENT,
+      entityId: parent.id,
+      result: "SUCCESS",
+      metadata: {
+        method: "magic_link",
+        ...(studentId ? { studentContextId: studentId } : {}),
+      },
+      request: req,
+    });
+
     return NextResponse.json({ ok: true });
   } catch (error) {
+    if (tenantId && parentId) {
+      await writeAuditEvent({
+        tenantId,
+        actorType: AuditActorType.USER,
+        actorId,
+        actorDisplay,
+        action: AUDIT_ACTIONS.PARENT_INVITE_SENT,
+        entityType: AUDIT_ENTITY_TYPES.PARENT,
+        entityId: parentId,
+        result: "FAILURE",
+        metadata: {
+          method: "magic_link",
+          ...(studentId ? { studentContextId: studentId } : {}),
+          errorCode: toAuditErrorCode(error),
+        },
+        request: req,
+      });
+    }
     // Avoid logging PII (emails/tokens) from request bodies or auth headers.
     logError(
       "POST /api/parents/[parentId]/send-magic-link failed",

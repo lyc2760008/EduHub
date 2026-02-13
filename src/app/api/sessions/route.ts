@@ -11,6 +11,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { jsonError } from "@/lib/http/response";
 import { requireRole } from "@/lib/rbac";
+import { normalizeZoomLink } from "@/lib/sessions/zoomLink";
 import {
   parseAdminTableQuery,
   runAdminTableQuery,
@@ -44,6 +45,7 @@ const CreateSessionSchema = z
     timezone: z.string().trim().min(1),
     studentId: z.string().trim().min(1).optional(),
     groupId: z.string().trim().min(1).optional(),
+    zoomLink: z.string().nullable().optional(),
   })
   .strict();
 
@@ -137,7 +139,8 @@ export async function GET(req: NextRequest) {
       defaultSort: { field: "startAt", dir: "asc" },
       buildWhere: ({ tenantId: scopedTenantId, search, filters }) => {
         const andFilters: Prisma.SessionWhereInput[] = [
-          { tenantId: scopedTenantId },
+          // Keep canceled sessions out of operational lists after bulk-cancel updates.
+          { tenantId: scopedTenantId, canceledAt: null },
         ];
         if (search) {
           andFilters.push({
@@ -280,6 +283,15 @@ export async function POST(req: NextRequest) {
     const data = parsed.data;
     const startAt = new Date(data.startAt);
     const endAt = new Date(data.endAt);
+    let normalizedZoomLink: string | null = null;
+    try {
+      normalizedZoomLink = normalizeZoomLink(data.zoomLink);
+    } catch {
+      return NextResponse.json(
+        { error: "ValidationError", details: "Invalid zoom link" },
+        { status: 400 },
+      );
+    }
 
     if (startAt >= endAt) {
       return NextResponse.json(
@@ -412,6 +424,7 @@ export async function POST(req: NextRequest) {
           tutorId: data.tutorId,
           sessionType: data.sessionType,
           groupId: data.groupId ?? null,
+          zoomLink: normalizedZoomLink,
           startAt,
           endAt,
           timezone: data.timezone,
@@ -426,6 +439,7 @@ export async function POST(req: NextRequest) {
           startAt: true,
           endAt: true,
           timezone: true,
+          zoomLink: true,
           createdAt: true,
           updatedAt: true,
         },

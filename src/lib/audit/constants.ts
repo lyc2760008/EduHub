@@ -1,5 +1,14 @@
 // Centralized audit constants keep action/entity strings stable across writes + filters.
 export const AUDIT_ACTIONS = {
+  // Step 22.6 action keys use dot notation for stable filtering and CSV export.
+  REQUEST_RESOLVED: "request.resolved",
+  SESSIONS_GENERATED: "sessions.generated",
+  SESSIONS_BULK_CANCELED: "sessions.bulkCanceled",
+  GROUP_FUTURE_SESSIONS_SYNCED: "group.futureSessions.synced",
+  ATTENDANCE_UPDATED: "attendance.updated",
+  NOTES_UPDATED: "notes.updated",
+  PARENT_INVITE_SENT: "parent.invite.sent",
+  PARENT_INVITE_RESENT: "parent.invite.resent",
   PARENT_LOGIN_SUCCEEDED: "PARENT_LOGIN_SUCCEEDED",
   PARENT_LOGIN_FAILED: "PARENT_LOGIN_FAILED",
   PARENT_LOGIN_THROTTLED: "PARENT_LOGIN_THROTTLED",
@@ -19,6 +28,8 @@ export const AUDIT_ACTIONS = {
 
 // Entity types are intentionally minimal and filter-friendly for admin audit queries.
 export const AUDIT_ENTITY_TYPES = {
+  GROUP: "GROUP",
+  PARENT: "PARENT",
   ACCESS_CODE: "ACCESS_CODE",
   REQUEST: "REQUEST",
   ATTENDANCE: "ATTENDANCE",

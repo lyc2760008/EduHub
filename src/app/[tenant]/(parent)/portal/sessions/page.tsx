@@ -36,6 +36,8 @@ type PortalSession = {
   endAt?: string | null;
   timezone?: string | null;
   sessionType: string;
+  canceledAt?: string | null;
+  cancelReasonCode?: string | null;
   groupName?: string | null;
 };
 
@@ -263,6 +265,8 @@ export default function PortalSessionsPage() {
                 endAt: session.endAt ?? null,
                 timezone: session.timezone ?? null,
                 sessionType: session.sessionType,
+                canceledAt: session.canceledAt ?? null,
+                cancelReasonCode: session.cancelReasonCode ?? null,
                 groupName: session.groupName ?? null,
                 studentName: studentNameById.get(session.studentId) ?? null,
               }}

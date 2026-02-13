@@ -245,7 +245,10 @@ test.describe("[slow] [regression] Release gate", () => {
     await expect(page.getByTestId("attendance-save-success")).toBeVisible();
 
     await saveNotes(page, {
-      internalNote: `E2E internal ${suffix}`,
+      // Step 22.6 contract: tutors can save only parent-visible notes.
+      parentVisibleNote: `E2E parent-visible ${suffix}`,
+      tenantSlug,
+      sessionId: session.id,
     });
 
     if (otherTutorSessionId) {

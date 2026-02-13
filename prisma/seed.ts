@@ -28,6 +28,10 @@ const prisma = new PrismaClient({
   adapter,
 });
 
+function isTruthyFlag(value: string | undefined) {
+  return /^(1|true|yes)$/i.test((value || "").trim());
+}
+
 async function main() {
   // Seed inputs (defaults allow local dev without extra config).
   const demoTenantSlug = process.env.SEED_DEMO_TENANT_SLUG || "demo";
@@ -68,6 +72,16 @@ async function main() {
     process.env.SEED_PARENT_PASSWORD || defaultPassword;
   const acmeOwnerPassword =
     process.env.SEED_ACME_OWNER_PASSWORD || defaultPassword;
+  // Default seed behavior preserves existing passwords to avoid undoing manual resets.
+  const overwriteSeedPasswords = isTruthyFlag(
+    process.env.SEED_OVERWRITE_PASSWORDS,
+  );
+  if (!overwriteSeedPasswords) {
+    // Explicit signal helps operators understand why seed no longer resets credentials by default.
+    console.log(
+      "Seed mode: preserving existing user passwords (set SEED_OVERWRITE_PASSWORDS=1 to overwrite).",
+    );
+  }
 
   async function upsertTenant(slug: string, name: string) {
     // Idempotent: upsert tenant by unique slug (safe to re-run locally).
@@ -100,19 +114,40 @@ async function main() {
     password: string;
     name?: string;
   }) {
-    const passwordHash = await resolvePasswordHash(
-      params.email,
-      params.password,
-    );
-
-    // Idempotent: upsert user by unique email for repeatable seeding.
-    return prisma.user.upsert({
+    const existingUser = await prisma.user.findUnique({
       where: { email: params.email },
-      update: {
-        passwordHash,
-        ...(params.name ? { name: params.name } : {}),
-      },
-      create: {
+      select: { id: true },
+    });
+
+    if (existingUser) {
+      const updateData: { name?: string; passwordHash?: string } = {};
+      if (params.name) {
+        updateData.name = params.name;
+      }
+      if (overwriteSeedPasswords) {
+        updateData.passwordHash = await resolvePasswordHash(
+          params.email,
+          params.password,
+        );
+      }
+
+      // Skip no-op updates when preserving both name + password fields.
+      if (Object.keys(updateData).length === 0) {
+        return prisma.user.findUniqueOrThrow({
+          where: { id: existingUser.id },
+        });
+      }
+
+      return prisma.user.update({
+        where: { id: existingUser.id },
+        data: updateData,
+      });
+    }
+
+    // New seed users still get deterministic credentials from env values.
+    const passwordHash = await bcrypt.hash(params.password, 10);
+    return prisma.user.create({
+      data: {
         email: params.email,
         passwordHash,
         ...(params.name ? { name: params.name } : {}),

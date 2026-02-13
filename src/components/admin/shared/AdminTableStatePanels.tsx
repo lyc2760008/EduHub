@@ -14,6 +14,9 @@ export type AdminEmptyState = {
 
 type AdminErrorPanelProps = {
   onRetry: () => void;
+  title?: string;
+  body?: string;
+  retryLabel?: string;
 };
 
 type AdminEmptyPanelProps = {
@@ -25,8 +28,17 @@ type AdminLoadingRowsProps = {
   colSpan: number;
 };
 
-export function AdminErrorPanel({ onRetry }: AdminErrorPanelProps) {
+export function AdminErrorPanel({
+  onRetry,
+  title,
+  body,
+  retryLabel,
+}: AdminErrorPanelProps) {
   const t = useTranslations();
+  // Module-specific copy can override defaults while preserving the shared error panel styling.
+  const resolvedTitle = title ?? t("admin.table.state.error.title");
+  const resolvedBody = body ?? t("admin.table.state.error.body");
+  const resolvedRetryLabel = retryLabel ?? t("admin.table.state.error.retry");
 
   return (
     <section
@@ -34,15 +46,15 @@ export function AdminErrorPanel({ onRetry }: AdminErrorPanelProps) {
       data-testid="admin-table-error"
     >
       <p className="text-sm font-semibold text-red-700">
-        {t("admin.table.state.error.title")}
+        {resolvedTitle}
       </p>
-      <p className="mt-1 text-sm text-red-700">{t("admin.table.state.error.body")}</p>
+      <p className="mt-1 text-sm text-red-700">{resolvedBody}</p>
       <button
         type="button"
         className={`${secondaryButton} mt-3`}
         onClick={onRetry}
       >
-        {t("admin.table.state.error.retry")}
+        {resolvedRetryLabel}
       </button>
     </section>
   );

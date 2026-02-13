@@ -94,6 +94,8 @@ export async function GET(req: NextRequest) {
             endAt: true,
             sessionType: true,
             timezone: true,
+            canceledAt: true,
+            cancelReasonCode: true,
             groupId: true,
             group: { select: { name: true } },
           },
@@ -108,6 +110,10 @@ export async function GET(req: NextRequest) {
       endAt: row.session.endAt ? row.session.endAt.toISOString() : null,
       sessionType: row.session.sessionType,
       timezone: row.session.timezone,
+      canceledAt: row.session.canceledAt
+        ? row.session.canceledAt.toISOString()
+        : null,
+      cancelReasonCode: row.session.cancelReasonCode ?? null,
       groupId: row.session.groupId,
       groupName: row.session.group?.name ?? null,
     }));

@@ -19,12 +19,31 @@ type SessionRowProps = {
     endAt?: string | null;
     timezone?: string | null;
     sessionType: string;
+    canceledAt?: string | null;
+    cancelReasonCode?: string | null;
     groupName?: string | null;
     studentName?: string | null;
   };
   href?: string;
   showStudentName?: boolean;
 };
+
+function getCancelReasonLabelKey(reasonCode: string | null | undefined) {
+  switch (reasonCode) {
+    case "WEATHER":
+      return "portal.sessions.cancelReason.WEATHER";
+    case "TUTOR_UNAVAILABLE":
+      return "portal.sessions.cancelReason.TUTOR_UNAVAILABLE";
+    case "HOLIDAY":
+      return "portal.sessions.cancelReason.HOLIDAY";
+    case "LOW_ENROLLMENT":
+      return "portal.sessions.cancelReason.LOW_ENROLLMENT";
+    case "OTHER":
+      return "portal.sessions.cancelReason.OTHER";
+    default:
+      return null;
+  }
+}
 
 export default function SessionRow({
   session,
@@ -46,6 +65,8 @@ export default function SessionRow({
   const dateTimeLabel =
     formatPortalDateTimeRange(session.startAt, session.endAt, locale, timeZone) ||
     formatPortalDateTime(session.startAt, locale, timeZone);
+  const isCanceled = Boolean(session.canceledAt);
+  const cancelReasonKey = getCancelReasonLabelKey(session.cancelReasonCode);
 
   const body = (
     <div className="flex items-center justify-between gap-4">
@@ -54,11 +75,21 @@ export default function SessionRow({
           {dateTimeLabel}
         </p>
         <p className="text-sm text-[var(--muted)]">{sessionTitle}</p>
+        {isCanceled ? (
+          <p className="text-xs font-medium text-[var(--destructive)]">
+            {t("portal.sessions.status.canceled")}
+            {cancelReasonKey ? ` • ${t(cancelReasonKey)}` : ""}
+          </p>
+        ) : null}
         {showStudentName && session.studentName ? (
           <p className="text-xs text-[var(--muted-2)]">{session.studentName}</p>
         ) : null}
       </div>
-      <span className="text-sm text-[var(--muted)]">{t("portal.common.open")}</span>
+      <span className="text-sm text-[var(--muted)]">
+        {isCanceled
+          ? t("portal.sessions.actions.viewDetails")
+          : t("portal.common.open")}
+      </span>
     </div>
   );
 

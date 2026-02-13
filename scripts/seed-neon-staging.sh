@@ -25,6 +25,9 @@ export SEED_DEMO_TENANT_SLUG="${SEED_DEMO_TENANT_SLUG:-pilot-staging}"
 export SEED_DEMO_TENANT_NAME="${SEED_DEMO_TENANT_NAME:-Pilot Staging}"
 export SEED_SECOND_TENANT_SLUG="${SEED_SECOND_TENANT_SLUG:-acme-staging}"
 export SEED_SECOND_TENANT_NAME="${SEED_SECOND_TENANT_NAME:-Acme Staging}"
+# Staging refresh is an explicit operation, so opt into non-sandbox seed + password overwrite.
+export PRISMA_SEED_ALLOW_ANY_DB="${PRISMA_SEED_ALLOW_ANY_DB:-1}"
+export SEED_OVERWRITE_PASSWORDS="${SEED_OVERWRITE_PASSWORDS:-1}"
 
 # Optional: run migrations first if SEED_RUN_MIGRATE is set.
 if [[ "${SEED_RUN_MIGRATE:-}" =~ ^(1|true|yes)$ ]]; then

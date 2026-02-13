@@ -2,7 +2,12 @@
 import "server-only";
 
 import { prisma } from "@/lib/db/prisma";
-import type { AuditActorType, Prisma } from "@/generated/prisma/client";
+import { getRequestId } from "@/lib/observability/request";
+import type {
+  AuditActorType,
+  AuditEventResult,
+  Prisma,
+} from "@/generated/prisma/client";
 
 type WriteAuditEventInput = {
   tenantId: string;
@@ -12,6 +17,8 @@ type WriteAuditEventInput = {
   action: string;
   entityType?: string | null;
   entityId?: string | null;
+  result?: AuditEventResult;
+  correlationId?: string | null;
   metadata?: Prisma.InputJsonValue | null;
   request?: Request | null;
 };
@@ -21,7 +28,8 @@ const MAX_STRING_LENGTH = 200;
 const MAX_ARRAY_LENGTH = 20;
 const MAX_NESTED_DEPTH = 3;
 const DISALLOWED_KEY_PATTERN =
-  /(accessCode|access_code|password|token|secret|hash)/i;
+  /(accessCode|access_code|password|token|secret|hash|authorization|cookie|email|ip)/i;
+const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
 
 function sanitizeString(value: string) {
   const trimmed = value.trim();
@@ -71,17 +79,11 @@ function sanitizeMetadata(metadata?: Prisma.InputJsonValue | null) {
     : undefined;
 }
 
-function getIp(request: Request) {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) {
-    return forwarded.split(",")[0]?.trim() || null;
-  }
-  return request.headers.get("x-real-ip");
-}
-
 function normalizeDisplay(value?: string | null) {
   if (!value) return null;
   const trimmed = value.trim();
+  // Privacy guard: audit actor display must never store raw email addresses.
+  if (!trimmed || EMAIL_PATTERN.test(trimmed)) return null;
   return trimmed ? trimmed : null;
 }
 
@@ -94,6 +96,8 @@ export async function writeAuditEvent({
   action,
   entityType,
   entityId,
+  result,
+  correlationId,
   metadata,
   request,
 }: WriteAuditEventInput) {
@@ -107,8 +111,7 @@ export async function writeAuditEvent({
 
   try {
     const sanitizedMetadata = sanitizeMetadata(metadata);
-    const ip = request ? getIp(request) : null;
-    const userAgent = request?.headers.get("user-agent") ?? null;
+    const requestId = correlationId?.trim() || getRequestId(request ?? undefined);
 
     await prisma.auditEvent.create({
       data: {
@@ -119,9 +122,9 @@ export async function writeAuditEvent({
         action,
         entityType: entityType ?? null,
         entityId: entityId ?? null,
+        result: result ?? "SUCCESS",
+        correlationId: requestId || null,
         metadata: sanitizedMetadata,
-        ip,
-        userAgent,
       },
     });
   } catch (error) {
