@@ -49,17 +49,14 @@ test.describe("[regression] [step22.7] Tutor zoom-link visibility", () => {
     await expect(zoomRow).toBeVisible();
     await expect(zoomRow.locator(`a[href="${STEP227_ZOOM_LINK}"]`)).toBeVisible();
 
-    const detailResponsePromise = page.waitForResponse(
-      (response) =>
-        response.request().method() === "GET" &&
-        response.url().includes(`/api/tutor/sessions/${fixtures.zoomSessionId}`),
-    );
-
     await page.getByTestId(`tutor-run-session-link-${fixtures.zoomSessionId}`).click();
     await expect(page.getByTestId("tutor-run-session-page")).toBeVisible();
     await expect(page.locator(`a[href="${STEP227_ZOOM_LINK}"]`).first()).toBeVisible();
 
-    const detailResponse = await detailResponsePromise;
+    // Fetch the exact detail endpoint directly to avoid accidentally matching sibling tutor-session APIs.
+    const detailResponse = await page.request.get(
+      buildTenantPath(fixtures.tenantSlug, `/api/tutor/sessions/${fixtures.zoomSessionId}`),
+    );
     expect(detailResponse.status()).toBe(200);
     const payload = (await detailResponse.json()) as TutorSessionDetailPayload;
 
