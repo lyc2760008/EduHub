@@ -30,9 +30,20 @@ test.describe("[regression] [step22.7] Tutor zoom-link visibility", () => {
 
     await page.goto(buildTenantPath(fixtures.tenantSlug, "/tutor/sessions"));
     await expect(page.getByTestId("tutor-sessions-page")).toBeVisible();
-    // Step 22.7 zoom fixture is seeded beyond the default 7-day filter window, so expand deterministically.
-    const expandedEndDate = formatDateInput(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
-    await page.getByTestId("tutor-sessions-filter-end").fill(expandedEndDate);
+    // Constrain date range around the seeded Step 22.7 zoom session so it appears on page 1 even when
+    // the tenant has many sessions in the broader 30-day window.
+    const zoomWindowStart = formatDateInput(new Date(Date.now() + 11 * 24 * 60 * 60 * 1000));
+    const zoomWindowEnd = formatDateInput(new Date(Date.now() + 13 * 24 * 60 * 60 * 1000));
+    const filteredListResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        response.url().includes("/api/tutor/sessions?") &&
+        response.url().includes(`from=${zoomWindowStart}`) &&
+        response.url().includes(`to=${zoomWindowEnd}`),
+    );
+    await page.getByTestId("tutor-sessions-filter-start").fill(zoomWindowStart);
+    await page.getByTestId("tutor-sessions-filter-end").fill(zoomWindowEnd);
+    await filteredListResponse;
 
     const zoomRow = page.getByTestId(`tutor-session-row-${fixtures.zoomSessionId}`);
     await expect(zoomRow).toBeVisible();

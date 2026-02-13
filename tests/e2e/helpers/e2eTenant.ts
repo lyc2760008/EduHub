@@ -27,6 +27,12 @@ import {
   STEP227_INTERNAL_ONLY_SENTINEL,
   STEP227_ZOOM_LINK,
 } from "./step227";
+import {
+  STEP228_BODY_LEAK_SENTINEL,
+  STEP228_SEARCH_MARKER,
+  STEP228_TITLES,
+  buildStep228AnnouncementIds,
+} from "./step228";
 
 // DbClient allows helpers to run with either the full Prisma client or a transaction client.
 type DbClient = PrismaClient | Prisma.TransactionClient;
@@ -247,6 +253,182 @@ async function ensureE2ETenant(prisma: DbClient, slug: string, name?: string) {
     },
     select: { id: true, slug: true, name: true },
   });
+}
+
+type SeedStep228AnnouncementsArgs = {
+  tx: Prisma.TransactionClient;
+  tenantId: string;
+  secondaryTenantId: string | null;
+  tenantSlug: string;
+  secondaryTenantSlug: string;
+  runId: string;
+  parentReaderUserId: string;
+  tutorReaderUserId: string;
+  adminUserId: string;
+};
+
+async function seedStep228Announcements({
+  tx,
+  tenantId,
+  secondaryTenantId,
+  tenantSlug,
+  secondaryTenantSlug,
+  runId,
+  parentReaderUserId,
+  tutorReaderUserId,
+  adminUserId,
+}: SeedStep228AnnouncementsArgs) {
+  const ids = buildStep228AnnouncementIds(tenantSlug, secondaryTenantSlug, runId);
+  const now = DateTime.utc();
+  const seededRows = [
+    {
+      id: ids.draft1,
+      title: STEP228_TITLES.draft1,
+      body: "E2E_BODY_DRAFT_1",
+      status: "DRAFT" as const,
+      publishedAt: null as Date | null,
+    },
+    {
+      id: ids.pub1,
+      title: STEP228_TITLES.pub1,
+      body: "E2E_BODY_PUB_1",
+      status: "PUBLISHED" as const,
+      publishedAt: now.minus({ minutes: 1 }).toJSDate(),
+    },
+    {
+      id: ids.pub2,
+      title: STEP228_TITLES.pub2,
+      body: `E2E_BODY_PUB_2\n${STEP228_BODY_LEAK_SENTINEL}`,
+      status: "PUBLISHED" as const,
+      publishedAt: now.minus({ minutes: 2 }).toJSDate(),
+    },
+    {
+      id: ids.arch1,
+      title: STEP228_TITLES.arch1,
+      body: "E2E_BODY_ARCH_1",
+      status: "ARCHIVED" as const,
+      publishedAt: now.minus({ minutes: 3 }).toJSDate(),
+    },
+    {
+      id: ids.search,
+      title: STEP228_TITLES.search,
+      body: `E2E_BODY_SEARCHABLE ${STEP228_SEARCH_MARKER}`,
+      status: "PUBLISHED" as const,
+      publishedAt: now.minus({ minutes: 4 }).toJSDate(),
+    },
+    ...ids.paginatedPublished.map((id, index) => ({
+      id,
+      title: `E2E_PAGED_${String(index + 1).padStart(2, "0")}`,
+      body: `E2E_PAGED_BODY_${String(index + 1).padStart(2, "0")}`,
+      status: "PUBLISHED" as const,
+      // Make paged rows older so key fixtures stay near the top of portal/admin lists.
+      publishedAt: now.minus({ days: 2, minutes: index + 1 }).toJSDate(),
+    })),
+  ];
+
+  for (const row of seededRows) {
+    // Step 22.8 v1 remains tenant-wide only; scope is fixed to TENANT_WIDE in all seeded rows.
+    await tx.announcement.upsert({
+      where: { id: row.id },
+      update: {
+        tenantId,
+        title: row.title,
+        body: row.body,
+        status: row.status,
+        scope: "TENANT_WIDE",
+        publishedAt: row.publishedAt,
+        createdByUserId: adminUserId,
+      },
+      create: {
+        id: row.id,
+        tenantId,
+        title: row.title,
+        body: row.body,
+        status: row.status,
+        scope: "TENANT_WIDE",
+        publishedAt: row.publishedAt,
+        createdByUserId: adminUserId,
+      },
+      select: { id: true },
+    });
+  }
+
+  const primaryAnnouncementIds = seededRows.map((row) => row.id);
+  // Reset read receipts for seeded announcements so repeated seed runs remain deterministic.
+  await tx.announcementRead.deleteMany({
+    where: {
+      tenantId,
+      announcementId: { in: primaryAnnouncementIds },
+    },
+  });
+
+  // Seed baseline read state:
+  // - A_PUB_1 read by tutor only
+  // - A_PUB_1 unread by parent
+  // - A_PUB_2 unread by both
+  await tx.announcementRead.upsert({
+    where: {
+      announcementId_readerUserId: {
+        announcementId: ids.pub1,
+        readerUserId: tutorReaderUserId,
+      },
+    },
+    update: {
+      tenantId,
+      roleAtRead: "Tutor",
+      readAt: now.minus({ seconds: 15 }).toJSDate(),
+    },
+    create: {
+      tenantId,
+      announcementId: ids.pub1,
+      readerUserId: tutorReaderUserId,
+      roleAtRead: "Tutor",
+      readAt: now.minus({ seconds: 15 }).toJSDate(),
+    },
+  });
+
+  // Keep parent unread for A_PUB_1 + A_PUB_2 by explicitly clearing potential stale rows.
+  await tx.announcementRead.deleteMany({
+    where: {
+      tenantId,
+      readerUserId: parentReaderUserId,
+      announcementId: { in: [ids.pub1, ids.pub2] },
+    },
+  });
+  await tx.announcementRead.deleteMany({
+    where: {
+      tenantId,
+      readerUserId: tutorReaderUserId,
+      announcementId: ids.pub2,
+    },
+  });
+
+  if (secondaryTenantId) {
+    // Cross-tenant security probes need at least one real announcement ID in the secondary tenant.
+    await tx.announcement.upsert({
+      where: { id: ids.secondaryTenantPublished },
+      update: {
+        tenantId: secondaryTenantId,
+        title: STEP228_TITLES.crossTenantPublished,
+        body: "E2E_SECONDARY_TENANT_BODY",
+        status: "PUBLISHED",
+        scope: "TENANT_WIDE",
+        publishedAt: now.minus({ days: 1 }).toJSDate(),
+        createdByUserId: null,
+      },
+      create: {
+        id: ids.secondaryTenantPublished,
+        tenantId: secondaryTenantId,
+        title: STEP228_TITLES.crossTenantPublished,
+        body: "E2E_SECONDARY_TENANT_BODY",
+        status: "PUBLISHED",
+        scope: "TENANT_WIDE",
+        publishedAt: now.minus({ days: 1 }).toJSDate(),
+        createdByUserId: null,
+      },
+      select: { id: true },
+    });
+  }
 }
 
 async function resolvePasswordHash(prisma: DbClient, email: string, password: string) {
@@ -2718,6 +2900,18 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       tutorUserId: tutorLoginUser.id,
     });
 
+    await seedStep228Announcements({
+      tx,
+      tenantId: tenant.id,
+      secondaryTenantId: secondaryTenant?.id ?? null,
+      tenantSlug: tenant.slug,
+      secondaryTenantSlug,
+      runId,
+      parentReaderUserId: parentA1.id,
+      tutorReaderUserId: tutorLoginUser.id,
+      adminUserId: adminUser.id,
+    });
+
     // ParentA0 is intentionally left without linked students for empty-state tests.
     void parentA0;
     // Tutor B and unlinked student/session support access-control coverage.
@@ -2763,6 +2957,8 @@ export async function upsertE2EFixtures(prisma: DbClient) {
     absenceStaffApprovedSessionId,
     absenceStaffPendingSessionId,
     absenceStaffDeclinedSessionId,
+    step228SearchMarker: STEP228_SEARCH_MARKER,
+    step228BodyLeakSentinel: STEP228_BODY_LEAK_SENTINEL,
   };
 }
 
@@ -2775,6 +2971,9 @@ export async function cleanupE2ETenantData(prisma: DbClient) {
   await withTransaction(prisma, async (tx) => {
     // Audit rows are tenant-scoped fixtures and should be reset between runs for deterministic paging.
     await tx.auditEvent.deleteMany({ where: { tenantId: tenant.id } });
+    // Step 22.8 announcement fixtures are tenant-scoped and reset on every seed run.
+    await tx.announcementRead.deleteMany({ where: { tenantId: tenant.id } });
+    await tx.announcement.deleteMany({ where: { tenantId: tenant.id } });
     // Parent requests must be cleared before sessions/students to satisfy FK constraints.
     await tx.parentRequest.deleteMany({ where: { tenantId: tenant.id } });
     await tx.sessionNote.deleteMany({ where: { tenantId: tenant.id } });

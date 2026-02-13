@@ -99,6 +99,7 @@ const ENTITY_TYPE_OPTIONS: Array<{ value: string; labelKey: string }> = [
   { value: "GROUP", labelKey: "adminAudit.entity.group" },
   { value: "STUDENT", labelKey: "adminAudit.entity.student" },
   { value: "PARENT", labelKey: "adminAudit.entity.parent" },
+  { value: "ANNOUNCEMENT", labelKey: "adminAudit.entity.announcement" },
   { value: "REPORT", labelKey: "adminAudit.entity.report" },
   { value: "ACCESS_CODE", labelKey: "adminAudit.entity.accessCode" },
   { value: "SYSTEM", labelKey: "adminAudit.entity.system" },
@@ -130,6 +131,10 @@ const ACTION_LABELS: Record<string, string> = {
   [AUDIT_ACTIONS.ABSENCE_REQUEST_RESUBMITTED]:
     "adminAudit.actions.absenceRequestResubmitted",
   [AUDIT_ACTIONS.ABSENCE_REQUEST_RESOLVED]: "adminAudit.actions.absenceRequestResolved",
+  [AUDIT_ACTIONS.ANNOUNCEMENT_CREATED]: "adminAudit.actions.announcementCreated",
+  [AUDIT_ACTIONS.ANNOUNCEMENT_UPDATED]: "adminAudit.actions.announcementUpdated",
+  [AUDIT_ACTIONS.ANNOUNCEMENT_PUBLISHED]: "adminAudit.actions.announcementPublished",
+  [AUDIT_ACTIONS.ANNOUNCEMENT_ARCHIVED]: "adminAudit.actions.announcementArchived",
 };
 
 const FAILURE_REASON_KEY_BY_CODE: Record<string, string> = {

@@ -199,6 +199,10 @@ function buildReportCrumb(path: string, tenant: string) {
       labelKey: "admin.nav.report.studentsDirectory",
       titleKey: "admin.reports.students.title",
     },
+    "/admin/announcements/engagement": {
+      labelKey: "admin.nav.report.announcementEngagement",
+      titleKey: "announcementsReport.page.title",
+    },
   };
 
   const entry = reportMap[path];

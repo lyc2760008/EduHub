@@ -34,6 +34,10 @@ model Tenant {
   memberships     TenantMembership[]
   // Audit events record tenant-scoped security + admin actions.
   auditEvents     AuditEvent[]
+  // Announcements are tenant-scoped in-app notices (v1 tenant-wide only).
+  announcements   Announcement[]
+  // Read receipts track per-user announcement reads for engagement reporting.
+  announcementReads AnnouncementRead[]
   // Centers are tenant-scoped locations/settings for scheduling and reporting.
   centers         Center[]
   // Staff-to-center assignments scoped to this tenant.
@@ -85,6 +89,8 @@ model User {
   sessionNotesUpdated SessionNote[]      @relation("SessionNoteUpdatedBy")
   // Requests resolved by this staff user for audit trails.
   resolvedParentRequests ParentRequest[] @relation("ParentRequestResolvedBy")
+  // Announcement creator relation is optional because system-generated announcements are allowed.
+  createdAnnouncements Announcement[] @relation("AnnouncementCreatedBy")
 }
 
 // Join table linking users to tenants with a single role per tenant.
@@ -150,6 +156,25 @@ enum RequestStatus {
   WITHDRAWN
 }
 
+// Announcement status lifecycle for admin draft/publish/archive flows.
+enum AnnouncementStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// Step 22.8 v1 scope is tenant-wide only unless PO later approves center-scoped enforcement.
+enum AnnouncementScope {
+  TENANT_WIDE
+}
+
+// Read-receipt role snapshot supports aggregate engagement slices without user exports.
+enum AnnouncementReadRole {
+  Parent
+  Tutor
+  Admin
+}
+
 // Role values for tenant membership and future RBAC.
 enum Role {
   Owner
@@ -203,6 +228,45 @@ model AuditEvent {
   @@index([tenantId, entityType, occurredAt])
   @@index([tenantId, entityType, entityId])
   @@index([tenantId, action, actorDisplay, occurredAt])
+}
+
+// Announcement stores in-app notice content; v1 visibility is tenant-wide only.
+model Announcement {
+  id String @id @default(cuid())
+  tenantId String
+  title String
+  body String
+  status AnnouncementStatus @default(DRAFT)
+  scope AnnouncementScope @default(TENANT_WIDE)
+  publishedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdByUserId String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdByUser User? @relation("AnnouncementCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  reads AnnouncementRead[]
+
+  @@index([tenantId, status, publishedAt])
+  @@index([tenantId, createdAt])
+}
+
+// AnnouncementRead stores idempotent per-user read receipts (one row per announcement/user).
+model AnnouncementRead {
+  id String @id @default(cuid())
+  tenantId String
+  announcementId String
+  readerUserId String
+  roleAtRead AnnouncementReadRole
+  readAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, readerUserId])
+  @@index([tenantId, announcementId])
+  @@index([tenantId, readerUserId])
+  @@index([tenantId, readAt])
 }
 
 model Student {
