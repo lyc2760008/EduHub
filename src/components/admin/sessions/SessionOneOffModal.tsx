@@ -1,7 +1,7 @@
 ﻿// One-off session creation modal (admin-only) with minimal validation and API integration.
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { DateTime } from "luxon";
 import { useTranslations } from "next-intl";
 
@@ -87,6 +87,26 @@ function formatStudentName(student: StudentOption) {
     : `${student.firstName} ${student.lastName}`;
 }
 
+function parseLocalDateTime(value: string, timezone: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return DateTime.invalid("missing input");
+
+  const iso = DateTime.fromISO(trimmed, { zone: timezone });
+  if (iso.isValid) return iso;
+
+  const isoWithSpace = DateTime.fromFormat(trimmed, "yyyy-MM-dd HH:mm", {
+    zone: timezone,
+  });
+  if (isoWithSpace.isValid) return isoWithSpace;
+
+  const twelveHour = DateTime.fromFormat(trimmed, "yyyy-MM-dd h:mm a", {
+    zone: timezone,
+  });
+  if (twelveHour.isValid) return twelveHour;
+
+  return DateTime.invalid("invalid datetime");
+}
+
 export default function SessionOneOffModal({
   centers,
   tutors,
@@ -113,6 +133,8 @@ export default function SessionOneOffModal({
   }));
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const startAtInputRef = useRef<HTMLInputElement>(null);
+  const endAtInputRef = useRef<HTMLInputElement>(null);
 
   const filteredTutors = useMemo(() => {
     if (!form.centerId) return tutors;
@@ -171,33 +193,53 @@ export default function SessionOneOffModal({
     }
   }
 
+  function getNormalizedFormSnapshot(): FormState {
+    // Safari/Chrome on macOS can delay date-time updates until after the submit click.
+    const startAt = startAtInputRef.current?.value?.trim() ?? form.startAt;
+    const endAt = endAtInputRef.current?.value?.trim() ?? form.endAt;
+
+    return {
+      ...form,
+      startAt,
+      endAt,
+      zoomLink: form.zoomLink.trim(),
+    };
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSaving(true);
     setError(null);
 
-    if (!form.centerId || !form.tutorId || !form.startAt || !form.endAt) {
+    const snapshot = getNormalizedFormSnapshot();
+    setForm(snapshot);
+
+    if (
+      !snapshot.centerId ||
+      !snapshot.tutorId ||
+      !snapshot.startAt ||
+      !snapshot.endAt
+    ) {
       setError(requiredFieldsMessage);
       setIsSaving(false);
       return;
     }
 
-    if (form.sessionType === "ONE_ON_ONE" && !form.studentId) {
+    if (snapshot.sessionType === "ONE_ON_ONE" && !snapshot.studentId) {
       setError(studentRequiredMessage);
       setIsSaving(false);
       return;
     }
 
-    if (form.sessionType !== "ONE_ON_ONE" && !form.groupId) {
+    if (snapshot.sessionType !== "ONE_ON_ONE" && !snapshot.groupId) {
       setError(groupRequiredMessage);
       setIsSaving(false);
       return;
     }
 
-    const startLocal = DateTime.fromISO(form.startAt, {
-      zone: form.timezone,
-    });
-    const endLocal = DateTime.fromISO(form.endAt, { zone: form.timezone });
+    const timezone = snapshot.timezone || defaultTimezone;
+    const startLocal = parseLocalDateTime(snapshot.startAt, timezone);
+    const endLocal = parseLocalDateTime(snapshot.endAt, timezone);
 
     if (!startLocal.isValid || !endLocal.isValid) {
       setError(invalidTimeMessage);
@@ -211,7 +253,7 @@ export default function SessionOneOffModal({
       return;
     }
 
-    if (!isValidZoomLinkInput(form.zoomLink)) {
+    if (!isValidZoomLinkInput(snapshot.zoomLink)) {
       setError(invalidZoomLinkMessage);
       setIsSaving(false);
       return;
@@ -227,15 +269,18 @@ export default function SessionOneOffModal({
     }
 
     const payload = {
-      centerId: form.centerId,
-      tutorId: form.tutorId,
-      sessionType: form.sessionType,
-      studentId: form.sessionType === "ONE_ON_ONE" ? form.studentId : undefined,
-      groupId: form.sessionType === "ONE_ON_ONE" ? undefined : form.groupId,
+      centerId: snapshot.centerId,
+      tutorId: snapshot.tutorId,
+      sessionType: snapshot.sessionType,
+      studentId:
+        snapshot.sessionType === "ONE_ON_ONE"
+          ? snapshot.studentId
+          : undefined,
+      groupId: snapshot.sessionType === "ONE_ON_ONE" ? undefined : snapshot.groupId,
       startAt: startAtIso,
       endAt: endAtIso,
-      timezone: form.timezone || defaultTimezone,
-      zoomLink: form.zoomLink.trim() || null,
+      timezone,
+      zoomLink: snapshot.zoomLink || null,
     };
 
     const result = await fetchJson<{ session: { id: string } }>(
@@ -438,10 +483,17 @@ export default function SessionOneOffModal({
                     // Stable test id avoids locale-specific labels in E2E.
                     data-testid="sessions-one-off-start"
                     id="sessions-one-off-start"
+                    ref={startAtInputRef}
                     type="datetime-local"
                     value={form.startAt}
                     onChange={(event) =>
                       updateField("startAt", event.target.value)
+                    }
+                    onInput={(event) =>
+                      updateField(
+                        "startAt",
+                        (event.currentTarget as HTMLInputElement).value,
+                      )
                     }
                   />
                 </AdminFormField>
@@ -459,9 +511,16 @@ export default function SessionOneOffModal({
                     // Stable test id avoids locale-specific labels in E2E.
                     data-testid="sessions-one-off-end"
                     id="sessions-one-off-end"
+                    ref={endAtInputRef}
                     type="datetime-local"
                     value={form.endAt}
                     onChange={(event) => updateField("endAt", event.target.value)}
+                    onInput={(event) =>
+                      updateField(
+                        "endAt",
+                        (event.currentTarget as HTMLInputElement).value,
+                      )
+                    }
                   />
                 </AdminFormField>
               </div>

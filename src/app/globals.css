@@ -24,3 +24,19 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Safari can render disabled form values with very low contrast; keep them readable. */
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 1;
+  color: var(--foreground);
+  -webkit-text-fill-color: var(--foreground);
+}
+
+/* Keep placeholder text legible on macOS while remaining visually secondary. */
+input::placeholder,
+textarea::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
