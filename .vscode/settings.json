@@ -1,3 +1,5 @@
 {
-  "chatgpt.openOnStartup": false
+  "chatgpt.openOnStartup": false,
+  // Tailwind v4 adds CSS at-rules like `@theme`; VS Code CSS lint otherwise reports false unknownAtRules warnings.
+  "css.lint.unknownAtRules": "ignore"
 }

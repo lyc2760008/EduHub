@@ -143,7 +143,8 @@ export default function AdminDataTable<T>({
                 tabIndex={onRowClick ? 0 : undefined}
               >
                 {columns.map((column) => (
-                  <td key={`${rowKey(row)}-${column.key}`} className="px-4 py-3">
+                  // Keep default data cells readable on macOS regardless of OS color-scheme preference.
+                  <td key={`${rowKey(row)}-${column.key}`} className="px-4 py-3 text-slate-900">
                     {column.renderCell(row)}
                   </td>
                 ))}

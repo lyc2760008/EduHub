@@ -90,10 +90,11 @@ export default function AdminTable<T>({
                     tabIndex={isInteractive ? 0 : undefined}
                   >
                     {columns.map((column, index) => (
+                      // Default to high-contrast row text so unstyled cell values stay readable on macOS.
                       <td
                         key={index}
                         className={
-                          column.cellClassName ?? "px-4 py-3 align-middle"
+                          column.cellClassName ?? "px-4 py-3 align-middle text-slate-900"
                         }
                       >
                         {column.cell(row)}
