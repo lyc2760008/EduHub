@@ -59,7 +59,7 @@ type PortalHomeworkInboxResponse = {
 
 const PAGE_SIZE = 25;
 
-type StatusFilter = "ALL" | HomeworkStatus;
+type StatusFilter = "ALL" | HomeworkStatus | "UNASSIGNED";
 
 function buildPortalApiUrl(tenant: string, path: string, params?: URLSearchParams) {
   const base = tenant ? `/t/${tenant}/api/portal${path}` : `/api/portal${path}`;
@@ -211,6 +211,8 @@ export default function ParentHomeworkInboxClient({ tenant }: ParentHomeworkInbo
               onChange={(event) => onFilterChange({ status: event.target.value as StatusFilter })}
             >
               <option value="ALL">{t("parentHomework.inbox.filters.statusAll")}</option>
+              {/* UNASSIGNED is a display status backed by ASSIGNED rows with no assignment file. */}
+              <option value="UNASSIGNED">{t("homework.status.unassigned")}</option>
               <option value="ASSIGNED">{t("homework.status.assigned")}</option>
               <option value="SUBMITTED">{t("homework.status.submitted")}</option>
               <option value="REVIEWED">{t("homework.status.reviewed")}</option>

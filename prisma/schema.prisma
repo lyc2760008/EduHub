@@ -38,6 +38,9 @@ model Tenant {
   announcements   Announcement[]
   // Read receipts track per-user announcement reads for engagement reporting.
   announcementReads AnnouncementRead[]
+  // In-app notifications are tenant-scoped and fan out to role-targeted recipient rows.
+  notifications   Notification[]
+  notificationRecipients NotificationRecipient[]
   // Centers are tenant-scoped locations/settings for scheduling and reporting.
   centers         Center[]
   // Staff-to-center assignments scoped to this tenant.
@@ -224,6 +227,20 @@ enum AnnouncementReadRole {
   Admin
 }
 
+// NotificationType captures in-app event taxonomy for inbox filtering and deep links.
+enum NotificationType {
+  ANNOUNCEMENT
+  HOMEWORK
+  REQUEST
+}
+
+// NotificationAudienceRole snapshots the intended audience segment for each notification row.
+enum NotificationAudienceRole {
+  PARENT
+  TUTOR
+  ADMIN
+}
+
 // Role values for tenant membership and future RBAC.
 enum Role {
   Owner
@@ -316,6 +333,47 @@ model AnnouncementRead {
   @@index([tenantId, announcementId])
   @@index([tenantId, readerUserId])
   @@index([tenantId, readAt])
+}
+
+// Notification stores one tenant-scoped event row per audience role with compact payload fields.
+model Notification {
+  id String @id @default(cuid())
+  tenantId String
+  type NotificationType
+  title String
+  bodyPreview String?
+  targetType String?
+  targetId String?
+  targetUrl String?
+  audienceRole NotificationAudienceRole
+  createdAt DateTime @default(now())
+  // Creator is string-only to allow non-User actors (for example parent IDs or "system").
+  createdByUserId String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recipients NotificationRecipient[]
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, type, createdAt])
+  @@index([tenantId, audienceRole, createdAt])
+}
+
+// NotificationRecipient stores per-recipient read state (readAt) for idempotent inbox actions.
+model NotificationRecipient {
+  id String @id @default(cuid())
+  tenantId String
+  notificationId String
+  recipientUserId String
+  readAt DateTime?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, recipientUserId])
+  @@index([tenantId, recipientUserId, createdAt])
+  @@index([tenantId, recipientUserId, readAt])
+  @@index([tenantId, notificationId])
 }
 
 model Student {

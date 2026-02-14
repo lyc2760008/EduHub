@@ -8,6 +8,7 @@ import { signOut } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
+import { useUnreadNotificationsCount } from "@/components/notifications/useUnreadNotificationsCount";
 import PortalIdentityMenu from "@/components/parent/portal/PortalIdentityMenu";
 import { usePortalMe } from "@/components/parent/portal/PortalMeProvider";
 
@@ -24,6 +25,7 @@ type NavKey =
   | "sessions"
   | "homework"
   | "announcements"
+  | "notifications"
   | "requests";
 
 type NavItem = {
@@ -38,8 +40,13 @@ function resolveActiveKey(pathname: string | null): NavKey {
   if (pathname.includes("/portal/sessions")) return "sessions";
   if (pathname.includes("/portal/homework")) return "homework";
   if (pathname.includes("/portal/announcements")) return "announcements";
+  if (pathname.includes("/portal/notifications")) return "notifications";
   if (pathname.includes("/portal/requests")) return "requests";
   return "dashboard";
+}
+
+function formatBadgeCount(count: number, capLabel: string) {
+  return count > 99 ? capLabel : String(count);
 }
 
 export default function PortalTopNav({
@@ -52,6 +59,7 @@ export default function PortalTopNav({
   const pathname = usePathname();
   const router = useRouter();
   const { data: portalMe } = usePortalMe();
+  const { unreadCount } = useUnreadNotificationsCount(tenantSlug);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const basePath = tenantSlug ? `/${tenantSlug}/portal` : "/portal";
   const activeKey = resolveActiveKey(pathname);
@@ -82,6 +90,11 @@ export default function PortalTopNav({
       key: "announcements",
       labelKey: "portalAnnouncements.nav",
       href: `${basePath}/announcements`,
+    },
+    {
+      key: "notifications",
+      labelKey: "portal.nav.notifications",
+      href: `${basePath}/notifications`,
     },
     // Requests is a read-only portal view for absence request tracking.
     {
@@ -155,6 +168,53 @@ export default function PortalTopNav({
                   ? "after:absolute after:bottom-1 after:left-3 after:right-3 after:h-[2px] after:rounded-full after:bg-[var(--primary)]"
                   : "";
                 const className = `${baseClassName} ${toneClassName} ${indicatorClassName}`;
+
+                if (item.key === "notifications") {
+                  return (
+                    <Link
+                      key={item.key}
+                      className={className}
+                      href={item.href}
+                      aria-current={isActive ? "page" : undefined}
+                    >
+                      <span className="relative inline-flex items-center gap-2">
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="h-4 w-4"
+                          role="img"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M12 4a4 4 0 0 0-4 4v2.7c0 .8-.3 1.6-.8 2.2L6 14.5h12l-1.2-1.6c-.5-.6-.8-1.4-.8-2.2V8a4 4 0 0 0-4-4Z"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <path
+                            d="M10.2 17.5a2 2 0 0 0 3.6 0"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        <span>{t(item.labelKey)}</span>
+                        {unreadCount > 0 ? (
+                          <span
+                            className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--primary)] px-1.5 text-[10px] font-semibold text-[var(--primary-foreground)]"
+                            aria-label={t("notifications.badge.aria", {
+                              count: unreadCount,
+                            })}
+                          >
+                            {formatBadgeCount(unreadCount, t("notifications.badge.cap"))}
+                          </span>
+                        ) : null}
+                      </span>
+                    </Link>
+                  );
+                }
 
                 return (
                   <Link
@@ -243,6 +303,7 @@ export default function PortalTopNav({
             <nav className="mt-4 grid gap-2">
               {navItems.map((item) => {
                 const isActive = activeKey === item.key;
+                const isNotifications = item.key === "notifications";
                 return (
                   <Link
                     key={item.key}
@@ -253,8 +314,20 @@ export default function PortalTopNav({
                         ? "bg-[var(--surface-2)] text-[var(--text)]"
                         : "text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
                     }`}
-                  >
-                    {t(item.labelKey)}
+                    >
+                    <span className="inline-flex items-center gap-2">
+                      <span>{t(item.labelKey)}</span>
+                      {isNotifications && unreadCount > 0 ? (
+                        <span
+                          className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--primary)] px-1.5 text-[10px] font-semibold text-[var(--primary-foreground)]"
+                          aria-label={t("notifications.badge.aria", {
+                            count: unreadCount,
+                          })}
+                        >
+                          {formatBadgeCount(unreadCount, t("notifications.badge.cap"))}
+                        </span>
+                      ) : null}
+                    </span>
                   </Link>
                 );
               })}

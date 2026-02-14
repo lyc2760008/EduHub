@@ -42,6 +42,12 @@ import {
   buildStep232CrossTenantHomeworkItemId,
   buildStep232HomeworkItemIds,
 } from "./step232";
+import {
+  STEP233_INTERNAL_ONLY_SENTINEL,
+  buildStep233NotificationIds,
+  buildStep233RequestIds,
+  buildStep233SessionIds,
+} from "./step233";
 
 // DbClient allows helpers to run with either the full Prisma client or a transaction client.
 type DbClient = PrismaClient | Prisma.TransactionClient;
@@ -440,6 +446,275 @@ async function seedStep228Announcements({
   }
 }
 
+type SeedStep233NotificationsArgs = {
+  tx: Prisma.TransactionClient;
+  tenantId: string;
+  tenantSlug: string;
+  runId: string;
+  parentRecipientId: string;
+  tutorRecipientId: string;
+  adminRecipientId: string;
+  announcementId: string;
+  homeworkItemId: string;
+  deniedHomeworkItemId: string;
+  requestId: string;
+};
+
+async function seedStep233Notifications({
+  tx,
+  tenantId,
+  tenantSlug,
+  runId,
+  parentRecipientId,
+  tutorRecipientId,
+  adminRecipientId,
+  announcementId,
+  homeworkItemId,
+  deniedHomeworkItemId,
+  requestId,
+}: SeedStep233NotificationsArgs) {
+  const ids = buildStep233NotificationIds(tenantSlug, runId);
+  const parentUnreadIds = [
+    ids.parentAnnouncementDeepLink,
+    ids.parentDeniedHomeworkDeepLink,
+    ...ids.parentUnreadFiller,
+  ];
+  const tutorUnreadIds = [
+    ids.tutorAnnouncementDeepLink,
+    ids.tutorHomeworkUnread,
+    ids.tutorRequestUnread,
+  ];
+  const allIds = [
+    ...parentUnreadIds,
+    ...ids.parentRead,
+    ...tutorUnreadIds,
+    ...ids.tutorRead,
+    ids.adminHomeworkUnread,
+    ids.adminRequestUnread,
+    ...ids.adminRead,
+  ];
+
+  // Keep seeded notification timestamps deterministic so UI ordering and pagination assertions stay stable.
+  const seedBase = DateTime.fromISO("2026-02-15T00:00:00Z");
+  const notificationRows: Prisma.NotificationCreateManyInput[] = [];
+  const recipientRows: Prisma.NotificationRecipientCreateManyInput[] = [];
+
+  const pushRow = (input: {
+    id: string;
+    createdAt: Date;
+    audienceRole: "PARENT" | "TUTOR" | "ADMIN";
+    type: "ANNOUNCEMENT" | "HOMEWORK" | "REQUEST";
+    title: string;
+    bodyPreview: string | null;
+    targetType: "announcement" | "homework" | "request";
+    targetId: string;
+    recipientUserId: string;
+    readAt: Date | null;
+  }) => {
+    notificationRows.push({
+      id: input.id,
+      tenantId,
+      type: input.type,
+      title: input.title,
+      bodyPreview: input.bodyPreview,
+      targetType: input.targetType,
+      targetId: input.targetId,
+      targetUrl: null,
+      audienceRole: input.audienceRole,
+      createdAt: input.createdAt,
+      createdByUserId: null,
+    });
+    recipientRows.push({
+      id: `${input.id}-recipient`,
+      tenantId,
+      notificationId: input.id,
+      recipientUserId: input.recipientUserId,
+      readAt: input.readAt,
+      createdAt: input.createdAt,
+    });
+  };
+
+  pushRow({
+    id: ids.parentAnnouncementDeepLink,
+    createdAt: seedBase.minus({ minutes: 1 }).toJSDate(),
+    audienceRole: "PARENT",
+    type: "ANNOUNCEMENT",
+    title: "notification.seed.parent.announcement",
+    bodyPreview: "E2E_PARENT_NOTIFICATION_TARGET_ANNOUNCEMENT",
+    targetType: "announcement",
+    targetId: announcementId,
+    recipientUserId: parentRecipientId,
+    readAt: null,
+  });
+  pushRow({
+    id: ids.parentDeniedHomeworkDeepLink,
+    createdAt: seedBase.minus({ minutes: 2 }).toJSDate(),
+    audienceRole: "PARENT",
+    type: "ANNOUNCEMENT",
+    title: "notification.seed.parent.deniedHomework",
+    bodyPreview: "E2E_PARENT_NOTIFICATION_TARGET_DENIED_HOMEWORK",
+    targetType: "homework",
+    targetId: deniedHomeworkItemId,
+    recipientUserId: parentRecipientId,
+    readAt: null,
+  });
+
+  // Parent filler rows keep unread count above 99 so badge-cap behavior is deterministic.
+  for (let index = 0; index < ids.parentUnreadFiller.length; index += 1) {
+    const rowId = ids.parentUnreadFiller[index];
+    const cycle = index % 3;
+    const type = cycle === 0 ? "ANNOUNCEMENT" : cycle === 1 ? "HOMEWORK" : "REQUEST";
+    const targetType =
+      cycle === 0 ? "announcement" : cycle === 1 ? "homework" : "request";
+    const targetId = cycle === 0 ? announcementId : cycle === 1 ? homeworkItemId : requestId;
+    pushRow({
+      id: rowId,
+      createdAt: seedBase.minus({ minutes: 3 + index }).toJSDate(),
+      audienceRole: "PARENT",
+      type,
+      title: "notification.seed.parent.filler",
+      bodyPreview:
+        type === "ANNOUNCEMENT" ? `E2E_PARENT_FILLER_${String(index + 1).padStart(3, "0")}` : null,
+      targetType,
+      targetId,
+      recipientUserId: parentRecipientId,
+      readAt: null,
+    });
+  }
+
+  for (let index = 0; index < ids.parentRead.length; index += 1) {
+    const rowId = ids.parentRead[index];
+    const createdAt = seedBase.minus({ hours: 1, minutes: index + 1 }).toJSDate();
+    pushRow({
+      id: rowId,
+      createdAt,
+      audienceRole: "PARENT",
+      type: "ANNOUNCEMENT",
+      title: "notification.seed.parent.read",
+      bodyPreview: "E2E_PARENT_READ_ROW",
+      targetType: "announcement",
+      targetId: announcementId,
+      recipientUserId: parentRecipientId,
+      readAt: seedBase.minus({ minutes: 10 + index }).toJSDate(),
+    });
+  }
+
+  pushRow({
+    id: ids.tutorAnnouncementDeepLink,
+    createdAt: seedBase.minus({ minutes: 1 }).toJSDate(),
+    audienceRole: "TUTOR",
+    type: "ANNOUNCEMENT",
+    title: "notification.seed.tutor.announcement",
+    bodyPreview: "E2E_TUTOR_NOTIFICATION_TARGET_ANNOUNCEMENT",
+    targetType: "announcement",
+    targetId: announcementId,
+    recipientUserId: tutorRecipientId,
+    readAt: null,
+  });
+  pushRow({
+    id: ids.tutorHomeworkUnread,
+    createdAt: seedBase.minus({ minutes: 2 }).toJSDate(),
+    audienceRole: "TUTOR",
+    type: "HOMEWORK",
+    title: "notification.seed.tutor.homework",
+    bodyPreview: null,
+    targetType: "homework",
+    targetId: homeworkItemId,
+    recipientUserId: tutorRecipientId,
+    readAt: null,
+  });
+  pushRow({
+    id: ids.tutorRequestUnread,
+    createdAt: seedBase.minus({ minutes: 3 }).toJSDate(),
+    audienceRole: "TUTOR",
+    type: "REQUEST",
+    title: "notification.seed.tutor.request",
+    bodyPreview: null,
+    targetType: "request",
+    targetId: requestId,
+    recipientUserId: tutorRecipientId,
+    readAt: null,
+  });
+
+  for (let index = 0; index < ids.tutorRead.length; index += 1) {
+    const rowId = ids.tutorRead[index];
+    pushRow({
+      id: rowId,
+      createdAt: seedBase.minus({ hours: 1, minutes: 30 + index }).toJSDate(),
+      audienceRole: "TUTOR",
+      type: "ANNOUNCEMENT",
+      title: "notification.seed.tutor.read",
+      bodyPreview: "E2E_TUTOR_READ_ROW",
+      targetType: "announcement",
+      targetId: announcementId,
+      recipientUserId: tutorRecipientId,
+      readAt: seedBase.minus({ minutes: 20 + index }).toJSDate(),
+    });
+  }
+
+  pushRow({
+    id: ids.adminHomeworkUnread,
+    createdAt: seedBase.minus({ minutes: 1 }).toJSDate(),
+    audienceRole: "ADMIN",
+    type: "HOMEWORK",
+    title: "notification.seed.admin.homework",
+    bodyPreview: null,
+    targetType: "homework",
+    targetId: homeworkItemId,
+    recipientUserId: adminRecipientId,
+    readAt: null,
+  });
+  pushRow({
+    id: ids.adminRequestUnread,
+    createdAt: seedBase.minus({ minutes: 2 }).toJSDate(),
+    audienceRole: "ADMIN",
+    type: "REQUEST",
+    title: "notification.seed.admin.request",
+    bodyPreview: null,
+    targetType: "request",
+    targetId: requestId,
+    recipientUserId: adminRecipientId,
+    readAt: null,
+  });
+  for (let index = 0; index < ids.adminRead.length; index += 1) {
+    const rowId = ids.adminRead[index];
+    pushRow({
+      id: rowId,
+      createdAt: seedBase.minus({ hours: 1, minutes: 45 + index }).toJSDate(),
+      audienceRole: "ADMIN",
+      type: "ANNOUNCEMENT",
+      title: "notification.seed.admin.read",
+      bodyPreview: "E2E_ADMIN_READ_ROW",
+      targetType: "announcement",
+      targetId: announcementId,
+      recipientUserId: adminRecipientId,
+      readAt: seedBase.minus({ minutes: 25 + index }).toJSDate(),
+    });
+  }
+
+  await tx.notificationRecipient.deleteMany({
+    where: {
+      tenantId,
+      notificationId: { in: allIds },
+    },
+  });
+  await tx.notification.deleteMany({
+    where: {
+      tenantId,
+      id: { in: allIds },
+    },
+  });
+
+  await tx.notification.createMany({
+    data: notificationRows,
+    skipDuplicates: false,
+  });
+  await tx.notificationRecipient.createMany({
+    data: recipientRows,
+    skipDuplicates: false,
+  });
+}
+
 async function resolvePasswordHash(prisma: DbClient, email: string, password: string) {
   // Reuse an existing hash if it already matches to avoid unnecessary churn.
   const existingUser = await prisma.user.findUnique({
@@ -619,6 +894,13 @@ export async function upsertE2EFixtures(prisma: DbClient) {
     secondaryTenantSlug,
     runId,
   );
+  const step228AnnouncementIds = buildStep228AnnouncementIds(
+    tenant.slug,
+    secondaryTenantSlug,
+    runId,
+  );
+  const step233SessionIds = buildStep233SessionIds(tenant.slug, runId);
+  const step233RequestIds = buildStep233RequestIds(tenant.slug, runId);
   // Step 22.7 fixtures cover generation preview/commit, bulk-cancel, roster sync, and zoom-link visibility.
   const step227GroupId = `e2e-${tenant.slug}-${runId}-group-step227-g1`;
   const step227GroupSessionIds = [
@@ -771,6 +1053,9 @@ export async function upsertE2EFixtures(prisma: DbClient) {
   );
   const absenceStaffDeclinedStart = withUniqueSessionSeconds(
     nowLocal.plus({ days: 10 }).set({ hour: 11, minute: 30 }),
+  );
+  const step233RequestSeedStart = withUniqueSessionSeconds(
+    nowLocal.plus({ days: 11 }).set({ hour: 14, minute: 20 }),
   );
   const absenceWithdrawFutureStart = withUniqueSessionSeconds(
     nowLocal.plus({ days: 2 }).set({ hour: 14, minute: 0 }),
@@ -1948,6 +2233,31 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       select: { id: true },
     });
 
+    // Step 23.3 keeps a dedicated request session so notification trigger tests avoid mutating Step 20.x fixtures.
+    const step233RequestSeedSession = await tx.session.upsert({
+      where: { id: step233SessionIds.requestSeedSession },
+      update: {
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: step233RequestSeedStart.toJSDate(),
+        endAt: step233RequestSeedStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      create: {
+        id: step233SessionIds.requestSeedSession,
+        tenantId: tenant.id,
+        centerId: center.id,
+        tutorId: tutorUser.id,
+        sessionType: "ONE_ON_ONE",
+        startAt: step233RequestSeedStart.toJSDate(),
+        endAt: step233RequestSeedStart.plus({ hours: 1 }).toJSDate(),
+        timezone,
+      },
+      select: { id: true },
+    });
+
     // Step 20.6 sessions are dedicated to withdraw/resubmit and auto-assist hardening tests.
     const absenceWithdrawFutureSession = await tx.session.upsert({
       where: { id: absenceWithdrawFutureSessionId },
@@ -2266,6 +2576,22 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       create: {
         tenantId: tenant.id,
         sessionId: step224TutorASession1.id,
+        studentId: student.id,
+      },
+    });
+
+    await tx.sessionStudent.upsert({
+      where: {
+        tenantId_sessionId_studentId: {
+          tenantId: tenant.id,
+          sessionId: step233RequestSeedSession.id,
+          studentId: student.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sessionId: step233RequestSeedSession.id,
         studentId: student.id,
       },
     });
@@ -3108,6 +3434,7 @@ export async function upsertE2EFixtures(prisma: DbClient) {
             absenceStaffApprovedSession.id,
             absenceStaffPendingSession.id,
             absenceStaffDeclinedSession.id,
+            step233RequestSeedSession.id,
             absenceWithdrawFutureSession.id,
             absenceResubmitSession.id,
             absenceApproveLockSession.id,
@@ -3150,6 +3477,39 @@ export async function upsertE2EFixtures(prisma: DbClient) {
         status: "PENDING",
         reasonCode: "OTHER",
         message: "Request created before session start.",
+      },
+    });
+
+    await tx.parentRequest.upsert({
+      where: {
+        id: step233RequestIds.openRequest,
+      },
+      update: {
+        tenantId: tenant.id,
+        parentId: parentA1.id,
+        studentId: student.id,
+        sessionId: step233RequestSeedSession.id,
+        type: "ABSENCE",
+        status: "PENDING",
+        reasonCode: "OTHER",
+        // Step 23.3 sentinel is intentionally placed on a source entity and must never appear in notification payloads.
+        message: `Step23.3 request seed ${STEP233_INTERNAL_ONLY_SENTINEL}`,
+        withdrawnAt: null,
+        withdrawnByParentId: null,
+        resubmittedAt: null,
+        resolvedAt: null,
+        resolvedByUserId: null,
+      },
+      create: {
+        id: step233RequestIds.openRequest,
+        tenantId: tenant.id,
+        parentId: parentA1.id,
+        studentId: student.id,
+        sessionId: step233RequestSeedSession.id,
+        type: "ABSENCE",
+        status: "PENDING",
+        reasonCode: "OTHER",
+        message: `Step23.3 request seed ${STEP233_INTERNAL_ONLY_SENTINEL}`,
       },
     });
 
@@ -3428,6 +3788,20 @@ export async function upsertE2EFixtures(prisma: DbClient) {
       adminUserId: adminUser.id,
     });
 
+    await seedStep233Notifications({
+      tx,
+      tenantId: tenant.id,
+      tenantSlug: tenant.slug,
+      runId,
+      parentRecipientId: parentA1.id,
+      tutorRecipientId: tutorLoginUser.id,
+      adminRecipientId: adminUser.id,
+      announcementId: step228AnnouncementIds.pub1,
+      homeworkItemId: step232HomeworkItemIds.parentWithAssignment,
+      deniedHomeworkItemId: step232HomeworkItemIds.parentUnlinked,
+      requestId: step233RequestIds.openRequest,
+    });
+
     // ParentA0 is intentionally left without linked students for empty-state tests.
     void parentA0;
     // Tutor B and unlinked student/session support access-control coverage.
@@ -3490,6 +3864,9 @@ export async function cleanupE2ETenantData(prisma: DbClient) {
     // Step 22.8 announcement fixtures are tenant-scoped and reset on every seed run.
     await tx.announcementRead.deleteMany({ where: { tenantId: tenant.id } });
     await tx.announcement.deleteMany({ where: { tenantId: tenant.id } });
+    // Step 23.3 notification fixtures use recipient fanout rows; clear children before parent rows.
+    await tx.notificationRecipient.deleteMany({ where: { tenantId: tenant.id } });
+    await tx.notification.deleteMany({ where: { tenantId: tenant.id } });
     // Parent requests must be cleared before sessions/students to satisfy FK constraints.
     await tx.parentRequest.deleteMany({ where: { tenantId: tenant.id } });
     // Step 23.2 homework fixtures include versioned files; clear them explicitly for deterministic reruns.

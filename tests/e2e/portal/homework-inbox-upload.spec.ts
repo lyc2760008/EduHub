@@ -218,6 +218,7 @@ test.describe("[regression] Step 23.2 parent homework inbox + upload", () => {
         },
       },
     );
-    expect(oversizeServerResponse.status()).toBe(400);
+    // Remote edge/runtime can reject oversized multipart bodies at transport level before app validation.
+    expect([400, 413]).toContain(oversizeServerResponse.status());
   });
 });

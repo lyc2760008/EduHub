@@ -181,6 +181,8 @@ export async function POST(req: NextRequest, context: Params) {
       return buildErrorResponse(404, "NotFound", "Request not found");
     }
 
+    // Step 23.3 wires request-created notifications; resolve notifications remain deferred for a later PO decision.
+
     // Audit resolution without persisting message content.
     await writeAuditEvent({
       tenantId,

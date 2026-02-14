@@ -4,7 +4,7 @@ Planning Inputs (must read): `docs/po/repo-intel/duplication-risk.md` + `docs/po
 
 # EduHub Current State Snapshot
 
-Last updated: 2026-02-13
+Last updated: 2026-02-14
 
 Owners:
 
@@ -16,6 +16,8 @@ How to use: Paste this doc before PO planning.
 
 Change log:
 
+- 2026-02-14: Dev — Step 23.3 follow-up shipped per-tab unread badges and trigger wiring updates: parent+tutor homework-tab badges now use HOMEWORK unread counts, admin homework/requests nav badges now use admin unread counts, staff homework uploads now notify linked parents, parent homework submission now notifies tutor+admin, and parent absence request creation now notifies admins.
+- 2026-02-13: Dev — Step 23.3 shipped Unified In-App Notifications + Unread Badges Pack v1: added tenant-scoped `Notification` + `NotificationRecipient` models, parent+tutor inbox APIs/pages with unread badges + mark-read actions, announcement/homework trigger fanout, and admin Notifications report JSON+CSV (aggregate-only). Request trigger wiring remains intentionally disabled by default until a repo-recorded PO decision is captured.
 - 2026-02-13: Dev — Step 23.2 post-ship UX/guardrail update: homework rows with no assignment file now render as `Unassigned` (UI display state only; DB status unchanged), and parent submission upload now requires an assignment file to exist (UI + API enforcement).
 - 2026-02-13: Dev — Step 23.2 shipped Homework Review Queue + Parent Homework Inbox Pack v1: added tenant-scoped homework workflow (`ASSIGNED -> SUBMITTED -> REVIEWED`), versioned slot files (`ASSIGNMENT`/`SUBMISSION`/`FEEDBACK`) with authenticated downloads, admin+tutor bulk mark-reviewed, admin Homework SLA JSON+CSV report, and parent+tutor+admin homework UI routes.
 - 2026-02-13: Dev — Step 22.9 shipped Session Resources + Homework Links Pack v1: added `SessionResource` data model, admin CRUD + bulk-apply APIs, missing-resources report + CSV export, tutor session resources (create-only on owned sessions), and parent read-only session resource visibility.
@@ -72,6 +74,8 @@ Change log:
 - Step 22.9 — Session Resources + Homework Links Pack v1 shipped. Added `SessionResource` model + enums in Prisma, admin session resource CRUD (`/api/admin/sessions/[id]/resources`, `/api/admin/resources/[resourceId]`), admin bulk apply (`/api/admin/sessions/resources/bulk-apply`) with duplicate skipping, missing-resources report (`/[tenant]/admin/reports/sessions-missing-resources`) + CSV export (`/api/admin/reports/sessions-missing-resources.csv`), tutor scoped resource API (`/[tenant]/api/tutor/sessions/[id]/resources`), and parent session detail read-only resources via `/api/portal/sessions/[id]`. Tutor policy for v1 is PO-locked create-only on owned sessions (no tutor edit/delete).
 <!-- Step 23.2: Homework Review Queue + Parent Homework Inbox Pack v1 -->
 - Step 23.2 — Homework Review Queue + Parent Homework Inbox Pack v1 shipped. Added homework lifecycle models (`HomeworkItem`, `HomeworkFile`) with tenant+session+student scoping and workflow `ASSIGNED -> SUBMITTED -> REVIEWED`; files are restricted to PDF/DOCX (`<= 5MB`) and stored in Postgres bytes for MVP behind `src/lib/homework/storage` seam for future object storage. Added APIs: admin queue/detail/upload/bulk/download (`/api/admin/homework*`), tutor queue/detail/upload/bulk/download (`/[tenant]/api/tutor/homework*`), parent inbox/detail/upload/download (`/api/portal/homework*`), and admin Homework SLA report JSON/CSV (`/api/admin/reports/homework-sla`, `/api/admin/reports/homework-sla.csv`). Default policy: tutor upload is feedback-only in v1 (`ASSIGNMENT` upload disabled unless PO approval flag is enabled), bulk mark-reviewed does not require feedback file unless PO flag is enabled, and parent submission is allowed only after an assignment file exists (enforced in parent UI + upload API).
+<!-- Step 23.3: Unified In-App Notifications + Unread Badges Pack v1 -->
+- Step 23.3 — Unified In-App Notifications + Unread Badges Pack v1 shipped. Added `Notification` + `NotificationRecipient` Prisma models (tenant-scoped, recipient readAt state), shared parent+tutor inbox APIs (`/api/portal/notifications*`) with unread count + idempotent mark-read/mark-all, parent+tutor inbox pages (`/[tenant]/portal/notifications`, `/[tenant]/tutor/notifications`) and nav badges (cap `99+`), per-tab unread badges for parent/tutor homework and admin homework/requests, announcement publish + homework submit/review trigger fanout with audit action `notification.created`, parent request-created -> admin notification trigger wiring, and admin Notifications report + CSV export (`/[tenant]/admin/reports/notifications-engagement`, `/api/admin/reports/notifications-engagement*`) using aggregate-only rows.
 
 ## Route Inventory
 
@@ -114,6 +118,11 @@ Parent routes (app/[tenant]/(parent)/...):
   - Capabilities:
   - `view:list`
   - Access control summary: Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`).
+- Path: `/[tenant]/portal/notifications`
+  - Description: Parent notifications inbox with unread/all filtering and mark-read actions.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Parent portal layout guard (`src/app/[tenant]/(parent)/portal/layout.tsx`) + shared portal notifications APIs (`src/app/api/portal/notifications/*`).
 - Path: `/[tenant]/portal/homework`
   - Description: Parent homework inbox with child/status/date filters.
   - Capabilities:
@@ -169,6 +178,11 @@ Tutor routes (app/[tenant]/tutor/...):
   - Capabilities:
   - `view:list`
   - Access control summary: Tutor layout guard (`src/app/[tenant]/tutor/layout.tsx`) + shared portal announcements APIs.
+- Path: `/[tenant]/tutor/notifications`
+  - Description: Tutor notifications inbox with unread/all filtering and mark-read actions.
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Tutor layout guard (`src/app/[tenant]/tutor/layout.tsx`) + shared portal notifications APIs (`src/app/api/portal/notifications/*`).
 - Path: `/[tenant]/tutor/announcements/[id]`
   - Description: Tutor announcement detail (auto mark-read).
   - Capabilities:
@@ -275,6 +289,11 @@ Admin routes (app/[tenant]/(admin)/...):
   - Capabilities:
   - `view:list`
   - Access control summary: Admin layout guard + Owner/Admin page gate.
+- Path: `/[tenant]/admin/reports/notifications-engagement`
+  - Description: Notifications engagement report (aggregate-only sent/read metrics by type + audience).
+  - Capabilities:
+  - `view:list`
+  - Access control summary: Admin layout guard + Owner/Admin page gate.
 - Path: `/[tenant]/admin/reports/sessions-missing-resources`
   - Description: Admin missing-resources report with filterable table + CSV export action.
   - Capabilities:
@@ -353,6 +372,12 @@ Key API capabilities (explicit, code-verified):
 - Path: `/api/portal/announcements`, `/api/portal/announcements/[id]`, `/api/portal/announcements/[id]/read`
   - Capability: `view:list`, `view:detail`, `create:read_receipt`
   - Evidence: `src/app/api/portal/announcements/route.ts`, `src/app/api/portal/announcements/[id]/route.ts`, `src/app/api/portal/announcements/[id]/read/route.ts` (parent+tutor scoped access, tenant-safe visibility, idempotent read upsert).
+- Path: `/api/portal/notifications`, `/api/portal/notifications/[id]/read`, `/api/portal/notifications/mark-all-read`, `/api/portal/notifications/unread-count`
+  - Capability: `view:list`, `update:mark_read`, `update:bulk_mark_read`, `view:count`
+  - Evidence: `src/app/api/portal/notifications/route.ts`, `src/app/api/portal/notifications/[id]/read/route.ts`, `src/app/api/portal/notifications/mark-all-read/route.ts`, `src/app/api/portal/notifications/unread-count/route.ts` (parent+tutor scoped recipient isolation, idempotent read state updates, count-only badge API).
+- Path: `/api/admin/notifications/unread-count`
+  - Capability: `view:count` (admin recipient unread counts by notification type for nav badges).
+  - Evidence: `src/app/api/admin/notifications/unread-count/route.ts` (owner/admin RBAC with tenant-scoped recipient identity = `User.id`).
 - Path: `/api/admin/sessions/[id]/resources`, `/api/admin/resources/[resourceId]`, `/api/admin/sessions/resources/bulk-apply`
   - Capability: `view:list`, `create:session_resource`, `update:session_resource`, `delete:session_resource`, `update:bulk_apply_session_resources`
   - Evidence: `src/app/api/admin/sessions/[id]/resources/route.ts`, `src/app/api/admin/resources/[resourceId]/route.ts`, `src/app/api/admin/sessions/resources/bulk-apply/route.ts` (owner/admin only, tenant-scoped resource mutations, duplicate-safe bulk apply).
@@ -374,6 +399,9 @@ Key API capabilities (explicit, code-verified):
 - Path: `/api/admin/reports/homework-sla` and `/api/admin/reports/homework-sla.csv`
   - Capability: `view:list` (aggregate-only SLA metrics + CSV export with filter parity)
   - Evidence: `src/app/api/admin/reports/homework-sla/route.ts`, `src/app/api/admin/reports/homework-sla.csv/route.ts`.
+- Path: `/api/admin/reports/notifications-engagement` and `/api/admin/reports/notifications-engagement.csv`
+  - Capability: `view:list` (aggregate-only sent/read metrics + filtered CSV export)
+  - Evidence: `src/app/api/admin/reports/notifications-engagement/route.ts`, `src/app/api/admin/reports/notifications-engagement.csv/route.ts` (owner/admin only, aggregate rows only, no per-user exports).
 
 ## Navigation Map
 
@@ -390,7 +418,7 @@ Admin nav items (from `src/lib/nav/adminNavTree.ts`):
 - Setup group ? `/admin/centers`, `/admin/groups`, `/admin/programs`, `/admin/subjects`, `/admin/levels`.
 - Operations group ? `/admin/sessions`, `/admin/requests`, `/admin/announcements`, `/admin/audit`, `/admin/help`.
 - Operations group ? `/admin/sessions`, `/admin/requests`, `/admin/announcements`, `/admin/homework`, `/admin/audit`, `/admin/help`.
-- Reports group ? `/admin/reports` + report subroutes + `/admin/reports/homework-sla` + `/admin/announcements/engagement`.
+- Reports group ? `/admin/reports` + report subroutes + `/admin/reports/homework-sla` + `/admin/reports/notifications-engagement` + `/admin/announcements/engagement`.
 
 Parent shell/nav sources:
 
@@ -404,6 +432,7 @@ Parent nav items (from `src/components/parent/PortalTopNav.tsx`):
 - Sessions ? `/[tenant]/portal/sessions`.
 - Homework ? `/[tenant]/portal/homework`.
 - Announcements ? `/[tenant]/portal/announcements`.
+- Notifications ? `/[tenant]/portal/notifications`.
 - Requests ? `/[tenant]/portal/requests`.
 
 Tutor shell/nav sources:
@@ -416,6 +445,7 @@ Tutor nav items:
 - My Sessions ? `/[tenant]/tutor/sessions`.
 - Homework ? `/[tenant]/tutor/homework`.
 - Announcements ? `/[tenant]/tutor/announcements`.
+- Notifications ? `/[tenant]/tutor/notifications`.
 
 Duplicate/ambiguous nav labels to confirm:
 

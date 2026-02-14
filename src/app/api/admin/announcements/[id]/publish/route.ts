@@ -17,6 +17,8 @@ import {
   normalizeAnnouncementRoleError,
   toAnnouncementErrorResponse,
 } from "@/lib/announcements/http";
+import { emitAnnouncementPublishedNotifications } from "@/lib/notifications/events";
+import { getRequestId } from "@/lib/observability/request";
 import { requireRole } from "@/lib/rbac";
 
 export const runtime = "nodejs";
@@ -99,6 +101,16 @@ export async function POST(req: NextRequest, context: RouteProps) {
           },
         },
       },
+    });
+
+    // Publish events fan out tenant-scoped in-app notifications for parent/tutor inboxes.
+    await emitAnnouncementPublishedNotifications({
+      tenantId,
+      announcementId: updated.id,
+      title: updated.title,
+      body: updated.body,
+      createdByUserId: roleResult.user.id,
+      correlationId: getRequestId(req),
     });
 
     await writeAuditEvent({

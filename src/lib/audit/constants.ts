@@ -36,6 +36,9 @@ export const AUDIT_ACTIONS = {
   HOMEWORK_STATUS_CHANGED: "homework.status.changed",
   HOMEWORK_FILE_UPLOADED: "homework.file.uploaded",
   HOMEWORK_BULK_REVIEWED: "homework.bulk.reviewed",
+  // Step 23.3 notification lifecycle actions capture fanout creation and recipient bulk read updates.
+  NOTIFICATION_CREATED: "notification.created",
+  NOTIFICATION_BULK_MARKED_READ: "notification.bulkMarkedRead",
   // Reporting export action for admin CSV downloads.
   REPORT_EXPORTED: "REPORT_EXPORTED",
 } as const;
@@ -51,6 +54,7 @@ export const AUDIT_ENTITY_TYPES = {
   STUDENT: "STUDENT",
   ANNOUNCEMENT: "ANNOUNCEMENT",
   HOMEWORK: "HOMEWORK",
+  NOTIFICATION: "NOTIFICATION",
   // REPORT entity type scopes audit entries to reporting exports.
   REPORT: "REPORT",
 } as const;

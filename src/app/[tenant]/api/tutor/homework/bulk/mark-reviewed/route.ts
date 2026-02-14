@@ -14,6 +14,7 @@ import { writeAuditEvent } from "@/lib/audit/writeAuditEvent";
 import { markHomeworkItemsReviewed } from "@/lib/homework/core";
 import { HomeworkError } from "@/lib/homework/errors";
 import { homeworkPolicy } from "@/lib/homework/policy";
+import { emitHomeworkReviewedNotifications } from "@/lib/notifications/events";
 import { type TutorDataErrorCode, TutorDataError } from "@/lib/tutor/data";
 import { requireTutorContextOrThrow, TutorAccessError } from "@/lib/tutor/guard";
 import {
@@ -48,6 +49,17 @@ export async function POST(request: NextRequest, context: RouteProps) {
       homeworkItemIds: parsed.homeworkItemIds,
       tutorUserId: tutorCtx.tutorUserId,
       requireFeedbackFile: homeworkPolicy.requireFeedbackFileToMarkReviewed,
+    });
+
+    // Reviewed transitions fan out parent notifications per homework item/student linkage.
+    await emitHomeworkReviewedNotifications({
+      tenantId: tutorCtx.tenant.tenantId,
+      reviewedItems: result.changedItems.map((item) => ({
+        homeworkItemId: item.id,
+        studentId: item.studentId,
+      })),
+      createdByUserId: tutorCtx.tutorUserId,
+      correlationId: requestId,
     });
 
     await Promise.all(
