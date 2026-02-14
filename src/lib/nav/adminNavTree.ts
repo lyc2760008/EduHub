@@ -281,6 +281,15 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         match: "exact",
         roles: ADMIN_ONLY,
       },
+      {
+        id: "reports-notifications-engagement",
+        href: "/admin/reports/notifications-engagement",
+        labelKey: "admin.nav.report.notificationsReport",
+        titleKey: "adminNotificationsReport.page.title",
+        iconKey: "reports",
+        match: "exact",
+        roles: ADMIN_ONLY,
+      },
     ],
   },
 ];

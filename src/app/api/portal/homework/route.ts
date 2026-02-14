@@ -7,7 +7,7 @@
 // Parent homework inbox endpoint enforces linked-student visibility and returns metadata-only rows.
 import { NextRequest, NextResponse } from "next/server";
 
-import { HomeworkStatus } from "@/generated/prisma/client";
+import { HomeworkStatus, type Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import {
   buildHomeworkSlotCounts,
@@ -30,29 +30,123 @@ const RANGE_CONFIG = {
   maxRangeDays: 365,
 };
 
-function parsePortalStatusFilter(rawValue: string | null) {
+type PortalHomeworkDisplayStatusFilter =
+  | "ASSIGNED"
+  | "UNASSIGNED"
+  | "SUBMITTED"
+  | "REVIEWED";
+
+function parsePortalStatusFilter(
+  rawValue: string | null,
+): PortalHomeworkDisplayStatusFilter[] {
+  const defaultFilters: PortalHomeworkDisplayStatusFilter[] = [
+    "ASSIGNED",
+    "UNASSIGNED",
+    "SUBMITTED",
+  ];
   if (!rawValue?.trim()) {
-    return [HomeworkStatus.ASSIGNED, HomeworkStatus.SUBMITTED];
+    return defaultFilters;
   }
 
   const values = rawValue
     .split(",")
     .map((value) => value.trim().toUpperCase())
     .filter(Boolean);
-  const allowed = new Set<HomeworkStatus>();
+  const allowed = new Set<PortalHomeworkDisplayStatusFilter>();
   if (values.includes("ALL")) {
-    return [HomeworkStatus.ASSIGNED, HomeworkStatus.SUBMITTED, HomeworkStatus.REVIEWED];
+    return [
+      "ASSIGNED",
+      "UNASSIGNED",
+      "SUBMITTED",
+      "REVIEWED",
+    ] satisfies PortalHomeworkDisplayStatusFilter[];
   }
 
   for (const value of values) {
-    if (value === "ASSIGNED" || value === "SUBMITTED" || value === "REVIEWED") {
+    if (
+      value === "ASSIGNED" ||
+      value === "UNASSIGNED" ||
+      value === "SUBMITTED" ||
+      value === "REVIEWED"
+    ) {
       allowed.add(value);
     }
   }
 
-  return allowed.size
-    ? Array.from(allowed)
-    : [HomeworkStatus.ASSIGNED, HomeworkStatus.SUBMITTED];
+  return allowed.size ? Array.from(allowed) : defaultFilters;
+}
+
+function buildPortalStatusWhere(
+  filters: PortalHomeworkDisplayStatusFilter[],
+): Prisma.HomeworkItemWhereInput {
+  const hasFilter = new Set(filters);
+  const or: Prisma.HomeworkItemWhereInput[] = [];
+
+  if (hasFilter.has("ASSIGNED")) {
+    or.push({
+      status: HomeworkStatus.ASSIGNED,
+      // ASSIGNED display state means at least one assignment file exists.
+      files: {
+        some: {
+          slot: "ASSIGNMENT",
+        },
+      },
+    });
+  }
+
+  if (hasFilter.has("UNASSIGNED")) {
+    or.push({
+      status: HomeworkStatus.ASSIGNED,
+      // UNASSIGNED display state means no assignment file exists yet.
+      files: {
+        none: {
+          slot: "ASSIGNMENT",
+        },
+      },
+    });
+  }
+
+  if (hasFilter.has("SUBMITTED")) {
+    or.push({
+      status: HomeworkStatus.SUBMITTED,
+    });
+  }
+
+  if (hasFilter.has("REVIEWED")) {
+    or.push({
+      status: HomeworkStatus.REVIEWED,
+    });
+  }
+
+  if (!or.length) {
+    return {
+      OR: [
+        {
+          status: HomeworkStatus.ASSIGNED,
+          files: {
+            some: {
+              slot: "ASSIGNMENT",
+            },
+          },
+        },
+        {
+          status: HomeworkStatus.ASSIGNED,
+          files: {
+            none: {
+              slot: "ASSIGNMENT",
+            },
+          },
+        },
+        {
+          status: HomeworkStatus.SUBMITTED,
+        },
+      ],
+    };
+  }
+  if (or.length === 1) {
+    return or[0];
+  }
+  return { OR: or };
 }
 
 export async function GET(req: NextRequest) {
@@ -109,17 +203,17 @@ export async function GET(req: NextRequest) {
       maxRows: 500,
     });
 
-    const where = {
+    const where: Prisma.HomeworkItemWhereInput = {
       tenantId,
       studentId: { in: linkedStudentIds },
-      status: { in: statusFilter },
       session: {
         startAt: {
           gte: from,
           lt: to,
         },
       },
-    } as const;
+      ...buildPortalStatusWhere(statusFilter),
+    };
 
     const [totalCount, rows] = await Promise.all([
       prisma.homeworkItem.count({ where }),

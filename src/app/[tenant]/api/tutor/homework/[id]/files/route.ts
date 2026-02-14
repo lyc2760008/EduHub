@@ -15,6 +15,7 @@ import { HomeworkError } from "@/lib/homework/errors";
 import { homeworkPolicy } from "@/lib/homework/policy";
 import { requireTutorForHomeworkItem } from "@/lib/homework/rbac";
 import { readHomeworkFileFromFormData } from "@/lib/homework/validation";
+import { emitHomeworkUploadedForParentsNotification } from "@/lib/notifications/events";
 import { type TutorDataErrorCode, TutorDataError } from "@/lib/tutor/data";
 import { requireTutorContextOrThrow, TutorAccessError } from "@/lib/tutor/guard";
 import {
@@ -80,6 +81,15 @@ export async function POST(request: NextRequest, context: RouteProps) {
       file,
       markSubmittedOnUpload: false,
       lockWhenReviewed: false,
+    });
+
+    // Tutor-uploaded homework artifacts notify linked parents for homework-tab badges in the parent portal.
+    await emitHomeworkUploadedForParentsNotification({
+      tenantId: tutorCtx.tenant.tenantId,
+      homeworkItemId: scopedItem.id,
+      studentId: created.studentId,
+      createdByUserId: tutorCtx.tutorUserId,
+      correlationId: requestId,
     });
 
     await writeAuditEvent({

@@ -15,6 +15,8 @@ import { writeAuditEvent } from "@/lib/audit/writeAuditEvent";
 import { markHomeworkItemsReviewed } from "@/lib/homework/core";
 import { toHomeworkErrorResponse } from "@/lib/homework/http";
 import { homeworkPolicy } from "@/lib/homework/policy";
+import { emitHomeworkReviewedNotifications } from "@/lib/notifications/events";
+import { getRequestId } from "@/lib/observability/request";
 import { requireRole } from "@/lib/rbac";
 
 export const runtime = "nodejs";
@@ -37,6 +39,17 @@ export async function POST(req: NextRequest) {
       tenantId: roleResult.tenant.tenantId,
       homeworkItemIds: parsed.homeworkItemIds,
       requireFeedbackFile: homeworkPolicy.requireFeedbackFileToMarkReviewed,
+    });
+
+    // Reviewed transitions fan out parent notifications per homework item/student linkage.
+    await emitHomeworkReviewedNotifications({
+      tenantId: roleResult.tenant.tenantId,
+      reviewedItems: result.changedItems.map((item) => ({
+        homeworkItemId: item.id,
+        studentId: item.studentId,
+      })),
+      createdByUserId: roleResult.user.id,
+      correlationId: getRequestId(req),
     });
 
     await Promise.all(

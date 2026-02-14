@@ -14,6 +14,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import type { Role } from "@/generated/prisma/client";
+import { buildTenantApiUrl } from "@/lib/api/buildTenantApiUrl";
+import { fetchJson } from "@/lib/api/fetchJson";
 import {
   ADMIN_NAV_GROUPS,
   ADMIN_NAV_TOP_ITEMS,
@@ -21,12 +23,20 @@ import {
   type AdminNavGroup,
   type AdminNavItem,
 } from "@/lib/nav/adminNavTree";
+import { useUnreadNotificationsCount } from "@/components/notifications/useUnreadNotificationsCount";
 
 type AdminShellProps = {
   tenant: string;
   userRole?: Role;
   userId?: string;
   children: ReactNode;
+};
+
+type AdminAutoClearType = "HOMEWORK" | "REQUEST";
+
+type AdminMarkReadByTypeResponse = {
+  ok: boolean;
+  markedReadCount: number;
 };
 
 type PersistedNavState = {
@@ -52,6 +62,10 @@ const NAV_ITEM_ACTIVE_BAR =
 
 const NAV_GROUP_LABEL =
   "text-xs font-semibold uppercase tracking-wide text-slate-500";
+
+function formatBadgeCount(count: number, capLabel: string) {
+  return count > 99 ? capLabel : String(count);
+}
 
 function getNormalizedAdminPath(pathname: string, tenant: string) {
   if (!pathname) return "/admin";
@@ -202,6 +216,10 @@ function buildReportCrumb(path: string, tenant: string) {
     "/admin/announcements/engagement": {
       labelKey: "admin.nav.report.announcementEngagement",
       titleKey: "announcementsReport.page.title",
+    },
+    "/admin/reports/notifications-engagement": {
+      labelKey: "admin.nav.report.notificationsReport",
+      titleKey: "adminNotificationsReport.page.title",
     },
   };
 
@@ -460,6 +478,7 @@ function SidebarNavItems({
   onNavigate,
   groups,
   topItems,
+  navBadgeCounts,
 }: {
   tenant: string;
   path: string;
@@ -469,6 +488,7 @@ function SidebarNavItems({
   onNavigate?: () => void;
   groups: AdminNavGroup[];
   topItems: AdminNavItem[];
+  navBadgeCounts: Record<string, number>;
 }) {
   const t = useTranslations();
   const router = useRouter();
@@ -477,6 +497,7 @@ function SidebarNavItems({
     const href = `/${tenant}${item.href}`;
     const isActive = isNavItemActive(item, path);
     const label = t(item.labelKey);
+    const badgeCount = Math.max(0, Math.trunc(navBadgeCounts[item.id] ?? 0));
     return (
       <Link
         key={item.id}
@@ -491,7 +512,19 @@ function SidebarNavItems({
         } ${collapsed ? "justify-center px-2" : ""}`}
       >
         <NavIcon iconKey={item.iconKey} />
-        {collapsed ? <span className="sr-only">{label}</span> : label}
+        {collapsed ? <span className="sr-only">{label}</span> : <span>{label}</span>}
+        {badgeCount > 0 ? (
+          <span
+            className={`inline-flex min-w-5 items-center justify-center rounded-full bg-slate-900 px-1.5 text-[10px] font-semibold text-white ${
+              collapsed ? "" : "ml-auto"
+            }`}
+            aria-label={t("notifications.badge.aria", {
+              count: badgeCount,
+            })}
+          >
+            {formatBadgeCount(badgeCount, t("notifications.badge.cap"))}
+          </span>
+        ) : null}
       </Link>
     );
   };
@@ -581,6 +614,17 @@ export default function AdminShell({
 }: AdminShellProps) {
   const t = useTranslations();
   const pathname = usePathname();
+  const { countsByType, reload } = useUnreadNotificationsCount(tenant, {
+    scope: "admin",
+  });
+  // Admin nav badges are type-specific so homework/request tabs show only relevant unread counts.
+  const navBadgeCounts = useMemo(
+    () => ({
+      homework: countsByType.homework,
+      requests: countsByType.request,
+    }),
+    [countsByType.homework, countsByType.request],
+  );
   const normalizedPath = useMemo(
     () => getNormalizedAdminPath(pathname, tenant),
     [pathname, tenant],
@@ -623,6 +667,23 @@ export default function AdminShell({
 
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement | null>(null);
+  const autoClearInFlightRef = useRef<Set<AdminAutoClearType>>(new Set());
+
+  const autoClearType = useMemo<AdminAutoClearType | null>(() => {
+    if (
+      normalizedPath === "/admin/homework" ||
+      normalizedPath.startsWith("/admin/homework/")
+    ) {
+      return "HOMEWORK";
+    }
+    if (
+      normalizedPath === "/admin/requests" ||
+      normalizedPath.startsWith("/admin/requests/")
+    ) {
+      return "REQUEST";
+    }
+    return null;
+  }, [normalizedPath]);
 
   const handleMenuToggle = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -633,6 +694,42 @@ export default function AdminShell({
     }
     setIsMobileOpen(true);
   }, [toggleCollapsed]);
+
+  useEffect(() => {
+    // Admin homework/requests pages auto-clear their matching unread badge type on entry.
+    const targetType = autoClearType;
+    if (!targetType) return;
+    const relevantCount =
+      targetType === "HOMEWORK"
+        ? countsByType.homework
+        : countsByType.request;
+    if (relevantCount <= 0) return;
+    if (autoClearInFlightRef.current.has(targetType)) return;
+
+    autoClearInFlightRef.current.add(targetType);
+    void (async () => {
+      const result = await fetchJson<AdminMarkReadByTypeResponse>(
+        buildTenantApiUrl(tenant, "/admin/notifications/mark-read-by-type"),
+        {
+          method: "POST",
+          body: JSON.stringify({ type: targetType }),
+          headers: {
+            "content-type": "application/json",
+          },
+        },
+      );
+      autoClearInFlightRef.current.delete(targetType);
+      if (result.ok) {
+        await reload();
+      }
+    })();
+  }, [
+    autoClearType,
+    countsByType.homework,
+    countsByType.request,
+    reload,
+    tenant,
+  ]);
 
   useEffect(() => {
     if (!isMobileOpen) return;
@@ -698,6 +795,7 @@ export default function AdminShell({
                 onToggleGroup={toggleGroup}
                 groups={groups}
                 topItems={topItems}
+                navBadgeCounts={navBadgeCounts}
               />
             ) : (
               <SidebarSkeleton />
@@ -860,6 +958,7 @@ export default function AdminShell({
                 onNavigate={() => setIsMobileOpen(false)}
                 groups={groups}
                 topItems={topItems}
+                navBadgeCounts={navBadgeCounts}
               />
             ) : (
               <SidebarSkeleton />

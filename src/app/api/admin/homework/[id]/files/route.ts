@@ -15,6 +15,8 @@ import { createHomeworkFileVersion } from "@/lib/homework/core";
 import { HomeworkError } from "@/lib/homework/errors";
 import { toHomeworkErrorResponse } from "@/lib/homework/http";
 import { readHomeworkFileFromFormData } from "@/lib/homework/validation";
+import { emitHomeworkUploadedForParentsNotification } from "@/lib/notifications/events";
+import { getRequestId } from "@/lib/observability/request";
 import { prisma } from "@/lib/db/prisma";
 import { requireRole } from "@/lib/rbac";
 
@@ -142,6 +144,15 @@ export async function POST(req: NextRequest, context: RouteProps) {
       file,
       markSubmittedOnUpload: false,
       lockWhenReviewed: false,
+    });
+
+    // Staff-uploaded homework artifacts notify linked parents for homework-tab badges in the parent portal.
+    await emitHomeworkUploadedForParentsNotification({
+      tenantId: roleResult.tenant.tenantId,
+      homeworkItemId: resolvedHomeworkItemId,
+      studentId: created.studentId,
+      createdByUserId: roleResult.user.id,
+      correlationId: getRequestId(req),
     });
 
     await writeAuditEvent({

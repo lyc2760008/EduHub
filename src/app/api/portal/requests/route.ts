@@ -16,6 +16,8 @@ import {
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from "@/lib/audit/constants";
 import { writeAuditEvent } from "@/lib/audit/writeAuditEvent";
 import { prisma } from "@/lib/db/prisma";
+import { emitRequestSubmittedNotification } from "@/lib/notifications/events";
+import { getRequestId } from "@/lib/observability/request";
 import {
   assertParentLinkedToStudent,
   assertSessionUpcomingAndMatchesStudent,
@@ -184,6 +186,14 @@ export async function POST(req: NextRequest) {
         updatedAt: true,
         resolvedAt: true,
       },
+    });
+
+    // Parent request creation notifies tenant admins so admin request-tab badges surface new pending items.
+    await emitRequestSubmittedNotification({
+      tenantId,
+      requestId: created.id,
+      createdByUserId: ctx.parentId,
+      correlationId: getRequestId(req),
     });
 
     // Audit the absence request creation without persisting message content.

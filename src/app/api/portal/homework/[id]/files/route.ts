@@ -15,6 +15,8 @@ import { prisma } from "@/lib/db/prisma";
 import { HomeworkError } from "@/lib/homework/errors";
 import { requireParentForHomeworkItem } from "@/lib/homework/rbac";
 import { readHomeworkFileFromFormData } from "@/lib/homework/validation";
+import { emitHomeworkSubmittedNotification } from "@/lib/notifications/events";
+import { getRequestId } from "@/lib/observability/request";
 import { buildPortalError, requirePortalParent } from "@/lib/portal/parent";
 
 export const runtime = "nodejs";
@@ -104,6 +106,26 @@ export async function POST(req: NextRequest, context: RouteProps) {
       // Parent replace is allowed only before REVIEWED in v1.
       lockWhenReviewed: true,
     });
+
+    // Session tutor lookup is scoped by tenant/session; emit helper fans out to tutor + admin recipients.
+    const session = await prisma.session.findFirst({
+      where: {
+        tenantId: ctx.tenant.tenantId,
+        id: created.sessionId,
+      },
+      select: {
+        tutorId: true,
+      },
+    });
+    if (created.statusFrom !== created.statusTo && created.statusTo === "SUBMITTED") {
+      await emitHomeworkSubmittedNotification({
+        tenantId: ctx.tenant.tenantId,
+        homeworkItemId: scopedItem.id,
+        tutorUserId: session?.tutorId ?? null,
+        createdByUserId: ctx.parentId,
+        correlationId: getRequestId(req),
+      });
+    }
 
     await writeAuditEvent({
       tenantId: ctx.tenant.tenantId,

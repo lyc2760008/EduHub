@@ -114,7 +114,8 @@
         "studentsDirectory": "Students directory",
         "announcementEngagement": "Announcement engagement",
         "missingResources": "Missing resources report",
-        "homeworkSla": "Homework SLA & Completion"
+        "homeworkSla": "Homework SLA & Completion",
+        "notificationsReport": "Notifications report"
       },
       "homework": "Homework"
     },
@@ -998,6 +999,11 @@
         "title": "Homework SLA & Completion",
         "helper": "Review homework workflow performance and review latency.",
         "defaultRange": "Submitted date"
+      },
+      "notificationsEngagement": {
+        "title": "Notifications report",
+        "helper": "Aggregate sent/read performance by notification type and audience.",
+        "defaultRange": "Created date"
       }
     },
     "users": {
@@ -1261,6 +1267,7 @@
       "dashboard": "Dashboard",
       "students": "My Students",
       "sessions": "Upcoming Sessions",
+      "notifications": "Notifications",
       "requests": "My requests",
       "signOut": "Sign out",
       "language": "Language"
@@ -2120,6 +2127,120 @@
       "title": "Unable to load report",
       "body": "Please refresh the page and try again."
     }
+  },
+  "notifications": {
+    "nav": "Notifications",
+    "badge": {
+      "aria": "{count} unread notifications",
+      "cap": "99+"
+    },
+    "page": {
+      "title": "Notifications"
+    },
+    "filter": {
+      "type": "Type",
+      "status": "Status"
+    },
+    "type": {
+      "all": "All",
+      "announcement": "Announcement",
+      "homework": "Homework",
+      "request": "Request"
+    },
+    "unread": "Unread",
+    "read": "Read",
+    "action": {
+      "markRead": "Mark as read",
+      "markAllRead": "Mark all as read",
+      "marking": "Marking...",
+      "retry": "Retry"
+    },
+    "preview": {
+      "homework": "Homework was updated.",
+      "request": "Request status changed."
+    },
+    "loading": "Loading notifications...",
+    "empty": {
+      "title": "No notifications",
+      "body": "You'll see announcements, homework updates, and request updates here."
+    },
+    "error": {
+      "title": "Unable to load notifications",
+      "body": "Please refresh the page and try again."
+    },
+    "loadMore": {
+      "label": "Load more",
+      "loading": "Loading..."
+    },
+    "link": {
+      "unavailable": "This item is no longer available."
+    },
+    "toast": {
+      "markAllSuccess": "All notifications marked as read.",
+      "markedOneSuccess": "Notification marked as read.",
+      "errorGeneric": "Something went wrong. Please try again."
+    },
+    "_comment": "Step 23.3 unified in-app notifications (parent+tutor inbox and unread badges)."
+  },
+  "adminNotificationsReport": {
+    "page": {
+      "title": "Notifications report",
+      "subtitle": "Aggregate-only notification engagement metrics."
+    },
+    "summary": {
+      "totalNotificationsCreated": "Notifications created",
+      "totalRecipients": "Recipients",
+      "totalRead": "Read",
+      "readRate": "Read rate"
+    },
+    "filters": {
+      "dateRange": "Date range",
+      "type": "Type",
+      "audienceRole": "Audience",
+      "role": {
+        "parent": "Parent",
+        "tutor": "Tutor",
+        "admin": "Admin"
+      },
+      "readStatus": "Read status"
+    },
+    "readStatus": {
+      "all": "All",
+      "unread": "Unread",
+      "read": "Read"
+    },
+    "table": {
+      "type": "Type",
+      "audience": "Audience",
+      "sent": "Sent",
+      "read": "Read",
+      "readRate": "Read rate",
+      "avgTimeToRead": "Avg time to read"
+    },
+    "value": {
+      "dash": "?"
+    },
+    "export": {
+      "csv": "Export CSV",
+      "exporting": "Exporting...",
+      "toast": {
+        "success": {
+          "title": "Export started",
+          "body": "Your CSV download will begin shortly."
+        },
+        "error": {
+          "title": "Unable to export",
+          "body": "Please try again. If the problem continues, contact support."
+        }
+      }
+    },
+    "_comment": "Step 23.3 admin notifications report (aggregate-only, no per-user rows)."
+  },
+  "tutor": {
+    "nav": {
+      "notifications": "Notifications"
+    },
+    "_comment": "Tutor shell navigation labels."
   },
   "parent": {
     "nav": {
