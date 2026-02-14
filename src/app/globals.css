@@ -3,20 +3,22 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* macOS exposed that our secondary text was too light; keep muted copy at a readable baseline in light UI. */
+  --muted: #e2e8f0;
+  --muted-foreground: #475569;
+  --secondary-foreground: #334155;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary-foreground: var(--secondary-foreground);
+  /* Bridge legacy admin `text-slate-500` usage to the hardened muted token instead of per-page overrides. */
+  --color-slate-500: var(--muted-foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
@@ -28,18 +30,20 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Safari can render disabled form values with very low contrast; keep them readable. */
+/* macOS browsers can render disabled form values with very low contrast; keep them readable. */
 input:disabled,
 select:disabled,
 textarea:disabled {
-  opacity: 1;
-  color: var(--foreground);
-  -webkit-text-fill-color: var(--foreground);
+  /* Important ensures legacy `disabled:opacity-*` utilities never override readable disabled values. */
+  opacity: 1 !important;
+  /* Keep disabled values readable on white admin surfaces even when OS dark mode flips `--foreground`. */
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
 }
 
-/* Keep placeholder text legible on macOS while remaining visually secondary. */
+/* Keep placeholders secondary via token, but never combine muted text with extra opacity fades. */
 input::placeholder,
 textarea::placeholder {
-  color: #64748b;
+  color: var(--muted-foreground);
   opacity: 1;
 }
